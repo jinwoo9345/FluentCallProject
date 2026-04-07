@@ -47,6 +47,24 @@
         "createdAt": { "type": "string", "format": "date-time", "description": "신청 일시" }
       },
       "required": ["name", "contactType", "contactValue", "availableTime", "motivation", "createdAt"]
+    },
+    "Mail": {
+      "title": "Mail",
+      "description": "Trigger Email 확장을 위한 이메일 발송 큐",
+      "type": "object",
+      "properties": {
+        "to": { "type": "string", "description": "수신자 이메일 주소" },
+        "message": {
+          "type": "object",
+          "properties": {
+            "subject": { "type": "string", "description": "이메일 제목" },
+            "html": { "type": "string", "description": "이메일 본문 (HTML)" }
+          },
+          "required": ["subject", "html"]
+        },
+        "createdAt": { "type": "string", "format": "date-time", "description": "생성 일시" }
+      },
+      "required": ["to", "message", "createdAt"]
     }
   },
   "firestore": {
@@ -61,6 +79,10 @@
     "/consultations/{consultationId}": {
       "schema": "Consultation",
       "description": "무료 상담 신청 컬렉션"
+    },
+    "/mail/{mailId}": {
+      "schema": "Mail",
+      "description": "이메일 발송 대기열 컬렉션"
     }
   }
 }

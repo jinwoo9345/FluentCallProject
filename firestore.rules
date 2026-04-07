@@ -41,6 +41,13 @@ service cloud.firestore {
     //   - notes: string (optional) - Additional notes
     //   - createdAt: timestamp (required, immutable) - Creation time
     //
+    // Collection: mail
+    // Document ID: {mailId} (auto-generated)
+    // Fields:
+    //   - to: string (required) - Recipient email
+    //   - message: map (required) - Email content { subject: string, html: string }
+    //   - createdAt: timestamp (required, immutable) - Creation time
+    //
     // ===============================================================
 
     // ===============================================================
@@ -117,6 +124,16 @@ service cloud.firestore {
              data.createdAt is timestamp;
     }
 
+    function isValidMail(data) {
+      return hasOnlyAllowedFields(['to', 'message', 'createdAt']) &&
+             isValidEmail(data.to) &&
+             data.message is map &&
+             data.message.keys().hasOnly(['subject', 'html']) &&
+             data.message.subject is string && data.message.subject.size() > 0 &&
+             data.message.html is string && data.message.html.size() > 0 &&
+             data.createdAt is timestamp;
+    }
+
     // ===============================================================
     // Collection Rules
     // ===============================================================
@@ -161,6 +178,14 @@ service cloud.firestore {
       allow create: if isValidConsultation(request.resource.data);
       
       // Only admins can read, update, or delete consultations
+      allow read, update, delete: if isAdmin();
+    }
+
+    match /mail/{mailId} {
+      // Anyone can queue an email (used for consultation notifications)
+      allow create: if isValidMail(request.resource.data);
+      
+      // Only admins can read mail queue
       allow read, update, delete: if isAdmin();
     }
 

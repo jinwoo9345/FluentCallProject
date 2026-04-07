@@ -36,6 +36,27 @@ export function ConsultationModal({ isOpen, onClose }: ConsultationModalProps) {
         notes,
         createdAt: serverTimestamp()
       });
+
+      // Queue email notification for admin
+      await addDoc(collection(db, 'mail'), {
+        to: 'jjw9345@gmail.com',
+        message: {
+          subject: `[플루언트콜] 새로운 무료 전화상담 신청 - ${name}님`,
+          html: `
+            <h2>새로운 전화상담 신청이 접수되었습니다.</h2>
+            <ul>
+              <li><strong>이름:</strong> ${name}</li>
+              <li><strong>연락 수단:</strong> ${contactType === 'kakao' ? '카카오톡' : contactType === 'discord' ? '디스코드' : '전화번호'}</li>
+              <li><strong>연락처:</strong> ${contactValue}</li>
+              <li><strong>상담 가능 시간:</strong> ${availableTime}</li>
+              <li><strong>신청 이유/목적:</strong> ${motivation}</li>
+              <li><strong>기타 참고사항:</strong> ${notes || '없음'}</li>
+            </ul>
+          `
+        },
+        createdAt: serverTimestamp()
+      });
+
       setSuccess(true);
     } catch (err: any) {
       console.error(err);
