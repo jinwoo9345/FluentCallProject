@@ -32,9 +32,6 @@ export default function Home() {
                     튜터 찾기 <ArrowRight size={20} />
                   </Button>
                 </Link>
-                <Link to="/pricing" className="text-sm font-semibold leading-6 text-slate-900">
-                  가격 안내 보기 <span aria-hidden="true">→</span>
-                </Link>
               </div>
               <div className="mt-10 flex items-center gap-4 text-sm text-slate-500">
                 <div className="flex -space-x-2">

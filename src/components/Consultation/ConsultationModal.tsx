@@ -60,7 +60,15 @@ export function ConsultationModal({ isOpen, onClose }: ConsultationModalProps) {
       setSuccess(true);
     } catch (err: any) {
       console.error(err);
-      setError('신청 중 오류가 발생했습니다. 다시 시도해주세요.');
+      
+      let errorMessage = '신청 중 오류가 발생했습니다. 다시 시도해주세요.';
+      const errorString = err.code || err.message || '';
+      
+      if (errorString.includes('permission-denied') || errorString.includes('Missing or insufficient permissions')) {
+        errorMessage = '입력하신 정보가 올바르지 않거나 권한이 없습니다. 모든 필수 항목을 정확히 입력해주세요.';
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

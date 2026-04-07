@@ -56,7 +56,27 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
       onClose();
     } catch (err: any) {
       console.error(err);
-      setError(err.message || '인증에 실패했습니다.');
+      
+      let errorMessage = '오류가 발생했습니다. 다시 시도해주세요.';
+      const errorString = err.code || err.message || '';
+      
+      if (errorString.includes('email-already-in-use')) {
+        errorMessage = '이미 가입된 이메일입니다.';
+      } else if (errorString.includes('invalid-email')) {
+        errorMessage = '유효하지 않은 이메일 형식입니다.';
+      } else if (errorString.includes('weak-password')) {
+        errorMessage = '비밀번호는 6자리 이상이어야 합니다.';
+      } else if (errorString.includes('user-not-found') || errorString.includes('invalid-credential')) {
+        errorMessage = '이메일 또는 비밀번호가 일치하지 않습니다.';
+      } else if (errorString.includes('wrong-password')) {
+        errorMessage = '비밀번호가 일치하지 않습니다.';
+      } else if (errorString.includes('operation-not-allowed')) {
+        errorMessage = '이메일 로그인이 비활성화되어 있습니다. (관리자 설정 필요)';
+      } else if (errorString.includes('permission-denied') || errorString.includes('Missing or insufficient permissions')) {
+        errorMessage = '입력하신 정보가 올바르지 않거나 권한이 없습니다. (이름은 2자 이상 입력해주세요)';
+      }
+
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
