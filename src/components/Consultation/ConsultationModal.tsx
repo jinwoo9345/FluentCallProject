@@ -47,7 +47,7 @@ export function ConsultationModal({ isOpen, onClose }: ConsultationModalProps) {
           {
             to_name: '관리자',
             from_name: name,
-            contact_type: contactType === 'kakao' ? '카카오톡' : contactType === 'discord' ? '디스코드' : '전화번호',
+            contact_label: contactType === 'kakao' ? '카카오톡 아이디' : contactType === 'discord' ? '디스코드 아이디' : '전화번호',
             contact_value: contactValue,
             available_time: availableTime,
             motivation: motivation,

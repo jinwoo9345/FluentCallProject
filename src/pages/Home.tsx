@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
-import { ArrowRight, CheckCircle2, Globe, Zap, ShieldCheck } from 'lucide-react';
+import { ArrowRight, Globe, Zap, ShieldCheck } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Link } from 'react-router-dom';
 import { ConsultationModal } from '../components/Consultation/ConsultationModal';
@@ -23,8 +23,8 @@ export default function Home() {
                 나에게 딱 맞는<br></br><span className="text-blue-600">튜터</span>를 만나보세요
               </h1>
               <p className="mt-6 text-lg leading-8 text-slate-600">
-                검증된 원어민 강사들과 연결해 드립니다. 
-                원하는 시간에 예약하고, 나만의 학습 스케줄을 스마트하게 관리하세요.
+                실력 있는 원어민 강사들과 함께 영어를 시작하세요. 
+                나만의 학습 스케줄을 스마트하게 관리할 수 있습니다.
               </p>
               <div className="mt-10 flex items-center gap-x-6">
                 <Link to="/tutors">
@@ -32,20 +32,6 @@ export default function Home() {
                     튜터 찾기 <ArrowRight size={20} />
                   </Button>
                 </Link>
-              </div>
-              <div className="mt-10 flex items-center gap-4 text-sm text-slate-500">
-                <div className="flex -space-x-2">
-                  {[1, 2, 3, 4].map((i) => (
-                    <img
-                      key={i}
-                      className="h-8 w-8 rounded-full border-2 border-white"
-                      src={`https://picsum.photos/seed/user${i}/100/100`}
-                      alt="User"
-                      referrerPolicy="no-referrer"
-                    />
-                  ))}
-                </div>
-                <span>전 세계 10,000명 이상의 학생들과 함께하고 있습니다</span>
               </div>
             </motion.div>
             <motion.div
@@ -61,18 +47,6 @@ export default function Home() {
                   className="h-full w-full rounded-2xl object-cover shadow-2xl"
                   referrerPolicy="no-referrer"
                 />
-              </div>
-              {/* Floating stats card */}
-              <div className="absolute -bottom-6 -left-6 rounded-2xl bg-white p-6 shadow-xl border border-slate-100">
-                <div className="flex items-center gap-4">
-                  <div className="rounded-full bg-green-100 p-2 text-green-600">
-                    <CheckCircle2 size={24} />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold text-slate-900">98%</p>
-                    <p className="text-sm text-slate-500">학습 만족도</p>
-                  </div>
-                </div>
               </div>
             </motion.div>
           </div>
@@ -93,17 +67,17 @@ export default function Home() {
             {[
               {
                 title: '원어민 튜터',
-                desc: '미국, 영국, 캐나다, 호주의 검증된 원어민 강사로부터 직접 배우세요.',
+                desc: '실력 있는 원어민 강사로부터 직접 영어를 배워보세요.',
                 icon: Globe,
               },
               {
                 title: '유연한 스케줄',
-                desc: '바쁜 일상에 맞춰 수업을 예약하세요. 모든 시간대 24/7 이용 가능합니다.',
+                desc: '바쁜 일상에 맞춰 유연하게 학습 스케줄을 관리하세요.',
                 icon: Zap,
               },
               {
                 title: '안전하고 확실한 시스템',
-                desc: '검증된 튜터와 안전한 결제 시스템으로 안심하고 학습에만 집중하세요.',
+                desc: '안전한 시스템으로 안심하고 영어 학습에만 집중하세요.',
                 icon: ShieldCheck,
               },
             ].map((feature, idx) => (
