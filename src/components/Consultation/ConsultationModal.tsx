@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { X, Phone, MessageCircle, MessageSquare } from 'lucide-react';
 import { db } from '../../firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import emailjs from '@emailjs/browser';
 import { Button } from '../ui/Button';
 
 interface ConsultationModalProps {
@@ -27,6 +28,7 @@ export function ConsultationModal({ isOpen, onClose }: ConsultationModalProps) {
     setError('');
 
     try {
+      // 1. Save to Firestore (consultations collection)
       await addDoc(collection(db, 'consultations'), {
         name,
         contactType,
@@ -37,25 +39,26 @@ export function ConsultationModal({ isOpen, onClose }: ConsultationModalProps) {
         createdAt: serverTimestamp()
       });
 
-      // Queue email notification for admin
-      await addDoc(collection(db, 'mail'), {
-        to: 'jjw9345@gmail.com',
-        message: {
-          subject: `[플루언트콜] 새로운 무료 전화상담 신청 - ${name}님`,
-          html: `
-            <h2>새로운 전화상담 신청이 접수되었습니다.</h2>
-            <ul>
-              <li><strong>이름:</strong> ${name}</li>
-              <li><strong>연락 수단:</strong> ${contactType === 'kakao' ? '카카오톡' : contactType === 'discord' ? '디스코드' : '전화번호'}</li>
-              <li><strong>연락처:</strong> ${contactValue}</li>
-              <li><strong>상담 가능 시간:</strong> ${availableTime}</li>
-              <li><strong>신청 이유/목적:</strong> ${motivation}</li>
-              <li><strong>기타 참고사항:</strong> ${notes || '없음'}</li>
-            </ul>
-          `
-        },
-        createdAt: serverTimestamp()
-      });
+      // 2. Send email via EmailJS (Free Tier)
+      try {
+        await emailjs.send(
+          (import.meta as any).env.VITE_EMAILJS_SERVICE_ID || 'YOUR_SERVICE_ID',
+          (import.meta as any).env.VITE_EMAILJS_TEMPLATE_ID || 'YOUR_TEMPLATE_ID',
+          {
+            to_name: '관리자',
+            from_name: name,
+            contact_type: contactType === 'kakao' ? '카카오톡' : contactType === 'discord' ? '디스코드' : '전화번호',
+            contact_value: contactValue,
+            available_time: availableTime,
+            motivation: motivation,
+            notes: notes || '없음'
+          },
+          (import.meta as any).env.VITE_EMAILJS_PUBLIC_KEY || 'YOUR_PUBLIC_KEY'
+        );
+      } catch (emailErr) {
+        console.error('EmailJS 발송 실패 (설정이 필요합니다):', emailErr);
+        // 이메일 발송이 실패해도 DB 저장이 완료되었으므로 사용자에게는 성공으로 표시합니다.
+      }
 
       setSuccess(true);
     } catch (err: any) {
