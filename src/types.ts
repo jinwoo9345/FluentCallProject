@@ -9,6 +9,8 @@ export interface Tutor {
   hourlyRate: number;
   availability: string[]; // e.g., ["Mon 10:00", "Tue 14:00"]
   languages: string[];
+  tier?: string;
+  location?: string;
 }
 
 export interface Session {
@@ -28,4 +30,18 @@ export interface User {
   avatar?: string;
   credits: number;
   role: 'student' | 'tutor';
+  referralCode?: string;
+  referredBy?: string;
+  discountBalance?: number;
+}
+
+export interface Consultation {
+  id?: string;
+  name: string;
+  contactType: 'kakao' | 'discord' | 'phone';
+  contactValue: string;
+  availableTime: string;
+  motivation: string;
+  notes?: string;
+  createdAt?: any;
 }

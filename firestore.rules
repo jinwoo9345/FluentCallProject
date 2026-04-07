@@ -14,6 +14,9 @@ service cloud.firestore {
     //   - role: string (required, enum: ['student', 'tutor']) - User role
     //   - credits: number (optional, >= 0) - Student credits
     //   - avatar: string (optional, URL format) - Profile image URL
+    //   - referralCode: string (required, immutable) - Own referral code
+    //   - referredBy: string (optional, immutable) - Referral code entered at signup
+    //   - discountBalance: number (optional, >= 0) - Accumulated discount
     //   - createdAt: timestamp (required, immutable) - Creation time
     //
     // Collection: sessions
@@ -26,6 +29,17 @@ service cloud.firestore {
     //   - status: string (required, enum: ['upcoming', 'completed', 'cancelled']) - Session status
     //   - totalPrice: number (required, positive) - Total price including fee
     //   - fee: number (required, positive) - Platform fee
+    //
+    // Collection: consultations
+    // Document ID: {consultationId} (auto-generated)
+    // Fields:
+    //   - name: string (required) - Applicant name
+    //   - contactType: string (required, enum: ['kakao', 'discord', 'phone']) - Contact method
+    //   - contactValue: string (required) - Contact info
+    //   - availableTime: string (required) - Available time
+    //   - motivation: string (required) - Motivation
+    //   - notes: string (optional) - Additional notes
+    //   - createdAt: timestamp (required, immutable) - Creation time
     //
     // ===============================================================
 
@@ -68,13 +82,16 @@ service cloud.firestore {
     // ===============================================================
 
     function isValidUser(data) {
-      return hasOnlyAllowedFields(['uid', 'name', 'email', 'role', 'credits', 'avatar', 'createdAt']) &&
+      return hasOnlyAllowedFields(['uid', 'name', 'email', 'role', 'credits', 'avatar', 'referralCode', 'referredBy', 'discountBalance', 'createdAt']) &&
              data.uid == request.auth.uid &&
              data.name is string && data.name.size() >= 2 && data.name.size() <= 50 &&
              isValidEmail(data.email) &&
              data.role in ['student', 'tutor'] &&
              (!('credits' in data) || (data.credits is number && data.credits >= 0)) &&
              (!('avatar' in data) || isValidUrl(data.avatar)) &&
+             data.referralCode is string && data.referralCode.size() > 0 &&
+             (!('referredBy' in data) || data.referredBy is string) &&
+             (!('discountBalance' in data) || (data.discountBalance is number && data.discountBalance >= 0)) &&
              data.createdAt is timestamp;
     }
 
@@ -87,6 +104,17 @@ service cloud.firestore {
              data.status in ['upcoming', 'completed', 'cancelled'] &&
              data.totalPrice is number && data.totalPrice > 0 &&
              data.fee is number && data.fee > 0;
+    }
+
+    function isValidConsultation(data) {
+      return hasOnlyAllowedFields(['name', 'contactType', 'contactValue', 'availableTime', 'motivation', 'notes', 'createdAt']) &&
+             data.name is string && data.name.size() > 0 &&
+             data.contactType in ['kakao', 'discord', 'phone'] &&
+             data.contactValue is string && data.contactValue.size() > 0 &&
+             data.availableTime is string && data.availableTime.size() > 0 &&
+             data.motivation is string && data.motivation.size() > 0 &&
+             (!('notes' in data) || data.notes is string) &&
+             data.createdAt is timestamp;
     }
 
     // ===============================================================
@@ -104,7 +132,7 @@ service cloud.firestore {
       
       // Users can update their own profile, but cannot change role or uid.
       allow update: if isOwner(userId) && isValidUser(request.resource.data) && 
-                    areImmutableFieldsUnchanged(['uid', 'role', 'createdAt']);
+                    areImmutableFieldsUnchanged(['uid', 'role', 'referralCode', 'referredBy', 'createdAt']);
     }
 
     match /sessions/{sessionId} {
@@ -126,6 +154,14 @@ service cloud.firestore {
                      isAdmin()) &&
                     isValidSession(request.resource.data) &&
                     areImmutableFieldsUnchanged(['studentId', 'tutorId', 'startTime', 'duration', 'totalPrice', 'fee']);
+    }
+
+    match /consultations/{consultationId} {
+      // Anyone can create a consultation request
+      allow create: if isValidConsultation(request.resource.data);
+      
+      // Only admins can read, update, or delete consultations
+      allow read, update, delete: if isAdmin();
     }
 
     // Default deny

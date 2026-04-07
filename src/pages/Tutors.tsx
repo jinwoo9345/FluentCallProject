@@ -82,9 +82,9 @@ export default function Tutors() {
                   <div>
                     <h3 className="font-bold text-slate-900">{selectedTutor.name}</h3>
                     <div className="flex flex-col text-sm">
-                      <span className="text-slate-500">수업료: ${selectedTutor.hourlyRate}</span>
-                      <span className="text-blue-600 font-medium">플랫폼 수수료 (10%): ${(selectedTutor.hourlyRate * 0.1).toFixed(2)}</span>
-                      <span className="text-slate-900 font-bold mt-1">총 결제 금액: ${(selectedTutor.hourlyRate * 1.1).toFixed(2)}</span>
+                      <span className="text-slate-500">수업료: {selectedTutor.hourlyRate.toLocaleString()}원</span>
+                      <span className="text-blue-600 font-medium">플랫폼 수수료 (10%): {(selectedTutor.hourlyRate * 0.1).toLocaleString()}원</span>
+                      <span className="text-slate-900 font-bold mt-1">총 결제 금액: {(selectedTutor.hourlyRate * 1.1).toLocaleString()}원</span>
                     </div>
                   </div>
                 </div>
@@ -192,7 +192,11 @@ export default function Tutors() {
                           {tutor.rating}
                         </div>
                       </div>
-                      <p className="text-xs text-slate-500">리뷰 {tutor.reviewCount}개</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">{tutor.tier}</span>
+                        <span className="text-xs text-slate-500">{tutor.location}</span>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-1">리뷰 {tutor.reviewCount}개</p>
                       <div className="mt-2 flex flex-wrap gap-1">
                         {tutor.specialties.slice(0, 2).map((s) => (
                           <span key={s} className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-600">
@@ -209,7 +213,7 @@ export default function Tutors() {
 
                   <div className="mt-6 flex items-center justify-between border-t border-slate-50 pt-4">
                     <div>
-                      <span className="text-lg font-bold text-slate-900">${tutor.hourlyRate}</span>
+                      <span className="text-lg font-bold text-slate-900">{tutor.hourlyRate.toLocaleString()}원</span>
                       <span className="text-xs text-slate-400"> / 시간</span>
                     </div>
                     <div className="flex gap-2">

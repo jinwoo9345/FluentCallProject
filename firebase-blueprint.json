@@ -11,9 +11,12 @@
         "role": { "type": "string", "enum": ["student", "tutor"], "description": "사용자 역할" },
         "credits": { "type": "number", "description": "보유 크레딧 (수강생 전용)" },
         "avatar": { "type": "string", "description": "프로필 이미지 URL" },
-        "createdAt": { "type": "string", "format": "date-time", "description": "가입 일시" }
+        "createdAt": { "type": "string", "format": "date-time", "description": "가입 일시" },
+        "referralCode": { "type": "string", "description": "자신의 추천인 코드" },
+        "referredBy": { "type": "string", "description": "가입 시 입력한 추천인 코드" },
+        "discountBalance": { "type": "number", "description": "추천으로 쌓인 할인 금액" }
       },
-      "required": ["uid", "name", "email", "role"]
+      "required": ["uid", "name", "email", "role", "referralCode"]
     },
     "Session": {
       "title": "Session",
@@ -29,6 +32,21 @@
         "fee": { "type": "number", "description": "플랫폼 수수료" }
       },
       "required": ["studentId", "tutorId", "startTime", "status"]
+    },
+    "Consultation": {
+      "title": "Consultation",
+      "description": "무료 전화상담 신청 내역",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "신청자 이름" },
+        "contactType": { "type": "string", "enum": ["kakao", "discord", "phone"], "description": "연락 수단" },
+        "contactValue": { "type": "string", "description": "연락처 정보" },
+        "availableTime": { "type": "string", "description": "상담 가능 시간" },
+        "motivation": { "type": "string", "description": "신청 이유/동기/목적" },
+        "notes": { "type": "string", "description": "기타 사항" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "신청 일시" }
+      },
+      "required": ["name", "contactType", "contactValue", "availableTime", "motivation", "createdAt"]
     }
   },
   "firestore": {
@@ -39,6 +57,10 @@
     "/sessions/{sessionId}": {
       "schema": "Session",
       "description": "수업 예약 정보 컬렉션"
+    },
+    "/consultations/{consultationId}": {
+      "schema": "Consultation",
+      "description": "무료 상담 신청 컬렉션"
     }
   }
 }

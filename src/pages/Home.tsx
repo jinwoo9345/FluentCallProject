@@ -1,9 +1,13 @@
+import { useState } from 'react';
 import { motion } from 'motion/react';
 import { ArrowRight, CheckCircle2, Globe, Zap, ShieldCheck } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Link } from 'react-router-dom';
+import { ConsultationModal } from '../components/Consultation/ConsultationModal';
 
 export default function Home() {
+  const [isConsultationOpen, setIsConsultationOpen] = useState(false);
+
   return (
     <div className="flex flex-col">
       {/* Hero Section */}
@@ -130,10 +134,12 @@ export default function Home() {
               지금 바로 시작해볼까요?
             </h2>
             <p className="mx-auto mt-6 max-w-xl text-lg text-blue-100">
-              첫 15분 무료 체험 수업을 신청하세요. 카드 등록이 필요 없습니다.
+              무료 전화상담을 통해 나에게 맞는 학습 방향을 찾아보세요.
             </p>
             <div className="mt-10 flex justify-center gap-4">
-              <Button variant="secondary" size="lg">무료 체험 시작하기</Button>
+              <Button variant="secondary" size="lg" onClick={() => setIsConsultationOpen(true)}>
+                무료 전화상담 신청하기
+              </Button>
             </div>
             {/* Decorative circles */}
             <div className="absolute -left-20 -top-20 h-64 w-64 rounded-full bg-blue-500/20" />
@@ -141,6 +147,11 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      <ConsultationModal 
+        isOpen={isConsultationOpen} 
+        onClose={() => setIsConsultationOpen(false)} 
+      />
     </div>
   );
 }

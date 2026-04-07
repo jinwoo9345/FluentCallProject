@@ -18,6 +18,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [referredBy, setReferredBy] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -33,6 +34,9 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
         
         await updateProfile(user, { displayName: name });
         
+        // Generate a random 6-character referral code
+        const referralCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+
         // Create user document in Firestore
         await setDoc(doc(db, 'users', user.uid), {
           uid: user.uid,
@@ -40,6 +44,9 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
           email,
           role,
           credits: role === 'student' ? 60 : 0, // Initial 60 mins for students
+          referralCode,
+          referredBy: role === 'student' ? referredBy : '',
+          discountBalance: 0,
           createdAt: serverTimestamp(),
           avatar: `https://picsum.photos/seed/${user.uid}/200/200`
         });
@@ -122,6 +129,19 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
                       onChange={(e) => setName(e.target.value)}
                     />
                   </div>
+
+                  {role === 'student' && (
+                    <div className="relative">
+                      <div className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">#</div>
+                      <input
+                        type="text"
+                        placeholder="추천인 코드 (선택)"
+                        className="w-full pl-12 pr-4 py-3 rounded-xl border border-slate-200 focus:border-blue-600 focus:ring-2 focus:ring-blue-100 outline-none transition-all"
+                        value={referredBy}
+                        onChange={(e) => setReferredBy(e.target.value.toUpperCase())}
+                      />
+                    </div>
+                  )}
                 </>
               )}
 
