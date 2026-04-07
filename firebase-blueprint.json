@@ -1,0 +1,44 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "플랫폼 사용자 정보 (수강생 또는 강사)",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "name": { "type": "string", "description": "사용자 이름" },
+        "email": { "type": "string", "format": "email", "description": "이메일 주소" },
+        "role": { "type": "string", "enum": ["student", "tutor"], "description": "사용자 역할" },
+        "credits": { "type": "number", "description": "보유 크레딧 (수강생 전용)" },
+        "avatar": { "type": "string", "description": "프로필 이미지 URL" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "가입 일시" }
+      },
+      "required": ["uid", "name", "email", "role"]
+    },
+    "Session": {
+      "title": "Session",
+      "description": "예약된 수업 세션",
+      "type": "object",
+      "properties": {
+        "studentId": { "type": "string", "description": "수강생 UID" },
+        "tutorId": { "type": "string", "description": "강사 UID" },
+        "startTime": { "type": "string", "format": "date-time", "description": "수업 시작 시간" },
+        "duration": { "type": "number", "description": "수업 시간 (분)" },
+        "status": { "type": "string", "enum": ["upcoming", "completed", "cancelled"], "description": "수업 상태" },
+        "totalPrice": { "type": "number", "description": "총 결제 금액 (수수료 포함)" },
+        "fee": { "type": "number", "description": "플랫폼 수수료" }
+      },
+      "required": ["studentId", "tutorId", "startTime", "status"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "사용자 프로필 컬렉션"
+    },
+    "/sessions/{sessionId}": {
+      "schema": "Session",
+      "description": "수업 예약 정보 컬렉션"
+    }
+  }
+}
