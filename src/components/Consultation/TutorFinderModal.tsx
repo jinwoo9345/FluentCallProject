@@ -67,37 +67,45 @@ export function TutorFinderModal({ isOpen, onClose }: TutorFinderModalProps) {
 
       // 2. Send email via EmailJS
       try {
-        await emailjs.send(
-          (import.meta as any).env.VITE_EMAILJS_SERVICE_ID || 'YOUR_SERVICE_ID',
-          (import.meta as any).env.VITE_EMAILJS_TEMPLATE_ID || 'YOUR_TEMPLATE_ID',
-          {
-            to_name: '관리자',
-            from_name: '튜터 찾기 신청자',
-            contact_label: '연락처',
-            contact_value: formData.contact,
-            purpose: formData.purpose,
-            duration: formData.duration,
-            level: formData.level,
-            available_time: formData.availableTime,
-            frequency: formData.frequency,
-            specific_goals: formData.specificGoals.join(', '),
-            consultation_pref: formData.consultationPref,
-            // Mapping for the template
-            summary: `
-              목적: ${formData.purpose}
-              기간: ${formData.duration}
-              레벨: ${formData.level}
-              시간: ${formData.availableTime}
-              빈도: ${formData.frequency}
-              구체적 목표: ${formData.specificGoals.join(', ')}
-              연락처: ${formData.contact}
-              상담 여부: ${formData.consultationPref}
-            `
-          },
-          (import.meta as any).env.VITE_EMAILJS_PUBLIC_KEY || 'YOUR_PUBLIC_KEY'
-        );
+        const serviceId = (import.meta as any).env.VITE_EMAILJS_SERVICE_ID;
+        const templateId = (import.meta as any).env.VITE_EMAILJS_TEMPLATE_ID;
+        const publicKey = (import.meta as any).env.VITE_EMAILJS_PUBLIC_KEY;
+
+        if (!serviceId || !templateId || !publicKey) {
+          console.warn('EmailJS 설정이 누락되었습니다. 환경 변수를 확인해주세요.');
+        } else {
+          await emailjs.send(
+            serviceId,
+            templateId,
+            {
+              to_name: '관리자',
+              from_name: '튜터 찾기 신청자',
+              contact_label: '연락처',
+              contact_value: formData.contact,
+              purpose: formData.purpose,
+              duration: formData.duration,
+              level: formData.level,
+              available_time: formData.availableTime,
+              frequency: formData.frequency,
+              specific_goals: formData.specificGoals.join(', '),
+              consultation_pref: formData.consultationPref,
+              summary: `
+                목적: ${formData.purpose}
+                기간: ${formData.duration}
+                레벨: ${formData.level}
+                시간: ${formData.availableTime}
+                빈도: ${formData.frequency}
+                구체적 목표: ${formData.specificGoals.join(', ')}
+                연락처: ${formData.contact}
+                상담 여부: ${formData.consultationPref}
+              `
+            },
+            publicKey
+          );
+        }
       } catch (emailErr) {
         console.error('EmailJS 발송 실패:', emailErr);
+        // 메일 발송 실패가 전체 프로세스를 막지 않도록 함 (DB 저장은 성공했으므로)
       }
 
       setSuccess(true);
