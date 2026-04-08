@@ -134,9 +134,34 @@ service cloud.firestore {
              data.createdAt is timestamp;
     }
 
+    function isValidTutorRequest(data) {
+      return hasOnlyAllowedFields(['purpose', 'duration', 'level', 'availableTime', 'frequency', 'specificGoals', 'contact', 'consultationPref', 'createdAt']) &&
+             data.purpose is string && data.purpose.size() > 0 &&
+             data.duration is string && data.duration.size() > 0 &&
+             data.level is string && data.level.size() > 0 &&
+             data.availableTime is string && data.availableTime.size() > 0 &&
+             data.frequency is string && data.frequency.size() > 0 &&
+             data.specificGoals is list && data.specificGoals.size() > 0 &&
+             data.contact is string && data.contact.size() > 0 &&
+             data.consultationPref is string && data.consultationPref.size() > 0 &&
+             data.createdAt is timestamp;
+    }
+
     // ===============================================================
     // Collection Rules
     // ===============================================================
+
+    match /tutor_requests/{requestId} {
+      // 누구나 튜터 찾기 신청 가능하지만 데이터 검증 필수
+      allow create: if isValidTutorRequest(request.resource.data);
+      allow read, update, delete: if isAdmin();
+    }
+
+    match /consultations/{consultationId} {
+      // 누구나 상담 신청 가능하지만 데이터 검증 필수
+      allow create: if isValidConsultation(request.resource.data);
+      allow read, update, delete: if isAdmin();
+    }
 
     match /users/{userId} {
       // Users can read their own profile. Admins can read all.
@@ -173,19 +198,9 @@ service cloud.firestore {
                     areImmutableFieldsUnchanged(['studentId', 'tutorId', 'startTime', 'duration', 'totalPrice', 'fee']);
     }
 
-    match /consultations/{consultationId} {
-      // Anyone can create a consultation request
-      allow create: if isValidConsultation(request.resource.data);
-      
-      // Only admins can read, update, or delete consultations
-      allow read, update, delete: if isAdmin();
-    }
-
     match /mail/{mailId} {
-      // Anyone can queue an email (used for consultation notifications)
+      // Anyone can queue an email but must be valid
       allow create: if isValidMail(request.resource.data);
-      
-      // Only admins can read mail queue
       allow read, update, delete: if isAdmin();
     }
 

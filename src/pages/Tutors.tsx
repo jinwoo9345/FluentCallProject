@@ -1,17 +1,25 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
-import { Star, Search, Filter, MessageSquare } from 'lucide-react';
+import { Star, Search, Filter, MessageSquare, CreditCard, MapPin } from 'lucide-react';
 import { MOCK_TUTORS } from '../constants';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
+import { PaymentModal } from '../components/Payment/PaymentModal';
 
 export default function Tutors() {
   const [searchQuery, setSearchQuery] = useState('');
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [selectedTutor, setSelectedTutor] = useState<any>(null);
 
   const filteredTutors = MOCK_TUTORS.filter(tutor => 
     tutor.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     tutor.specialties.some(s => s.toLowerCase().includes(searchQuery.toLowerCase()))
   );
+
+  const handlePayClick = (tutor: any) => {
+    setSelectedTutor(tutor);
+    setIsPaymentModalOpen(true);
+  };
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
@@ -75,7 +83,7 @@ export default function Tutors() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.1 }}
               >
-                <Card className="flex h-full flex-col">
+                <Card className="flex h-full flex-col group hover:shadow-lg transition-shadow">
                   <div className="flex items-start gap-4">
                     <img 
                       src={tutor.avatar} 
@@ -119,6 +127,10 @@ export default function Tutors() {
                       <Button variant="outline" size="sm" className="p-2">
                         <MessageSquare size={16} />
                       </Button>
+                      <Button size="sm" className="gap-2" onClick={() => handlePayClick(tutor)}>
+                        <CreditCard size={16} />
+                        결제하기
+                      </Button>
                     </div>
                   </div>
                 </Card>
@@ -127,6 +139,17 @@ export default function Tutors() {
           </div>
         </div>
       </div>
+
+      {selectedTutor && (
+        <PaymentModal
+          isOpen={isPaymentModalOpen}
+          onClose={() => setIsPaymentModalOpen(false)}
+          productId={`plan_${selectedTutor.id}`}
+          productName={`${selectedTutor.name} - 베이직 플랜`}
+          price={`${selectedTutor.hourlyRate.toLocaleString()}원`}
+          amount={selectedTutor.hourlyRate}
+        />
+      )}
     </div>
   );
 }
