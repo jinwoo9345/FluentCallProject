@@ -41,16 +41,20 @@ export function TutorFinderModal({ isOpen, onClose }: TutorFinderModalProps) {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
 
+  const [serverConfig, setServerConfig] = useState<any>(null);
+
   useEffect(() => {
-    const serviceId = (import.meta as any).env.VITE_EMAILJS_SERVICE_ID;
-    const templateId = (import.meta as any).env.VITE_EMAILJS_TEMPLATE_ID;
-    const publicKey = (import.meta as any).env.VITE_EMAILJS_PUBLIC_KEY;
-    
-    console.log('EmailJS Config Check (TutorFinder):', {
-      serviceId: !!serviceId,
-      templateId: !!templateId,
-      publicKey: !!publicKey
-    });
+    // 서버에서 실시간 환경변수 가져오기
+    const fetchConfig = async () => {
+      try {
+        const res = await fetch('/api/config');
+        const data = await res.json();
+        setServerConfig(data);
+      } catch (err) {
+        console.error("Failed to fetch EmailJS config:", err);
+      }
+    };
+    fetchConfig();
   }, []);
 
   const totalSteps = 8;
@@ -92,9 +96,9 @@ export function TutorFinderModal({ isOpen, onClose }: TutorFinderModalProps) {
 
       // 2. Send email via EmailJS
       try {
-        const serviceId = (import.meta as any).env.VITE_EMAILJS_SERVICE_ID;
-        const templateId = (import.meta as any).env.VITE_EMAILJS_TEMPLATE_ID;
-        const publicKey = (import.meta as any).env.VITE_EMAILJS_PUBLIC_KEY;
+        const serviceId = serverConfig?.emailjsServiceId || (import.meta as any).env.VITE_EMAILJS_SERVICE_ID;
+        const templateId = serverConfig?.emailjsTemplateId || (import.meta as any).env.VITE_EMAILJS_TEMPLATE_ID;
+        const publicKey = serverConfig?.emailjsPublicKey || (import.meta as any).env.VITE_EMAILJS_PUBLIC_KEY;
 
         if (!serviceId || !templateId || !publicKey) {
           console.error('EmailJS 설정 누락:', { serviceId: !!serviceId, templateId: !!templateId, publicKey: !!publicKey });
