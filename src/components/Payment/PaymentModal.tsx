@@ -20,21 +20,34 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
   const [error, setError] = useState('');
 
   const clientKey = (import.meta.env.VITE_TOSS_CLIENT_KEY || '').trim();
+  const [manualKey, setManualKey] = useState('');
+  const [showManualInput, setShowManualInput] = useState(false);
 
   useEffect(() => {
-    console.log('PaymentModal Env Check:', {
+    const allKeys = Object.keys(import.meta.env);
+    const tossRelatedKeys = allKeys.filter(key => 
+      key.toUpperCase().includes('TOSS') || 
+      key.toUpperCase().includes('CLIENT') || 
+      key.toUpperCase().includes('KEY')
+    );
+    
+    console.log('PaymentModal Env Debug:', {
       hasClientKey: !!clientKey,
       clientKeyLength: clientKey.length,
-      allEnvKeys: Object.keys(import.meta.env).filter(key => key.startsWith('VITE_'))
+      tossRelatedKeys,
+      allViteKeys: allKeys.filter(key => key.startsWith('VITE_'))
     });
   }, [clientKey]);
 
   const handlePayment = async () => {
     if (!termsAgreed) return;
     
-    if (!clientKey) {
+    const activeKey = manualKey.trim() || clientKey;
+    
+    if (!activeKey) {
       const availableKeys = Object.keys(import.meta.env).filter(key => key.startsWith('VITE_')).join(', ');
-      setError(`결제 설정(VITE_TOSS_CLIENT_KEY)을 찾을 수 없습니다. (현재 인식된 VITE_ 변수: ${availableKeys || '없음'})`);
+      setError(`결제 설정(VITE_TOSS_CLIENT_KEY)을 찾을 수 없습니다. (인식된 변수: ${availableKeys || '없음'})`);
+      setShowManualInput(true);
       return;
     }
     
@@ -42,8 +55,8 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
     setError('');
 
     try {
-      console.log('Initializing Toss Payments with key:', clientKey.substring(0, 10) + '...');
-      const tossPayments = await loadTossPayments(clientKey);
+      console.log('Initializing Toss Payments with key:', activeKey.substring(0, 10) + '...');
+      const tossPayments = await loadTossPayments(activeKey);
       
       const orderId = `order_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
@@ -63,6 +76,7 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
         setError('결제가 취소되었습니다.');
       } else if (err.message?.includes('401') || err.code === 'INVALID_CLIENT_KEY' || err.message?.includes('인증되지 않은')) {
         setError('토스페이먼츠 인증에 실패했습니다. 입력하신 클라이언트 키가 해당 환경(테스트/실제)에 맞는지 확인해주세요.');
+        setShowManualInput(true);
       } else {
         setError(err.message || '결제 중 오류가 발생했습니다.');
       }
@@ -142,8 +156,24 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
                 </div>
 
                 {error && (
-                  <div className="p-4 rounded-xl bg-red-50 text-red-600 text-xs flex items-center gap-2">
-                    <AlertCircle size={16} /> {error}
+                  <div className="space-y-3">
+                    <div className="p-4 rounded-xl bg-red-50 text-red-600 text-xs flex items-center gap-2">
+                      <AlertCircle size={16} /> {error}
+                    </div>
+                    
+                    {showManualInput && (
+                      <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">직접 키 입력 (테스트용)</p>
+                        <input 
+                          type="text"
+                          placeholder="test_ck_..."
+                          className="w-full p-2 text-xs border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                          value={manualKey}
+                          onChange={(e) => setManualKey(e.target.value)}
+                        />
+                        <p className="text-[9px] text-slate-400">※ Settings 메뉴 설정이 인식되지 않을 때만 사용하세요.</p>
+                      </div>
+                    )}
                   </div>
                 )}
 
