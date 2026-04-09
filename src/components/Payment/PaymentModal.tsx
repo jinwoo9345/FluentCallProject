@@ -21,11 +21,20 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
 
   const clientKey = (import.meta.env.VITE_TOSS_CLIENT_KEY || '').trim();
 
+  useEffect(() => {
+    console.log('PaymentModal Env Check:', {
+      hasClientKey: !!clientKey,
+      clientKeyLength: clientKey.length,
+      allEnvKeys: Object.keys(import.meta.env).filter(key => key.startsWith('VITE_'))
+    });
+  }, [clientKey]);
+
   const handlePayment = async () => {
     if (!termsAgreed) return;
     
     if (!clientKey) {
-      setError('결제 설정(VITE_TOSS_CLIENT_KEY)이 누락되었습니다. Settings 메뉴에서 설정해주세요.');
+      const availableKeys = Object.keys(import.meta.env).filter(key => key.startsWith('VITE_')).join(', ');
+      setError(`결제 설정(VITE_TOSS_CLIENT_KEY)을 찾을 수 없습니다. (현재 인식된 VITE_ 변수: ${availableKeys || '없음'})`);
       return;
     }
     
