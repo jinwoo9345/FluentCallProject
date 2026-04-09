@@ -19,13 +19,20 @@ async function startServer() {
 
   // [최우선 순위] 환경변수 전달 API - 모든 미들웨어보다 앞에 배치
   app.get("/api/config", (req, res) => {
-    res.setHeader('Content-Type', 'application/json');
-    res.json({
+    console.log("[Server] Config API requested. Current process.env keys:", 
+      Object.keys(process.env).filter(k => k.startsWith('VITE_') || k.includes('TOSS'))
+    );
+
+    const config = {
       tossClientKey: (process.env.VITE_TOSS_CLIENT_KEY || "").trim(),
       emailjsPublicKey: (process.env.VITE_EMAILJS_PUBLIC_KEY || "").trim(),
       emailjsServiceId: (process.env.VITE_EMAILJS_SERVICE_ID || "").trim(),
       emailjsTemplateId: (process.env.VITE_EMAILJS_TEMPLATE_ID || "").trim(),
-    });
+    };
+
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.status(200).send(JSON.stringify(config));
   });
 
   // Toss Payments Confirmation API

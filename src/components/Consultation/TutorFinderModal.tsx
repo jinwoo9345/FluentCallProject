@@ -45,14 +45,24 @@ export function TutorFinderModal({ isOpen, onClose }: TutorFinderModalProps) {
 
   useEffect(() => {
     // 서버에서 실시간 환경변수 가져오기
-    const fetchConfig = async () => {
+    const fetchConfig = async (retries = 5) => {
       try {
         const res = await fetch(`/api/config?t=${Date.now()}`);
-        if (!res.ok) throw new Error('Network response was not ok');
-        const data = await res.json();
-        setServerConfig(data);
+        const text = await res.text();
+        
+        try {
+          const data = JSON.parse(text);
+          setServerConfig(data);
+        } catch (parseErr) {
+          if (retries > 0) {
+            setTimeout(() => fetchConfig(retries - 1), 1000);
+          }
+        }
       } catch (err) {
         console.error("Failed to fetch EmailJS config:", err);
+        if (retries > 0) {
+          setTimeout(() => fetchConfig(retries - 1), 1000);
+        }
       }
     };
     fetchConfig();

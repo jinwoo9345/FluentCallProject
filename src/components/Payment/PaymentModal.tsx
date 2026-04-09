@@ -24,28 +24,34 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
 
   useEffect(() => {
     // 서버에서 환경변수 가져오기
-    const loadConfig = async (retries = 3) => {
+    const loadConfig = async (retries = 5) => {
+      console.log(`Fetching config from server (Attempt ${6 - retries})...`);
       try {
         const res = await fetch(`/api/config?t=${Date.now()}`, { 
           cache: 'no-store',
           headers: { 'Accept': 'application/json' }
         });
         
-        if (!res.ok) throw new Error(`Server responded with ${res.status}`);
+        const text = await res.text();
         
-        const contentType = res.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
+        try {
+          const data = JSON.parse(text);
+          setServerConfig(data);
+          console.log("Server config loaded successfully");
+        } catch (parseErr) {
+          console.error("Non-JSON response from /api/config:", text.substring(0, 100));
           if (retries > 0) {
+            console.log(`Retrying in 1s... (${retries} retries left)`);
             setTimeout(() => loadConfig(retries - 1), 1000);
-            return;
+          } else {
+            setError("서버 설정 데이터를 불러오는 데 실패했습니다. 페이지를 새로고침해 주세요.");
           }
-          throw new Error('Server returned non-JSON response.');
         }
-        
-        const data = await res.json();
-        setServerConfig(data);
       } catch (err: any) {
         console.error('Failed to load server config:', err);
+        if (retries > 0) {
+          setTimeout(() => loadConfig(retries - 1), 1000);
+        }
       }
     };
 
