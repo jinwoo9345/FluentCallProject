@@ -27,12 +27,24 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
   useEffect(() => {
     // 서버에서 환경변수 가져오기
     fetch('/api/config')
-      .then(res => res.json())
+      .then(async res => {
+        if (!res.ok) throw new Error(`Server responded with ${res.status}`);
+        const contentType = res.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          const text = await res.text();
+          console.error('Non-JSON response from /api/config:', text.substring(0, 100));
+          throw new Error('Server returned non-JSON response. Please refresh the page.');
+        }
+        return res.json();
+      })
       .then(data => {
         console.log('Server Config Loaded:', data);
         setServerConfig(data);
       })
-      .catch(err => console.error('Failed to load server config:', err));
+      .catch(err => {
+        console.error('Failed to load server config:', err);
+        setError(`서버 설정을 불러오지 못했습니다: ${err.message}`);
+      });
 
     const allKeys = Object.keys(import.meta.env);
     const value = import.meta.env.VITE_TOSS_CLIENT_KEY;

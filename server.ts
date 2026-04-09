@@ -19,6 +19,7 @@ async function startServer() {
 
   // 환경변수 전달 API (클라이언트 키만 안전하게 전달)
   app.get("/api/config", (req, res) => {
+    console.log("Config API requested. Current VITE_TOSS_CLIENT_KEY length:", (process.env.VITE_TOSS_CLIENT_KEY || "").length);
     res.json({
       tossClientKey: (process.env.VITE_TOSS_CLIENT_KEY || "").trim(),
       emailjsPublicKey: (process.env.VITE_EMAILJS_PUBLIC_KEY || "").trim(),
