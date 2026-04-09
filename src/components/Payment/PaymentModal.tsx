@@ -26,25 +26,41 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
 
   useEffect(() => {
     // 서버에서 환경변수 가져오기
-    fetch('/api/config')
-      .then(async res => {
+    const loadConfig = async (retries = 3) => {
+      try {
+        console.log(`Fetching config from server (Attempt ${4 - retries})...`);
+        const res = await fetch('/api/config', { cache: 'no-store' });
+        
         if (!res.ok) throw new Error(`Server responded with ${res.status}`);
+        
         const contentType = res.headers.get('content-type');
         if (!contentType || !contentType.includes('application/json')) {
           const text = await res.text();
           console.error('Non-JSON response from /api/config:', text.substring(0, 100));
-          throw new Error('Server returned non-JSON response. Please refresh the page.');
+          
+          if (retries > 0) {
+            console.log(`Retrying in 1s... (${retries} retries left)`);
+            setTimeout(() => loadConfig(retries - 1), 1000);
+            return;
+          }
+          throw new Error('Server returned non-JSON response. Please check if the server is ready.');
         }
-        return res.json();
-      })
-      .then(data => {
-        console.log('Server Config Loaded:', data);
+        
+        const data = await res.json();
+        console.log('Server Config Loaded Successfully:', {
+          hasTossKey: !!data.tossClientKey,
+          tossKeyLength: data.tossClientKey?.length || 0
+        });
         setServerConfig(data);
-      })
-      .catch(err => {
+      } catch (err: any) {
         console.error('Failed to load server config:', err);
-        setError(`서버 설정을 불러오지 못했습니다: ${err.message}`);
-      });
+        // 에러가 나더라도 수동 입력창을 보여주기 위해 상태 업데이트
+        setShowManualInput(true);
+        setError(`서버 설정을 불러오지 못했습니다. 직접 키를 입력해 주세요. (${err.message})`);
+      }
+    };
+
+    loadConfig();
 
     const allKeys = Object.keys(import.meta.env);
     const value = import.meta.env.VITE_TOSS_CLIENT_KEY;

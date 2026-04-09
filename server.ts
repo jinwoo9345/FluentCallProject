@@ -15,6 +15,17 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  // 서버 시작 시 환경변수 로깅 (디버깅용)
+  console.log("=== Server Environment Variables Check ===");
+  const viteVars = Object.keys(process.env).filter(key => key.startsWith('VITE_'));
+  console.log("Detected VITE_ variables:", viteVars);
+  viteVars.forEach(key => {
+    const value = process.env[key];
+    console.log(`${key}: ${value ? `Present (length: ${value.length})` : "Empty/Missing"}`);
+  });
+  console.log("TOSS_SECRET_KEY:", process.env.TOSS_SECRET_KEY ? "Present" : "Missing");
+  console.log("==========================================");
+
   app.use(express.json());
 
   // 환경변수 전달 API (클라이언트 키만 안전하게 전달)
