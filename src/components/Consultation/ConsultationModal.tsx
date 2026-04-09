@@ -28,7 +28,8 @@ export function ConsultationModal({ isOpen, onClose }: ConsultationModalProps) {
     // 서버에서 실시간 환경변수 가져오기
     const fetchConfig = async () => {
       try {
-        const res = await fetch('/api/config');
+        const res = await fetch(`/api/config?t=${Date.now()}`);
+        if (!res.ok) throw new Error('Network response was not ok');
         const data = await res.json();
         setServerConfig(data);
       } catch (err) {
