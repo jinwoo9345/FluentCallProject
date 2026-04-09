@@ -75,12 +75,6 @@ export function TutorFinderModal({ isOpen, onClose }: TutorFinderModalProps) {
     setLoading(true);
     setError('');
 
-    console.log('Starting submission...', {
-      auth: !!auth.currentUser,
-      uid: auth.currentUser?.uid,
-      formData
-    });
-
     try {
       // 1. Save to Firestore
       const path = 'tutor_requests';
@@ -89,16 +83,15 @@ export function TutorFinderModal({ isOpen, onClose }: TutorFinderModalProps) {
           ...formData,
           createdAt: serverTimestamp()
         });
-        console.log('Firestore save successful');
       } catch (fsErr: any) {
         handleFirestoreError(fsErr, OperationType.CREATE, path);
       }
 
       // 2. Send email via EmailJS
       try {
-        const serviceId = serverConfig?.emailjsServiceId || (import.meta as any).env.VITE_EMAILJS_SERVICE_ID;
-        const templateId = serverConfig?.emailjsTemplateId || (import.meta as any).env.VITE_EMAILJS_TEMPLATE_ID;
-        const publicKey = serverConfig?.emailjsPublicKey || (import.meta as any).env.VITE_EMAILJS_PUBLIC_KEY;
+        const serviceId = serverConfig?.emailjsServiceId;
+        const templateId = serverConfig?.emailjsTemplateId;
+        const publicKey = serverConfig?.emailjsPublicKey;
 
         if (!serviceId || !templateId || !publicKey) {
           console.error('EmailJS 설정 누락:', { serviceId: !!serviceId, templateId: !!templateId, publicKey: !!publicKey });

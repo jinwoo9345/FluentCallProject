@@ -4,12 +4,7 @@ import App from './App.tsx';
 import './index.css';
 import emailjs from '@emailjs/browser';
 
-// Initialize EmailJS
-const publicKey = (import.meta as any).env.VITE_EMAILJS_PUBLIC_KEY;
-if (publicKey) {
-  emailjs.init(publicKey);
-}
-
+// Initialize EmailJS is now handled dynamically in components
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />
