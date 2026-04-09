@@ -25,16 +25,12 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
 
   useEffect(() => {
     const allKeys = Object.keys(import.meta.env);
-    const tossRelatedKeys = allKeys.filter(key => 
-      key.toUpperCase().includes('TOSS') || 
-      key.toUpperCase().includes('CLIENT') || 
-      key.toUpperCase().includes('KEY')
-    );
+    const value = import.meta.env.VITE_TOSS_CLIENT_KEY;
     
     console.log('PaymentModal Env Debug:', {
       hasClientKey: !!clientKey,
-      clientKeyLength: clientKey.length,
-      tossRelatedKeys,
+      valueType: typeof value,
+      valueLength: value?.length || 0,
       allViteKeys: allKeys.filter(key => key.startsWith('VITE_'))
     });
   }, [clientKey]);
@@ -46,7 +42,14 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
     
     if (!activeKey) {
       const availableKeys = Object.keys(import.meta.env).filter(key => key.startsWith('VITE_')).join(', ');
-      setError(`결제 설정(VITE_TOSS_CLIENT_KEY)을 찾을 수 없습니다. (인식된 변수: ${availableKeys || '없음'})`);
+      const keyExists = Object.keys(import.meta.env).includes('VITE_TOSS_CLIENT_KEY');
+      
+      let errorMsg = `결제 설정(VITE_TOSS_CLIENT_KEY)을 찾을 수 없습니다.`;
+      if (keyExists) {
+        errorMsg = `VITE_TOSS_CLIENT_KEY 이름은 인식되었으나, 값이 비어있습니다. Settings 메뉴에서 값을 다시 확인해주세요.`;
+      }
+      
+      setError(`${errorMsg} (인식된 변수: ${availableKeys || '없음'})`);
       setShowManualInput(true);
       return;
     }
