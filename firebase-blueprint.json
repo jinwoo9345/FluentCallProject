@@ -65,6 +65,23 @@
         "createdAt": { "type": "string", "format": "date-time", "description": "생성 일시" }
       },
       "required": ["to", "message", "createdAt"]
+    },
+    "TutorRequest": {
+      "title": "TutorRequest",
+      "description": "나에게 맞는 튜터 찾기 신청 내역",
+      "type": "object",
+      "properties": {
+        "purpose": { "type": "string", "description": "학습 목적" },
+        "duration": { "type": "string", "description": "학습 기간" },
+        "level": { "type": "string", "description": "현재 영어 레벨" },
+        "availableTime": { "type": "string", "description": "수업 가능 시간" },
+        "frequency": { "type": "string", "description": "수업 빈도" },
+        "specificGoals": { "type": "array", "items": { "type": "string" }, "description": "구체적 목표" },
+        "contact": { "type": "string", "description": "연락처" },
+        "consultationPref": { "type": "string", "description": "상담 선호 여부" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "신청 일시" }
+      },
+      "required": ["purpose", "duration", "level", "availableTime", "frequency", "specificGoals", "contact", "consultationPref", "createdAt"]
     }
   },
   "firestore": {
@@ -83,6 +100,10 @@
     "/mail/{mailId}": {
       "schema": "Mail",
       "description": "이메일 발송 대기열 컬렉션"
+    },
+    "/tutor_requests/{requestId}": {
+      "schema": "TutorRequest",
+      "description": "나에게 맞는 튜터 찾기 신청 컬렉션"
     }
   }
 }
