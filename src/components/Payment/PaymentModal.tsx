@@ -19,7 +19,7 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const clientKey = (import.meta as any).env.VITE_TOSS_CLIENT_KEY || 'test_ck_D5akZ08AnG579zX5Z273V5GE16ne';
+  const clientKey = (import.meta.env.VITE_TOSS_CLIENT_KEY || 'test_ck_D5akZ08AnG579zX5Z273V5GE16ne').trim();
 
   const handlePayment = async () => {
     if (!termsAgreed) return;
@@ -28,9 +28,12 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
     setError('');
 
     try {
+      console.log('Initializing Toss Payments with key:', clientKey.substring(0, 10) + '...');
       const tossPayments = await loadTossPayments(clientKey);
       
       const orderId = `order_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+
+      console.log('Requesting payment...', { orderId, amount, productName });
 
       await tossPayments.requestPayment('카드', {
         amount: amount,
@@ -41,9 +44,11 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
         failUrl: `${window.location.origin}/payment/fail`,
       });
     } catch (err: any) {
-      console.error(err);
+      console.error('Toss Payment Error:', err);
       if (err.code === 'USER_CANCEL') {
         setError('결제가 취소되었습니다.');
+      } else if (err.message?.includes('401') || err.code === 'INVALID_CLIENT_KEY') {
+        setError('결제 설정(클라이언트 키)이 올바르지 않습니다. 관리자에게 문의해주세요.');
       } else {
         setError(err.message || '결제 중 오류가 발생했습니다.');
       }

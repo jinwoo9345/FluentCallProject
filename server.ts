@@ -22,8 +22,10 @@ async function startServer() {
     const { paymentKey, orderId, amount } = req.body;
 
     // Toss Payments Secret Key (Base64 encoded)
-    const secretKey = process.env.TOSS_SECRET_KEY || "test_sk_zYyZq67j18n5E9p5619V3n7zG0pX";
+    const secretKey = (process.env.TOSS_SECRET_KEY || "test_sk_zYyZq67j18n5E9p5619V3n7zG0pX").trim();
     const encryptedSecretKey = Buffer.from(secretKey + ":").toString("base64");
+
+    console.log(`Attempting payment confirmation for order: ${orderId}, amount: ${amount}`);
 
     try {
       const response = await axios.post(
@@ -37,10 +39,21 @@ async function startServer() {
         }
       );
 
+      console.log("Toss Payment Confirmation Success:", response.data.status);
       res.status(200).json(response.data);
     } catch (error: any) {
-      console.error("Toss Payment Confirmation Error:", error.response?.data || error.message);
-      res.status(error.response?.status || 500).json(error.response?.data || { message: "Internal Server Error" });
+      const errorData = error.response?.data;
+      console.error("Toss Payment Confirmation Error:", JSON.stringify(errorData || error.message));
+      
+      // If it's an authentication error, provide a clearer message
+      if (error.response?.status === 401) {
+        return res.status(401).json({
+          message: "Toss Payments 인증 실패: 시크릿 키가 올바르지 않거나 환경 설정이 잘못되었습니다.",
+          details: errorData
+        });
+      }
+      
+      res.status(error.response?.status || 500).json(errorData || { message: "Internal Server Error" });
     }
   });
 
