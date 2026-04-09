@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, ChevronRight, ChevronLeft, Check, Phone, MessageCircle, MessageSquare, Send } from 'lucide-react';
-import { db } from '../../firebase';
+import { db, auth } from '../../firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { handleFirestoreError, OperationType } from '../../lib/firestore-errors';
 import emailjs from '@emailjs/browser';
 import { Button } from '../ui/Button';
 
@@ -70,6 +71,12 @@ export function TutorFinderModal({ isOpen, onClose }: TutorFinderModalProps) {
     setLoading(true);
     setError('');
 
+    console.log('Starting submission...', {
+      auth: !!auth.currentUser,
+      uid: auth.currentUser?.uid,
+      formData
+    });
+
     try {
       // 1. Save to Firestore
       const path = 'tutor_requests';
@@ -78,16 +85,9 @@ export function TutorFinderModal({ isOpen, onClose }: TutorFinderModalProps) {
           ...formData,
           createdAt: serverTimestamp()
         });
+        console.log('Firestore save successful');
       } catch (fsErr: any) {
-        console.error('Firestore Error:', fsErr);
-        // Detailed error for debugging
-        const errInfo = {
-          message: fsErr.message,
-          code: fsErr.code,
-          path: path,
-          data: formData
-        };
-        throw new Error(`데이터 저장 실패: ${fsErr.message || '알 수 없는 오류'}`);
+        handleFirestoreError(fsErr, OperationType.CREATE, path);
       }
 
       // 2. Send email via EmailJS

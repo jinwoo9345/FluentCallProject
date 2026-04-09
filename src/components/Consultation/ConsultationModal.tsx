@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Phone, MessageCircle, MessageSquare } from 'lucide-react';
-import { db } from '../../firebase';
+import { db, auth } from '../../firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { handleFirestoreError, OperationType } from '../../lib/firestore-errors';
 import emailjs from '@emailjs/browser';
 import { Button } from '../ui/Button';
 
@@ -53,8 +54,7 @@ export function ConsultationModal({ isOpen, onClose }: ConsultationModalProps) {
           createdAt: serverTimestamp()
         });
       } catch (fsErr: any) {
-        console.error('Firestore Error:', fsErr);
-        throw new Error(`데이터 저장 실패: ${fsErr.message || '알 수 없는 오류'}`);
+        handleFirestoreError(fsErr, OperationType.CREATE, path);
       }
 
       // 2. Send email via EmailJS (Free Tier)

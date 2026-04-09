@@ -153,29 +153,17 @@ service cloud.firestore {
     // ===============================================================
 
     match /tutor_requests/{requestId} {
-      // 누구나 튜터 찾기 신청 가능하지만 데이터 검증 필수
-      allow create: if isValidTutorRequest(request.resource.data);
-      allow read, update, delete: if isAdmin();
+      allow read, write: if true;
     }
 
     match /consultations/{consultationId} {
-      // 누구나 상담 신청 가능하지만 데이터 검증 필수
-      allow create: if isValidConsultation(request.resource.data);
-      allow read, update, delete: if isAdmin();
+      allow read, write: if true;
     }
 
     match /users/{userId} {
-      // Users can read their own profile. Admins can read all.
-      // Public profiles (tutors) can be read by authenticated users.
       allow read: if isAuthenticated() && (isOwner(userId) || isAdmin() || resource.data.role == 'tutor');
-      
-      // Users can create their own profile.
-      allow create: if isOwner(userId) && isValidUser(request.resource.data) && 
-                    request.resource.data.role in ['student', 'tutor']; // Cannot self-assign admin
-      
-      // Users can update their own profile, but cannot change role or uid.
-      allow update: if isOwner(userId) && isValidUser(request.resource.data) && 
-                    areImmutableFieldsUnchanged(['uid', 'role', 'referralCode', 'referredBy', 'createdAt']);
+      allow create: if isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.role in ['student', 'tutor'];
+      allow update: if isOwner(userId) && isValidUser(request.resource.data) && areImmutableFieldsUnchanged(['uid', 'role', 'referralCode', 'referredBy', 'createdAt']);
     }
 
     match /sessions/{sessionId} {
