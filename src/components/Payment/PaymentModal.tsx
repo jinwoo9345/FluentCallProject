@@ -32,6 +32,11 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
           headers: { 'Accept': 'application/json' }
         });
         
+        console.log("[Debug] Response Headers:", 
+          res.headers.get('Content-Type'), 
+          res.headers.get('X-Custom-Server')
+        );
+        
         const text = await res.text();
         
         try {

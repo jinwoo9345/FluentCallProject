@@ -15,26 +15,33 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  app.use(express.json());
+  // 로깅 미들웨어 - 모든 요청 확인
+  app.use((req, res, next) => {
+    console.log(`[Server] ${req.method} ${req.url}`);
+    if (req.url.startsWith('/api/config')) {
+      console.log("[Server] Current Env Keys:", Object.keys(process.env).filter(k => k.startsWith('VITE_') || k.includes('TOSS')));
+    }
+    next();
+  });
 
-  // [최우선 순위] 환경변수 전달 API
+  // [최우선 순위] 환경변수 전달 API - 그 어떤 미들웨어보다 앞에 배치
   app.get("/api/config", (req, res) => {
-    console.log("[Server] Config API requested.");
-    
+    console.log("[Server] Handling /api/config request");
     const config = {
       tossClientKey: (process.env.VITE_TOSS_CLIENT_KEY || "").trim(),
       emailjsPublicKey: (process.env.VITE_EMAILJS_PUBLIC_KEY || "").trim(),
       emailjsServiceId: (process.env.VITE_EMAILJS_SERVICE_ID || "").trim(),
       emailjsTemplateId: (process.env.VITE_EMAILJS_TEMPLATE_ID || "").trim(),
     };
-
-    res.setHeader('Content-Type', 'application/json');
-    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-    return res.status(200).json(config);
+    res.setHeader('X-Custom-Server', 'Express-Vite');
+    return res.json(config);
   });
 
-  // API 404 Handler - API 요청이 실패했을 때 HTML이 반환되는 것을 방지
+  app.use(express.json());
+
+  // API 404 Handler
   app.use("/api/*", (req, res) => {
+    console.log(`[Server] API 404: ${req.url}`);
     res.status(404).json({ error: "API route not found" });
   });
 
