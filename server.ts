@@ -17,6 +17,16 @@ async function startServer() {
 
   app.use(express.json());
 
+  // 환경변수 전달 API (클라이언트 키만 안전하게 전달)
+  app.get("/api/config", (req, res) => {
+    res.json({
+      tossClientKey: (process.env.VITE_TOSS_CLIENT_KEY || "").trim(),
+      emailjsPublicKey: (process.env.VITE_EMAILJS_PUBLIC_KEY || "").trim(),
+      emailjsServiceId: (process.env.VITE_EMAILJS_SERVICE_ID || "").trim(),
+      emailjsTemplateId: (process.env.VITE_EMAILJS_TEMPLATE_ID || "").trim(),
+    });
+  });
+
   // Toss Payments Confirmation API
   app.post("/api/payments/confirm", async (req, res) => {
     const { paymentKey, orderId, amount } = req.body;

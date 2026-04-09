@@ -18,12 +18,22 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
   const [termsAgreed, setTermsAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [serverConfig, setServerConfig] = useState<any>(null);
 
-  const clientKey = (import.meta.env.VITE_TOSS_CLIENT_KEY || '').trim();
+  const clientKey = serverConfig?.tossClientKey || (import.meta.env.VITE_TOSS_CLIENT_KEY || '').trim();
   const [manualKey, setManualKey] = useState('');
   const [showManualInput, setShowManualInput] = useState(false);
 
   useEffect(() => {
+    // 서버에서 환경변수 가져오기
+    fetch('/api/config')
+      .then(res => res.json())
+      .then(data => {
+        console.log('Server Config Loaded:', data);
+        setServerConfig(data);
+      })
+      .catch(err => console.error('Failed to load server config:', err));
+
     const allKeys = Object.keys(import.meta.env);
     const value = import.meta.env.VITE_TOSS_CLIENT_KEY;
     
