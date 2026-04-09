@@ -114,35 +114,40 @@ service cloud.firestore {
     }
 
     function isValidConsultation(data) {
-      return data.name is string && data.name.size() > 0 &&
+      let requiredFields = ['name', 'contactType', 'contactValue', 'availableTime', 'motivation', 'createdAt'];
+      return data.keys().hasAll(requiredFields) &&
+             data.name is string && data.name.size() > 0 &&
              data.contactType in ['kakao', 'discord', 'phone'] &&
              data.contactValue is string && data.contactValue.size() > 0 &&
              data.availableTime is string && data.availableTime.size() > 0 &&
              data.motivation is string && data.motivation.size() > 0 &&
              (!('notes' in data) || data.notes is string) &&
-             data.createdAt == request.time;
+             data.createdAt is timestamp;
     }
 
     function isValidMail(data) {
-      return hasOnlyAllowedFields(['to', 'message', 'createdAt']) &&
+      let requiredFields = ['to', 'message', 'createdAt'];
+      return data.keys().hasAll(requiredFields) &&
              isValidEmail(data.to) &&
              data.message is map &&
-             data.message.keys().hasOnly(['subject', 'html']) &&
+             data.message.keys().hasAll(['subject', 'html']) &&
              data.message.subject is string && data.message.subject.size() > 0 &&
              data.message.html is string && data.message.html.size() > 0 &&
              data.createdAt is timestamp;
     }
 
     function isValidTutorRequest(data) {
-      return data.purpose is string && data.purpose.size() > 0 &&
+      let requiredFields = ['purpose', 'duration', 'level', 'availableTime', 'frequency', 'specificGoals', 'contact', 'consultationPref', 'createdAt'];
+      return data.keys().hasAll(requiredFields) &&
+             data.purpose is string && data.purpose.size() > 0 &&
              data.duration is string && data.duration.size() > 0 &&
              data.level is string && data.level.size() > 0 &&
              data.availableTime is string && data.availableTime.size() > 0 &&
              data.frequency is string && data.frequency.size() > 0 &&
-             data.specificGoals is list && data.specificGoals.size() > 0 &&
+             data.specificGoals is list && data.specificGoals.size() >= 0 &&
              data.contact is string && data.contact.size() > 0 &&
              data.consultationPref is string && data.consultationPref.size() > 0 &&
-             data.createdAt == request.time;
+             data.createdAt is timestamp;
     }
 
     // ===============================================================
