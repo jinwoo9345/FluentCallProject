@@ -29,7 +29,11 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
     const loadConfig = async (retries = 3) => {
       try {
         console.log(`Fetching config from server (Attempt ${4 - retries})...`);
-        const res = await fetch('/api/config', { cache: 'no-store' });
+        // 캐시 방지를 위해 타임스탬프 추가
+        const res = await fetch(`/api/config?t=${Date.now()}`, { 
+          cache: 'no-store',
+          headers: { 'Accept': 'application/json' }
+        });
         
         if (!res.ok) throw new Error(`Server responded with ${res.status}`);
         
