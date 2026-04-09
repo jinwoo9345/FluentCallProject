@@ -21,15 +21,11 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
   const [serverConfig, setServerConfig] = useState<any>(null);
 
   const clientKey = serverConfig?.tossClientKey || (import.meta.env.VITE_TOSS_CLIENT_KEY || '').trim();
-  const [manualKey, setManualKey] = useState('');
-  const [showManualInput, setShowManualInput] = useState(false);
 
   useEffect(() => {
     // 서버에서 환경변수 가져오기
     const loadConfig = async (retries = 3) => {
       try {
-        console.log(`Fetching config from server (Attempt ${4 - retries})...`);
-        // 캐시 방지를 위해 타임스탬프 추가
         const res = await fetch(`/api/config?t=${Date.now()}`, { 
           cache: 'no-store',
           headers: { 'Accept': 'application/json' }
@@ -39,60 +35,29 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
         
         const contentType = res.headers.get('content-type');
         if (!contentType || !contentType.includes('application/json')) {
-          const text = await res.text();
-          console.error('Non-JSON response from /api/config:', text.substring(0, 100));
-          
           if (retries > 0) {
-            console.log(`Retrying in 1s... (${retries} retries left)`);
             setTimeout(() => loadConfig(retries - 1), 1000);
             return;
           }
-          throw new Error('Server returned non-JSON response. Please check if the server is ready.');
+          throw new Error('Server returned non-JSON response.');
         }
         
         const data = await res.json();
-        console.log('Server Config Loaded Successfully:', {
-          hasTossKey: !!data.tossClientKey,
-          tossKeyLength: data.tossClientKey?.length || 0
-        });
         setServerConfig(data);
       } catch (err: any) {
         console.error('Failed to load server config:', err);
-        // 에러가 나더라도 수동 입력창을 보여주기 위해 상태 업데이트
-        setShowManualInput(true);
-        setError(`서버 설정을 불러오지 못했습니다. 직접 키를 입력해 주세요. (${err.message})`);
       }
     };
 
     loadConfig();
-
-    const allKeys = Object.keys(import.meta.env);
-    const value = import.meta.env.VITE_TOSS_CLIENT_KEY;
-    
-    console.log('PaymentModal Env Debug:', {
-      hasClientKey: !!clientKey,
-      valueType: typeof value,
-      valueLength: value?.length || 0,
-      allViteKeys: allKeys.filter(key => key.startsWith('VITE_'))
-    });
-  }, [clientKey]);
+  }, []);
 
   const handlePayment = async () => {
     if (!termsAgreed) return;
     
-    const activeKey = manualKey.trim() || clientKey;
-    
-    if (!activeKey) {
+    if (!clientKey) {
       const availableKeys = Object.keys(import.meta.env).filter(key => key.startsWith('VITE_')).join(', ');
-      const keyExists = Object.keys(import.meta.env).includes('VITE_TOSS_CLIENT_KEY');
-      
-      let errorMsg = `결제 설정(VITE_TOSS_CLIENT_KEY)을 찾을 수 없습니다.`;
-      if (keyExists) {
-        errorMsg = `VITE_TOSS_CLIENT_KEY 이름은 인식되었으나, 값이 비어있습니다. Settings 메뉴에서 값을 다시 확인해주세요.`;
-      }
-      
-      setError(`${errorMsg} (인식된 변수: ${availableKeys || '없음'})`);
-      setShowManualInput(true);
+      setError(`결제 설정(VITE_TOSS_CLIENT_KEY)을 찾을 수 없습니다. Settings 메뉴에서 값을 확인한 후 페이지를 새로고침해 주세요. (인식된 변수: ${availableKeys || '없음'})`);
       return;
     }
     
@@ -100,8 +65,7 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
     setError('');
 
     try {
-      console.log('Initializing Toss Payments with key:', activeKey.substring(0, 10) + '...');
-      const tossPayments = await loadTossPayments(activeKey);
+      const tossPayments = await loadTossPayments(clientKey);
       
       const orderId = `order_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
@@ -201,24 +165,8 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
                 </div>
 
                 {error && (
-                  <div className="space-y-3">
-                    <div className="p-4 rounded-xl bg-red-50 text-red-600 text-xs flex items-center gap-2">
-                      <AlertCircle size={16} /> {error}
-                    </div>
-                    
-                    {showManualInput && (
-                      <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2">
-                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">직접 키 입력 (테스트용)</p>
-                        <input 
-                          type="text"
-                          placeholder="test_ck_..."
-                          className="w-full p-2 text-xs border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
-                          value={manualKey}
-                          onChange={(e) => setManualKey(e.target.value)}
-                        />
-                        <p className="text-[9px] text-slate-400">※ Settings 메뉴 설정이 인식되지 않을 때만 사용하세요.</p>
-                      </div>
-                    )}
+                  <div className="p-4 rounded-xl bg-red-50 text-red-600 text-xs flex items-center gap-2">
+                    <AlertCircle size={16} /> {error}
                   </div>
                 )}
 
