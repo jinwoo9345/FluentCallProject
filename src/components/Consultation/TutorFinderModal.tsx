@@ -104,27 +104,21 @@ export function TutorFinderModal({ isOpen, onClose }: TutorFinderModalProps) {
             serviceId,
             templateId,
             {
+              type: '튜터 찾기',
               to_name: '관리자',
               from_name: '튜터 찾기 신청자',
               contact_label: '연락처',
               contact_value: formData.contact,
-              purpose: formData.purpose,
-              duration: formData.duration,
-              level: formData.level,
-              available_time: formData.availableTime,
-              frequency: formData.frequency,
-              specific_goals: formData.specificGoals.join(', '),
-              consultation_pref: formData.consultationPref,
-              summary: `
-                목적: ${formData.purpose}
-                기간: ${formData.duration}
-                레벨: ${formData.level}
-                시간: ${formData.availableTime}
-                빈도: ${formData.frequency}
-                구체적 목표: ${formData.specificGoals.join(', ')}
-                연락처: ${formData.contact}
-                상담 여부: ${formData.consultationPref}
-              `
+              details: `
+                • 수업 목적: ${formData.purpose}
+                • 목표 기간: ${formData.duration}
+                • 현재 레벨: ${formData.level}
+                • 희망 시간: ${formData.availableTime}
+                • 수업 빈도: ${formData.frequency}
+                • 구체적 목표: ${formData.specificGoals.join(', ')}
+                • 바로 시작 여부: ${formData.consultationPref}
+              `,
+              summary: `목적:${formData.purpose} | 레벨:${formData.level} | 연락처:${formData.contact}`
             },
             publicKey
           );

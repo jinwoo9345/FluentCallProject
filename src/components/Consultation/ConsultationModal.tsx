@@ -71,13 +71,17 @@ export function ConsultationModal({ isOpen, onClose }: ConsultationModalProps) {
             serviceId,
             templateId,
             {
+              type: '무료 전화상담',
               to_name: '관리자',
               from_name: name,
               contact_label: contactType === 'kakao' ? '카카오톡 아이디' : contactType === 'discord' ? '디스코드 아이디' : '전화번호',
               contact_value: contactValue,
-              available_time: availableTime,
-              motivation: motivation,
-              notes: notes || '없음'
+              details: `
+                • 상담 가능 시간: ${availableTime}
+                • 신청 동기: ${motivation}
+                • 기타 사항: ${notes || '없음'}
+              `,
+              summary: `이름:${name} | 연락처:${contactValue}`
             },
             publicKey
           );
