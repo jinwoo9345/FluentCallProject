@@ -22,7 +22,7 @@ async function startServer() {
     res.setHeader('Content-Type', 'application/json');
     res.json({
       tossClientKey: (process.env.VITE_TOSS_CLIENT_KEY || "").trim(),
-      emailjsPublicKey: (process.env.VITE_EMAILJS_PUBLIC_KEY || "").trim(),
+      //emailjsPublicKey: (process.env.VITE_EMAILJS_PUBLIC_KEY || "").trim(),
       emailjsServiceId: (process.env.VITE_EMAILJS_SERVICE_ID || "").trim(),
       emailjsTemplateId: (process.env.VITE_EMAILJS_TEMPLATE_ID || "").trim(),
     });
