@@ -15,41 +15,17 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  app.use(express.json());
+
   // [최우선 순위] 환경변수 전달 API - 모든 미들웨어보다 앞에 배치
   app.get("/api/config", (req, res) => {
-    console.log("!!! CONFIG API HIT !!!");
     res.setHeader('Content-Type', 'application/json');
-    return res.status(200).json({
+    res.json({
       tossClientKey: (process.env.VITE_TOSS_CLIENT_KEY || "").trim(),
       emailjsPublicKey: (process.env.VITE_EMAILJS_PUBLIC_KEY || "").trim(),
       emailjsServiceId: (process.env.VITE_EMAILJS_SERVICE_ID || "").trim(),
       emailjsTemplateId: (process.env.VITE_EMAILJS_TEMPLATE_ID || "").trim(),
     });
-  });
-
-  // 서버 시작 시 환경변수 로깅 (디버깅용)
-  console.log("=== Server Environment Variables Check ===");
-  const viteVars = Object.keys(process.env).filter(key => key.startsWith('VITE_'));
-  console.log("Detected VITE_ variables:", viteVars);
-  viteVars.forEach(key => {
-    const value = process.env[key];
-    console.log(`${key}: ${value ? `Present (length: ${value.length})` : "Empty/Missing"}`);
-  });
-  console.log("TOSS_SECRET_KEY:", process.env.TOSS_SECRET_KEY ? "Present" : "Missing");
-  console.log("==========================================");
-
-  app.use(express.json());
-
-  // 환경변수 전달 API (클라이언트 키만 안전하게 전달)
-  app.get("/api/config", (req, res) => {
-    console.log("Config API requested. Current VITE_TOSS_CLIENT_KEY length:", (process.env.VITE_TOSS_CLIENT_KEY || "").length);
-    res.setHeader('Content-Type', 'application/json');
-    res.status(200).send(JSON.stringify({
-      tossClientKey: (process.env.VITE_TOSS_CLIENT_KEY || "").trim(),
-      emailjsPublicKey: (process.env.VITE_EMAILJS_PUBLIC_KEY || "").trim(),
-      emailjsServiceId: (process.env.VITE_EMAILJS_SERVICE_ID || "").trim(),
-      emailjsTemplateId: (process.env.VITE_EMAILJS_TEMPLATE_ID || "").trim(),
-    }));
   });
 
   // Toss Payments Confirmation API
