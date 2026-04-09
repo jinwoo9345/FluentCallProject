@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import { User } from '../types';
 
@@ -13,6 +13,7 @@ interface AuthContextType {
   authMode: 'signin' | 'signup';
   setIsAuthModalOpen: (open: boolean) => void;
   setAuthMode: (mode: 'signin' | 'signup') => void;
+  toggleWishlist: (tutorId: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -62,6 +63,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [firebaseUser]);
 
+  const toggleWishlist = async (tutorId: string) => {
+    if (!firebaseUser) {
+      setAuthMode('signin');
+      setIsAuthModalOpen(true);
+      return;
+    }
+
+    const userRef = doc(db, 'users', firebaseUser.uid);
+    const isWishlisted = user?.wishlist?.includes(tutorId);
+
+    try {
+      await updateDoc(userRef, {
+        wishlist: isWishlisted ? arrayRemove(tutorId) : arrayUnion(tutorId)
+      });
+    } catch (error) {
+      console.error('Error updating wishlist:', error);
+    }
+  };
+
   return (
     <AuthContext.Provider value={{ 
       user, 
@@ -71,7 +91,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       isAuthModalOpen, 
       authMode, 
       setIsAuthModalOpen, 
-      setAuthMode 
+      setAuthMode,
+      toggleWishlist
     }}>
       {children}
     </AuthContext.Provider>

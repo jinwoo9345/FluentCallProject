@@ -1,5 +1,5 @@
 import { motion } from 'motion/react';
-import { Calendar, Clock, Video, ChevronRight, Award, TrendingUp, BookOpen, MessageSquare, DollarSign, Users, User as UserIcon } from 'lucide-react';
+import { Calendar, Clock, Video, ChevronRight, Award, TrendingUp, BookOpen, MessageSquare, DollarSign, Users, User as UserIcon, Heart } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { cn } from '@/src/lib/utils';
@@ -7,11 +7,14 @@ import { useAuth } from '../contexts/AuthContext';
 import { useEffect, useState } from 'react';
 import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
 import { db } from '../firebase';
+import { MOCK_TUTORS } from '../constants';
 
 export default function Dashboard() {
   const { user, firebaseUser } = useAuth();
   const [sessions, setSessions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const wishlistedTutors = MOCK_TUTORS.filter(t => user?.wishlist?.includes(t.id));
 
   useEffect(() => {
     if (!firebaseUser || !user) return;
@@ -130,6 +133,31 @@ export default function Dashboard() {
                 ))
               )}
             </div>
+          </section>
+
+          {/* Wishlist Section */}
+          <section>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-slate-900">관심 튜터 (위시리스트)</h2>
+            </div>
+            {wishlistedTutors.length === 0 ? (
+              <Card className="p-8 text-center text-slate-500">
+                아직 찜한 튜터가 없습니다.
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                {wishlistedTutors.map(tutor => (
+                  <Card key={tutor.id} className="flex items-center gap-4 p-4 hover:shadow-md transition-shadow">
+                    <img src={tutor.avatar} alt={tutor.name} className="h-12 w-12 rounded-xl object-cover" referrerPolicy="no-referrer" />
+                    <div className="flex-1">
+                      <h3 className="font-bold text-slate-900">{tutor.name}</h3>
+                      <p className="text-xs text-slate-500">{tutor.tier}</p>
+                    </div>
+                    <Heart size={18} className="text-red-500 fill-current" />
+                  </Card>
+                ))}
+              </div>
+            )}
           </section>
 
           {/* Schedule Management Section */}

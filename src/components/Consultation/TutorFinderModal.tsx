@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, ChevronRight, ChevronLeft, Check, Phone, MessageCircle, MessageSquare, Send } from 'lucide-react';
 import { db } from '../../firebase';
@@ -40,6 +40,18 @@ export function TutorFinderModal({ isOpen, onClose }: TutorFinderModalProps) {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
 
+  useEffect(() => {
+    const serviceId = (import.meta as any).env.VITE_EMAILJS_SERVICE_ID;
+    const templateId = (import.meta as any).env.VITE_EMAILJS_TEMPLATE_ID;
+    const publicKey = (import.meta as any).env.VITE_EMAILJS_PUBLIC_KEY;
+    
+    console.log('EmailJS Config Check (TutorFinder):', {
+      serviceId: !!serviceId,
+      templateId: !!templateId,
+      publicKey: !!publicKey
+    });
+  }, []);
+
   const totalSteps = 8;
 
   const updateFields = (fields: Partial<FormData>) => {
@@ -60,10 +72,23 @@ export function TutorFinderModal({ isOpen, onClose }: TutorFinderModalProps) {
 
     try {
       // 1. Save to Firestore
-      await addDoc(collection(db, 'tutor_requests'), {
-        ...formData,
-        createdAt: serverTimestamp()
-      });
+      const path = 'tutor_requests';
+      try {
+        await addDoc(collection(db, path), {
+          ...formData,
+          createdAt: serverTimestamp()
+        });
+      } catch (fsErr: any) {
+        console.error('Firestore Error:', fsErr);
+        // Detailed error for debugging
+        const errInfo = {
+          message: fsErr.message,
+          code: fsErr.code,
+          path: path,
+          data: formData
+        };
+        throw new Error(`데이터 저장 실패: ${fsErr.message || '알 수 없는 오류'}`);
+      }
 
       // 2. Send email via EmailJS
       try {
@@ -72,7 +97,8 @@ export function TutorFinderModal({ isOpen, onClose }: TutorFinderModalProps) {
         const publicKey = (import.meta as any).env.VITE_EMAILJS_PUBLIC_KEY;
 
         if (!serviceId || !templateId || !publicKey) {
-          console.warn('EmailJS 설정이 누락되었습니다. 환경 변수를 확인해주세요.');
+          console.error('EmailJS 설정 누락:', { serviceId: !!serviceId, templateId: !!templateId, publicKey: !!publicKey });
+          console.warn('설정(Settings) 메뉴에서 EmailJS 환경 변수를 입력해주세요.');
         } else {
           await emailjs.send(
             serviceId,
@@ -102,16 +128,17 @@ export function TutorFinderModal({ isOpen, onClose }: TutorFinderModalProps) {
             },
             publicKey
           );
+          console.log('EmailJS 발송 성공');
         }
       } catch (emailErr) {
         console.error('EmailJS 발송 실패:', emailErr);
-        // 메일 발송 실패가 전체 프로세스를 막지 않도록 함 (DB 저장은 성공했으므로)
+        // 메일 발송 실패가 전체 프로세스를 막지 않도록 함
       }
 
       setSuccess(true);
     } catch (err: any) {
-      console.error(err);
-      setError('신청 중 오류가 발생했습니다. 다시 시도해주세요.');
+      console.error('Submit Error:', err);
+      setError(err.message || '신청 중 오류가 발생했습니다. 다시 시도해주세요.');
     } finally {
       setLoading(false);
     }

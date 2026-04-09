@@ -1,14 +1,19 @@
 import { useState } from 'react';
+import React from 'react';
 import { motion } from 'motion/react';
-import { Star, Search, Filter, MessageSquare, CreditCard, MapPin } from 'lucide-react';
+import { Star, Search, Filter, CreditCard, Heart } from 'lucide-react';
 import { MOCK_TUTORS } from '../constants';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { PaymentModal } from '../components/Payment/PaymentModal';
+import { TutorDetailModal } from '../components/Tutors/TutorDetailModal';
+import { useAuth } from '../contexts/AuthContext';
 
 export default function Tutors() {
+  const { user, setIsAuthModalOpen, setAuthMode, toggleWishlist } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedTutor, setSelectedTutor] = useState<any>(null);
 
   const filteredTutors = MOCK_TUTORS.filter(tutor => 
@@ -16,9 +21,25 @@ export default function Tutors() {
     tutor.specialties.some(s => s.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
-  const handlePayClick = (tutor: any) => {
+  const handleRegisterClick = (e: React.MouseEvent, tutor: any) => {
+    e.stopPropagation();
+    if (!user) {
+      setAuthMode('signin');
+      setIsAuthModalOpen(true);
+      return;
+    }
     setSelectedTutor(tutor);
     setIsPaymentModalOpen(true);
+  };
+
+  const handleTutorClick = (tutor: any) => {
+    setSelectedTutor(tutor);
+    setIsDetailModalOpen(true);
+  };
+
+  const handleHeartClick = (e: React.MouseEvent, tutorId: string) => {
+    e.stopPropagation();
+    toggleWishlist(tutorId);
   };
 
   return (
@@ -66,7 +87,7 @@ export default function Tutors() {
                 <input type="range" className="mt-3 w-full accent-blue-600" />
                 <div className="mt-1 flex justify-between text-xs text-slate-400">
                   <span>10,000원</span>
-                  <span>150,000원+</span>
+                  <span>200,000원+</span>
                 </div>
               </div>
             </div>
@@ -76,79 +97,104 @@ export default function Tutors() {
         {/* Tutor List */}
         <div className="lg:col-span-3">
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            {filteredTutors.map((tutor, idx) => (
-              <motion.div
-                key={tutor.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.1 }}
-              >
-                <Card className="flex h-full flex-col group hover:shadow-lg transition-shadow">
-                  <div className="flex items-start gap-4">
-                    <img 
-                      src={tutor.avatar} 
-                      alt={tutor.name} 
-                      className="h-16 w-16 rounded-2xl object-cover"
-                      referrerPolicy="no-referrer"
-                    />
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between">
-                        <h3 className="font-bold text-slate-900">{tutor.name}</h3>
-                        <div className="flex items-center gap-1 text-sm font-medium text-amber-500">
-                          <Star size={14} fill="currentColor" />
-                          {tutor.rating}
+            {filteredTutors.map((tutor, idx) => {
+              const isWishlisted = user?.wishlist?.includes(tutor.id);
+              return (
+                <motion.div
+                  key={tutor.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.1 }}
+                  onClick={() => handleTutorClick(tutor)}
+                  className="cursor-pointer"
+                >
+                  <Card className="flex h-full flex-col group hover:shadow-lg transition-shadow relative">
+                    <button 
+                      onClick={(e) => handleHeartClick(e, tutor.id)}
+                      className={`absolute top-4 right-4 z-10 rounded-full p-2 transition-colors ${
+                        isWishlisted ? 'bg-red-50 text-red-500' : 'bg-slate-50 text-slate-300 hover:text-red-400'
+                      }`}
+                    >
+                      <Heart size={18} fill={isWishlisted ? 'currentColor' : 'none'} />
+                    </button>
+
+                    <div className="flex items-start gap-4">
+                      <img 
+                        src={tutor.avatar} 
+                        alt={tutor.name} 
+                        className="h-16 w-16 rounded-2xl object-cover"
+                        referrerPolicy="no-referrer"
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between pr-8">
+                          <h3 className="font-bold text-slate-900">{tutor.name}</h3>
+                          <div className="flex items-center gap-1 text-sm font-medium text-amber-500">
+                            <Star size={14} fill="currentColor" />
+                            {tutor.rating}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">{tutor.tier}</span>
+                          <span className="text-xs text-slate-500">{tutor.location}</span>
+                        </div>
+                        <p className="text-xs text-slate-500 mt-1">리뷰 {tutor.reviewCount}개</p>
+                        <div className="mt-2 flex flex-wrap gap-1">
+                          {tutor.specialties.slice(0, 2).map((s) => (
+                            <span key={s} className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-600">
+                              {s}
+                            </span>
+                          ))}
                         </div>
                       </div>
-                      <div className="flex items-center gap-2 mt-1">
-                        <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">{tutor.tier}</span>
-                        <span className="text-xs text-slate-500">{tutor.location}</span>
-                      </div>
-                      <p className="text-xs text-slate-500 mt-1">리뷰 {tutor.reviewCount}개</p>
-                      <div className="mt-2 flex flex-wrap gap-1">
-                        {tutor.specialties.slice(0, 2).map((s) => (
-                          <span key={s} className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-600">
-                            {s}
-                          </span>
-                        ))}
-                      </div>
                     </div>
-                  </div>
-                  
-                  <p className="mt-4 flex-1 text-sm text-slate-600 line-clamp-2">
-                    {tutor.bio}
-                  </p>
+                    
+                    <p className="mt-4 flex-1 text-sm text-slate-600 line-clamp-2">
+                      {tutor.bio}
+                    </p>
 
-                  <div className="mt-6 flex items-center justify-between border-t border-slate-50 pt-4">
-                    <div>
-                      <span className="text-lg font-bold text-slate-900">{tutor.hourlyRate.toLocaleString()}원</span>
-                      <span className="text-xs text-slate-400"> / 월</span>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="sm" className="p-2">
-                        <MessageSquare size={16} />
-                      </Button>
-                      <Button size="sm" className="gap-2" onClick={() => handlePayClick(tutor)}>
+                    <div className="mt-6 flex items-center justify-between border-t border-slate-50 pt-4">
+                      <div>
+                        <span className="text-lg font-bold text-slate-900">{tutor.hourlyRate.toLocaleString()}원</span>
+                        <span className="text-xs text-slate-400"> / 월</span>
+                      </div>
+                      <Button size="sm" className="gap-2 px-6" onClick={(e) => handleRegisterClick(e, tutor)}>
                         <CreditCard size={16} />
-                        결제하기
+                        등록하기
                       </Button>
                     </div>
-                  </div>
-                </Card>
-              </motion.div>
-            ))}
+                  </Card>
+                </motion.div>
+              );
+            })}
           </div>
         </div>
       </div>
 
       {selectedTutor && (
-        <PaymentModal
-          isOpen={isPaymentModalOpen}
-          onClose={() => setIsPaymentModalOpen(false)}
-          productId={`plan_${selectedTutor.id}`}
-          productName={`${selectedTutor.name} - 베이직 플랜`}
-          price={`${selectedTutor.hourlyRate.toLocaleString()}원`}
-          amount={selectedTutor.hourlyRate}
-        />
+        <>
+          <TutorDetailModal
+            isOpen={isDetailModalOpen}
+            onClose={() => setIsDetailModalOpen(false)}
+            tutor={selectedTutor}
+            onRegister={() => {
+              setIsDetailModalOpen(false);
+              if (!user) {
+                setAuthMode('signin');
+                setIsAuthModalOpen(true);
+              } else {
+                setIsPaymentModalOpen(true);
+              }
+            }}
+          />
+          <PaymentModal
+            isOpen={isPaymentModalOpen}
+            onClose={() => setIsPaymentModalOpen(false)}
+            productId={`plan_${selectedTutor.id}`}
+            productName={`${selectedTutor.name} - 베이직 플랜`}
+            price={`${selectedTutor.hourlyRate.toLocaleString()}원`}
+            amount={selectedTutor.hourlyRate}
+          />
+        </>
       )}
     </div>
   );

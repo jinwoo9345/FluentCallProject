@@ -1,3 +1,11 @@
+export interface Review {
+  id: string;
+  userName: string;
+  rating: number;
+  comment: string;
+  date: string;
+}
+
 export interface Tutor {
   id: string;
   name: string;
@@ -6,6 +14,8 @@ export interface Tutor {
   reviewCount: number;
   specialties: string[];
   bio: string;
+  longBio?: string;
+  reviews?: Review[];
   hourlyRate: number;
   availability: string[]; // e.g., ["Mon 10:00", "Tue 14:00"]
   languages: string[];
@@ -33,6 +43,7 @@ export interface User {
   referralCode?: string;
   referredBy?: string;
   discountBalance?: number;
+  wishlist?: string[]; // Array of tutor IDs
 }
 
 export interface Consultation {

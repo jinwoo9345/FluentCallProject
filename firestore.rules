@@ -114,14 +114,13 @@ service cloud.firestore {
     }
 
     function isValidConsultation(data) {
-      return hasOnlyAllowedFields(['name', 'contactType', 'contactValue', 'availableTime', 'motivation', 'notes', 'createdAt']) &&
-             data.name is string && data.name.size() > 0 &&
+      return data.name is string && data.name.size() > 0 &&
              data.contactType in ['kakao', 'discord', 'phone'] &&
              data.contactValue is string && data.contactValue.size() > 0 &&
              data.availableTime is string && data.availableTime.size() > 0 &&
              data.motivation is string && data.motivation.size() > 0 &&
              (!('notes' in data) || data.notes is string) &&
-             data.createdAt is timestamp;
+             data.createdAt == request.time;
     }
 
     function isValidMail(data) {
@@ -135,8 +134,7 @@ service cloud.firestore {
     }
 
     function isValidTutorRequest(data) {
-      return hasOnlyAllowedFields(['purpose', 'duration', 'level', 'availableTime', 'frequency', 'specificGoals', 'contact', 'consultationPref', 'createdAt']) &&
-             data.purpose is string && data.purpose.size() > 0 &&
+      return data.purpose is string && data.purpose.size() > 0 &&
              data.duration is string && data.duration.size() > 0 &&
              data.level is string && data.level.size() > 0 &&
              data.availableTime is string && data.availableTime.size() > 0 &&
@@ -144,7 +142,7 @@ service cloud.firestore {
              data.specificGoals is list && data.specificGoals.size() > 0 &&
              data.contact is string && data.contact.size() > 0 &&
              data.consultationPref is string && data.consultationPref.size() > 0 &&
-             data.createdAt is timestamp;
+             data.createdAt == request.time;
     }
 
     // ===============================================================

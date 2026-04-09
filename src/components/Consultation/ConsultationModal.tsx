@@ -22,6 +22,18 @@ export function ConsultationModal({ isOpen, onClose }: ConsultationModalProps) {
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
 
+  React.useEffect(() => {
+    const serviceId = (import.meta as any).env.VITE_EMAILJS_SERVICE_ID;
+    const templateId = (import.meta as any).env.VITE_EMAILJS_TEMPLATE_ID;
+    const publicKey = (import.meta as any).env.VITE_EMAILJS_PUBLIC_KEY;
+    
+    console.log('EmailJS Config Check:', {
+      serviceId: !!serviceId,
+      templateId: !!templateId,
+      publicKey: !!publicKey
+    });
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -29,49 +41,56 @@ export function ConsultationModal({ isOpen, onClose }: ConsultationModalProps) {
 
     try {
       // 1. Save to Firestore (consultations collection)
-      await addDoc(collection(db, 'consultations'), {
-        name,
-        contactType,
-        contactValue,
-        availableTime,
-        motivation,
-        notes,
-        createdAt: serverTimestamp()
-      });
+      const path = 'consultations';
+      try {
+        await addDoc(collection(db, path), {
+          name,
+          contactType,
+          contactValue,
+          availableTime,
+          motivation,
+          notes,
+          createdAt: serverTimestamp()
+        });
+      } catch (fsErr: any) {
+        console.error('Firestore Error:', fsErr);
+        throw new Error(`데이터 저장 실패: ${fsErr.message || '알 수 없는 오류'}`);
+      }
 
       // 2. Send email via EmailJS (Free Tier)
       try {
-        await emailjs.send(
-          (import.meta as any).env.VITE_EMAILJS_SERVICE_ID || 'YOUR_SERVICE_ID',
-          (import.meta as any).env.VITE_EMAILJS_TEMPLATE_ID || 'YOUR_TEMPLATE_ID',
-          {
-            to_name: '관리자',
-            from_name: name,
-            contact_label: contactType === 'kakao' ? '카카오톡 아이디' : contactType === 'discord' ? '디스코드 아이디' : '전화번호',
-            contact_value: contactValue,
-            available_time: availableTime,
-            motivation: motivation,
-            notes: notes || '없음'
-          },
-          (import.meta as any).env.VITE_EMAILJS_PUBLIC_KEY || 'YOUR_PUBLIC_KEY'
-        );
+        const serviceId = (import.meta as any).env.VITE_EMAILJS_SERVICE_ID;
+        const templateId = (import.meta as any).env.VITE_EMAILJS_TEMPLATE_ID;
+        const publicKey = (import.meta as any).env.VITE_EMAILJS_PUBLIC_KEY;
+
+        if (!serviceId || !templateId || !publicKey) {
+          console.error('EmailJS 설정 누락:', { serviceId: !!serviceId, templateId: !!templateId, publicKey: !!publicKey });
+          console.warn('설정(Settings) 메뉴에서 EmailJS 환경 변수를 입력해주세요.');
+        } else {
+          await emailjs.send(
+            serviceId,
+            templateId,
+            {
+              to_name: '관리자',
+              from_name: name,
+              contact_label: contactType === 'kakao' ? '카카오톡 아이디' : contactType === 'discord' ? '디스코드 아이디' : '전화번호',
+              contact_value: contactValue,
+              available_time: availableTime,
+              motivation: motivation,
+              notes: notes || '없음'
+            },
+            publicKey
+          );
+          console.log('EmailJS 발송 성공');
+        }
       } catch (emailErr) {
-        console.error('EmailJS 발송 실패 (설정이 필요합니다):', emailErr);
-        // 이메일 발송이 실패해도 DB 저장이 완료되었으므로 사용자에게는 성공으로 표시합니다.
+        console.error('EmailJS 발송 실패:', emailErr);
       }
 
       setSuccess(true);
     } catch (err: any) {
-      console.error(err);
-      
-      let errorMessage = '신청 중 오류가 발생했습니다. 다시 시도해주세요.';
-      const errorString = err.code || err.message || '';
-      
-      if (errorString.includes('permission-denied') || errorString.includes('Missing or insufficient permissions')) {
-        errorMessage = '입력하신 정보가 올바르지 않거나 권한이 없습니다. 모든 필수 항목을 정확히 입력해주세요.';
-      }
-      
-      setError(errorMessage);
+      console.error('Submit Error:', err);
+      setError(err.message || '신청 중 오류가 발생했습니다. 다시 시도해주세요.');
     } finally {
       setLoading(false);
     }
