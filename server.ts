@@ -22,7 +22,15 @@ async function startServer() {
     const { paymentKey, orderId, amount } = req.body;
 
     // Toss Payments Secret Key (Base64 encoded)
-    const secretKey = (process.env.TOSS_SECRET_KEY || "test_sk_zYyZq67j18n5E9p5619V3n7zG0pX").trim();
+    const secretKey = (process.env.TOSS_SECRET_KEY || "").trim();
+    
+    if (!secretKey) {
+      console.error("Toss Secret Key is missing in environment variables.");
+      return res.status(500).json({ 
+        message: "서버 설정 오류: TOSS_SECRET_KEY가 설정되지 않았습니다." 
+      });
+    }
+
     const encryptedSecretKey = Buffer.from(secretKey + ":").toString("base64");
 
     console.log(`Attempting payment confirmation for order: ${orderId}, amount: ${amount}`);

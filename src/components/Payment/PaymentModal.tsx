@@ -19,10 +19,15 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const clientKey = (import.meta.env.VITE_TOSS_CLIENT_KEY || 'test_ck_D5akZ08AnG579zX5Z273V5GE16ne').trim();
+  const clientKey = (import.meta.env.VITE_TOSS_CLIENT_KEY || '').trim();
 
   const handlePayment = async () => {
     if (!termsAgreed) return;
+    
+    if (!clientKey) {
+      setError('결제 설정(VITE_TOSS_CLIENT_KEY)이 누락되었습니다. Settings 메뉴에서 설정해주세요.');
+      return;
+    }
     
     setLoading(true);
     setError('');
@@ -47,8 +52,8 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
       console.error('Toss Payment Error:', err);
       if (err.code === 'USER_CANCEL') {
         setError('결제가 취소되었습니다.');
-      } else if (err.message?.includes('401') || err.code === 'INVALID_CLIENT_KEY') {
-        setError('결제 설정(클라이언트 키)이 올바르지 않습니다. 관리자에게 문의해주세요.');
+      } else if (err.message?.includes('401') || err.code === 'INVALID_CLIENT_KEY' || err.message?.includes('인증되지 않은')) {
+        setError('토스페이먼츠 인증에 실패했습니다. 입력하신 클라이언트 키가 해당 환경(테스트/실제)에 맞는지 확인해주세요.');
       } else {
         setError(err.message || '결제 중 오류가 발생했습니다.');
       }
