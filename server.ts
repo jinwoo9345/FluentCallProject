@@ -49,7 +49,7 @@ async function startServer() {
 
   // [최우선 순위] 환경변수 전달 API
   app.get("/api/config", (req, res) => {
-    console.log("[Server] >>> Incoming request for /api/config");
+    console.log("[Server] >>> API CONFIG REQUEST <<<");
     
     const config = {
       tossClientKey: (process.env.VITE_TOSS_CLIENT_KEY || "").trim(),
@@ -58,13 +58,12 @@ async function startServer() {
       emailjsTemplateId: (process.env.VITE_EMAILJS_TEMPLATE_ID || "").trim(),
     };
     
-    console.log("[Server] Sending config:", { 
-      tossClientKey: config.tossClientKey ? "OK" : "EMPTY" 
+    console.log("[Server] Sending Config:", {
+      toss: config.tossClientKey ? "FOUND" : "MISSING",
+      email: config.emailjsPublicKey ? "FOUND" : "MISSING"
     });
     
-    res.setHeader('Content-Type', 'application/json');
-    res.setHeader('X-Custom-Server', 'Express-Vite-Final');
-    return res.json(config);
+    res.json(config);
   });
 
   app.get("/api/health", (req, res) => {
@@ -99,28 +98,17 @@ async function startServer() {
     }
   });
 
-  // 정적 파일 서비스 (dist가 있으면 우선, 없으면 src는 Vite가 담당)
-  if (fs.existsSync(distPath)) {
-    console.log("[Server] dist folder found. Serving static files from dist.");
-    app.use(express.static(distPath));
-    
-    // API route fallback for SPA
-    app.get("*", (req, res, next) => {
-      if (req.url.startsWith('/api/')) return next();
-      res.sendFile(path.join(distPath, "index.html"));
-    });
-  } else if (process.env.NODE_ENV !== "production") {
-    console.log("[Server] Development mode: Loading Vite middleware");
-    const { createServer: createViteServer } = await import("vite");
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-    });
-    app.use(vite.middlewares);
-  }
+  // Development mode: Loading Vite middleware
+  console.log("[Server] Starting Vite Middleware...");
+  const { createServer: createViteServer } = await import("vite");
+  const vite = await createViteServer({
+    server: { middlewareMode: true },
+    appType: "spa",
+  });
+  app.use(vite.middlewares);
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`[Server] RUNNING on http://0.0.0.0:${PORT}`);
+    console.log(`[Server] READY on http://0.0.0.0:${PORT}`);
   });
 }
 

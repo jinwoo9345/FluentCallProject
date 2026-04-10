@@ -73,6 +73,10 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
   const handlePayment = async () => {
     if (!termsAgreed) return;
     
+    console.log("[Client] handlePayment triggered. Current clientKey:", clientKey);
+    console.log("[Client] serverConfig state:", serverConfig);
+    console.log("[Client] import.meta.env fallback:", (import.meta as any).env.VITE_TOSS_CLIENT_KEY);
+    
     if (!clientKey) {
       const availableKeys = Object.keys((import.meta as any).env).filter(key => key.startsWith('VITE_')).join(', ');
       setError(`결제 설정(VITE_TOSS_CLIENT_KEY)을 찾을 수 없습니다. Settings 메뉴에서 값을 확인한 후 페이지를 새로고침해 주세요. (인식된 변수: ${availableKeys || '없음'})`);
