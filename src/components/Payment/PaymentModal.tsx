@@ -24,36 +24,43 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
 
   useEffect(() => {
     // 서버에서 환경변수 가져오기
-    const loadConfig = async (retries = 5) => {
-      console.log(`Fetching config from server (Attempt ${6 - retries})...`);
+    const loadConfig = async (retries = 2) => {
+      console.log(`[Client] Step 1: Starting loadConfig (Attempt ${3 - retries})`);
       try {
-        const res = await fetch(`/api/config?t=${Date.now()}`, { 
+        const url = `/api/config?t=${Date.now()}`;
+        console.log(`[Client] Step 2: Fetching URL: ${url}`);
+        
+        const res = await fetch(url, { 
           cache: 'no-store',
           headers: { 'Accept': 'application/json' }
         });
         
-        console.log("[Debug] Response Headers:", 
-          res.headers.get('Content-Type'), 
-          res.headers.get('X-Custom-Server')
-        );
+        console.log(`[Client] Step 3: Fetch complete. Status: ${res.status} ${res.statusText}`);
+        console.log("[Client] Step 4: Response Headers:", {
+          contentType: res.headers.get('Content-Type'),
+          customServer: res.headers.get('X-Custom-Server')
+        });
         
         const text = await res.text();
+        console.log(`[Client] Step 5: Received body text (first 50 chars): "${text.substring(0, 50)}..."`);
         
         try {
+          console.log("[Client] Step 6: Attempting to parse JSON...");
           const data = JSON.parse(text);
+          console.log("[Client] Step 7: JSON parsed successfully. Keys found:", Object.keys(data));
           setServerConfig(data);
-          console.log("Server config loaded successfully");
+          console.log("[Client] Step 8: serverConfig state updated.");
         } catch (parseErr) {
-          console.error("Non-JSON response from /api/config:", text.substring(0, 100));
+          console.error("[Client] ERROR: JSON parsing failed.", parseErr);
           if (retries > 0) {
-            console.log(`Retrying in 1s... (${retries} retries left)`);
+            console.log(`[Client] Retrying in 1s... (${retries} retries left)`);
             setTimeout(() => loadConfig(retries - 1), 1000);
           } else {
             setError("서버 설정 데이터를 불러오는 데 실패했습니다. 페이지를 새로고침해 주세요.");
           }
         }
       } catch (err: any) {
-        console.error('Failed to load server config:', err);
+        console.error('[Client] ERROR: Fetch request failed.', err);
         if (retries > 0) {
           setTimeout(() => loadConfig(retries - 1), 1000);
         }

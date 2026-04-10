@@ -10,6 +10,13 @@ console.log("****************************************");
 
 dotenv.config();
 
+console.log("[Server] Environment variables loaded. Checking VITE_TOSS_CLIENT_KEY...");
+console.log("[Server] VITE_TOSS_CLIENT_KEY exists:", !!process.env.VITE_TOSS_CLIENT_KEY);
+if (process.env.VITE_TOSS_CLIENT_KEY) {
+  console.log("[Server] VITE_TOSS_CLIENT_KEY length:", process.env.VITE_TOSS_CLIENT_KEY.length);
+  console.log("[Server] VITE_TOSS_CLIENT_KEY prefix:", process.env.VITE_TOSS_CLIENT_KEY.substring(0, 7) + "...");
+}
+
 console.log("[Server] Booting up...");
 
 const __filename = fileURLToPath(import.meta.url);
@@ -40,18 +47,30 @@ async function startServer() {
 
   // [최우선 순위] 환경변수 전달 API
   app.get("/api/config", (req, res) => {
-    console.log("[Server] Serving /api/config");
+    console.log("[Server] >>> Incoming request for /api/config");
+    
+    const rawTossKey = process.env.VITE_TOSS_CLIENT_KEY || "";
+    console.log("[Server] Step 1: Read VITE_TOSS_CLIENT_KEY from process.env. Value exists:", !!rawTossKey);
+    
     const config = {
-      tossClientKey: (process.env.VITE_TOSS_CLIENT_KEY || "").trim(),
+      tossClientKey: rawTossKey.trim(),
       emailjsPublicKey: (process.env.VITE_EMAILJS_PUBLIC_KEY || "").trim(),
       emailjsServiceId: (process.env.VITE_EMAILJS_SERVICE_ID || "").trim(),
       emailjsTemplateId: (process.env.VITE_EMAILJS_TEMPLATE_ID || "").trim(),
     };
     
+    console.log("[Server] Step 2: Config object constructed. tossClientKey length:", config.tossClientKey.length);
+    
     // 서버가 직접 응답함을 증명하는 헤더
     res.setHeader('X-Custom-Server', 'Express-Vite-Production');
     res.setHeader('Content-Type', 'application/json');
+    
+    console.log("[Server] Step 3: Sending JSON response...");
     return res.json(config);
+  });
+
+  app.get("/api/health", (req, res) => {
+    res.json({ status: "ok", time: new Date().toISOString(), env: process.env.NODE_ENV });
   });
 
   app.use(express.json());
