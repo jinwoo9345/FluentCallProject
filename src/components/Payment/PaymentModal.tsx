@@ -20,7 +20,7 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
   const [error, setError] = useState('');
   const [serverConfig, setServerConfig] = useState<any>(null);
 
-  const clientKey = serverConfig?.tossClientKey || (import.meta.env.VITE_TOSS_CLIENT_KEY || '').trim();
+  const clientKey = serverConfig?.tossClientKey || ((import.meta as any).env.VITE_TOSS_CLIENT_KEY || '').trim();
 
   useEffect(() => {
     // 서버에서 환경변수 가져오기
@@ -67,7 +67,7 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
     if (!termsAgreed) return;
     
     if (!clientKey) {
-      const availableKeys = Object.keys(import.meta.env).filter(key => key.startsWith('VITE_')).join(', ');
+      const availableKeys = Object.keys((import.meta as any).env).filter(key => key.startsWith('VITE_')).join(', ');
       setError(`결제 설정(VITE_TOSS_CLIENT_KEY)을 찾을 수 없습니다. Settings 메뉴에서 값을 확인한 후 페이지를 새로고침해 주세요. (인식된 변수: ${availableKeys || '없음'})`);
       return;
     }
@@ -96,7 +96,6 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
         setError('결제가 취소되었습니다.');
       } else if (err.message?.includes('401') || err.code === 'INVALID_CLIENT_KEY' || err.message?.includes('인증되지 않은')) {
         setError('토스페이먼츠 인증에 실패했습니다. 입력하신 클라이언트 키가 해당 환경(테스트/실제)에 맞는지 확인해주세요.');
-        setShowManualInput(true);
       } else {
         setError(err.message || '결제 중 오류가 발생했습니다.');
       }

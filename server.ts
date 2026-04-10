@@ -15,9 +15,11 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  // 로깅 미들웨어 - 모든 요청 확인
+  // 로깅 미들웨어 - API 요청 및 주요 상태만 로깅 (정적 파일 로깅 제외로 노이즈 감소)
   app.use((req, res, next) => {
-    console.log(`[Server] ${req.method} ${req.url}`);
+    if (req.url.startsWith('/api/')) {
+      console.log(`[Server] API ${req.method} ${req.url}`);
+    }
     if (req.url.startsWith('/api/config')) {
       console.log("[Server] Current Env Keys:", Object.keys(process.env).filter(k => k.startsWith('VITE_') || k.includes('TOSS')));
     }
