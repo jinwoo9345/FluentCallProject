@@ -8,25 +8,32 @@ import axios from "axios";
 
 dotenv.config();
 
+console.log("[Server] Script starting...");
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// 정적 파일 경로 계산 (server.ts 위치에 따라 다름)
+// root에서 실행되면 dist/, dist/에서 실행되면 ./
+const distPath = __dirname.endsWith('dist') 
+  ? __dirname 
+  : path.join(__dirname, "dist");
+
+console.log(`[Server] Resolved distPath: ${distPath}`);
 
 async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  // 로깅 미들웨어 - API 요청 및 주요 상태만 로깅 (정적 파일 로깅 제외로 노이즈 감소)
+  // 로깅 미들웨어 - API 요청 및 주요 상태만 로깅
   app.use((req, res, next) => {
     if (req.url.startsWith('/api/')) {
       console.log(`[Server] API ${req.method} ${req.url}`);
     }
-    if (req.url.startsWith('/api/config')) {
-      console.log("[Server] Current Env Keys:", Object.keys(process.env).filter(k => k.startsWith('VITE_') || k.includes('TOSS')));
-    }
     next();
   });
 
-  // [최우선 순위] 환경변수 전달 API - 그 어떤 미들웨어보다 앞에 배치
+  // [최우선 순위] 환경변수 전달 API
   app.get("/api/config", (req, res) => {
     console.log("[Server] Handling /api/config request");
     const config = {
@@ -118,6 +125,7 @@ async function startServer() {
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
+    console.log("[Server] Starting in development mode with Vite middleware");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
@@ -125,8 +133,7 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     // 프로덕션 환경에서는 빌드된 정적 파일 서비스
-    const distPath = path.join(process.cwd(), "dist");
-    console.log(`[Server] Serving static files from: ${distPath}`);
+    console.log(`[Server] Starting in production mode. Serving from: ${distPath}`);
     app.use(express.static(distPath));
     
     // SPA를 위한 모든 경로 처리 (API 제외)
