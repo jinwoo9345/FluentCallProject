@@ -3,12 +3,14 @@ import path from "path";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
 import axios from "axios";
+import fs from "fs";
 
-console.log("****************************************");
-console.log("🚀 SERVER IS STARTING UP...");
-console.log("****************************************");
+console.log("[Server] >>> TOP LEVEL START <<<");
+console.log("[Server] Current working directory:", process.cwd());
+console.log("[Server] NODE_ENV:", process.env.NODE_ENV);
 
 dotenv.config();
+console.log("[Server] dotenv.config() called");
 
 console.log("[Server] Environment variables loaded. Checking VITE_TOSS_CLIENT_KEY...");
 console.log("[Server] VITE_TOSS_CLIENT_KEY exists:", !!process.env.VITE_TOSS_CLIENT_KEY);
@@ -49,45 +51,34 @@ async function startServer() {
   app.get("/api/config", (req, res) => {
     console.log("[Server] >>> Incoming request for /api/config");
     
-    const rawTossKey = process.env.VITE_TOSS_CLIENT_KEY || "";
-    console.log("[Server] Step 1: Read VITE_TOSS_CLIENT_KEY from process.env. Value exists:", !!rawTossKey);
-    
     const config = {
-      tossClientKey: rawTossKey.trim(),
+      tossClientKey: (process.env.VITE_TOSS_CLIENT_KEY || "").trim(),
       emailjsPublicKey: (process.env.VITE_EMAILJS_PUBLIC_KEY || "").trim(),
       emailjsServiceId: (process.env.VITE_EMAILJS_SERVICE_ID || "").trim(),
       emailjsTemplateId: (process.env.VITE_EMAILJS_TEMPLATE_ID || "").trim(),
     };
     
-    console.log("[Server] Step 2: Config object constructed. tossClientKey length:", config.tossClientKey.length);
+    console.log("[Server] Sending config:", { 
+      tossClientKey: config.tossClientKey ? "OK" : "EMPTY" 
+    });
     
-    // 서버가 직접 응답함을 증명하는 헤더
-    res.setHeader('X-Custom-Server', 'Express-Vite-Production');
     res.setHeader('Content-Type', 'application/json');
-    
-    console.log("[Server] Step 3: Sending JSON response...");
+    res.setHeader('X-Custom-Server', 'Express-Vite-Final');
     return res.json(config);
   });
 
   app.get("/api/health", (req, res) => {
-    res.json({ status: "ok", time: new Date().toISOString(), env: process.env.NODE_ENV });
+    res.json({ status: "ok", env: process.env.NODE_ENV });
   });
 
   app.use(express.json());
-
-  // API 404
-  app.use("/api/*", (req, res) => {
-    res.status(404).json({ error: "API route not found" });
-  });
 
   // Toss Payments Confirmation API
   app.post("/api/payments/confirm", async (req, res) => {
     const { paymentKey, orderId, amount } = req.body;
     const secretKey = (process.env.TOSS_SECRET_KEY || "").trim();
     
-    if (!secretKey) {
-      return res.status(500).json({ message: "TOSS_SECRET_KEY is missing" });
-    }
+    if (!secretKey) return res.status(500).json({ message: "TOSS_SECRET_KEY is missing" });
 
     const encryptedSecretKey = Buffer.from(secretKey + ":").toString("base64");
 
@@ -108,26 +99,28 @@ async function startServer() {
     }
   });
 
-  // Vite middleware for development
-  if (process.env.NODE_ENV !== "production") {
-    console.log("[Server] Loading Vite in development mode...");
+  // 정적 파일 서비스 (dist가 있으면 우선, 없으면 src는 Vite가 담당)
+  if (fs.existsSync(distPath)) {
+    console.log("[Server] dist folder found. Serving static files from dist.");
+    app.use(express.static(distPath));
+    
+    // API route fallback for SPA
+    app.get("*", (req, res, next) => {
+      if (req.url.startsWith('/api/')) return next();
+      res.sendFile(path.join(distPath, "index.html"));
+    });
+  } else if (process.env.NODE_ENV !== "production") {
+    console.log("[Server] Development mode: Loading Vite middleware");
     const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
     });
     app.use(vite.middlewares);
-  } else {
-    console.log("[Server] Production mode: Serving static files");
-    app.use(express.static(distPath));
-    
-    app.get("*", (req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
-    });
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`[Server] Listening on http://0.0.0.0:${PORT}`);
+    console.log(`[Server] RUNNING on http://0.0.0.0:${PORT}`);
   });
 }
 

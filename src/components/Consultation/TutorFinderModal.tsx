@@ -100,9 +100,9 @@ export function TutorFinderModal({ isOpen, onClose }: TutorFinderModalProps) {
 
       // 2. Send email via EmailJS
       try {
-        const serviceId = serverConfig?.emailjsServiceId;
-        const templateId = serverConfig?.emailjsTemplateId;
-        const publicKey = serverConfig?.emailjsPublicKey;
+        const serviceId = serverConfig?.emailjsServiceId || (import.meta as any).env.VITE_EMAILJS_SERVICE_ID;
+        const templateId = serverConfig?.emailjsTemplateId || (import.meta as any).env.VITE_EMAILJS_TEMPLATE_ID;
+        const publicKey = serverConfig?.emailjsPublicKey || (import.meta as any).env.VITE_EMAILJS_PUBLIC_KEY;
 
         if (!serviceId || !templateId || !publicKey) {
           console.error('EmailJS 설정 누락:', { serviceId: !!serviceId, templateId: !!templateId, publicKey: !!publicKey });
