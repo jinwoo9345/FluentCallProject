@@ -122,15 +122,22 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
+    // 프로덕션 환경에서는 빌드된 정적 파일 서비스
     const distPath = path.join(process.cwd(), "dist");
+    console.log(`[Server] Serving static files from: ${distPath}`);
     app.use(express.static(distPath));
+    
+    // SPA를 위한 모든 경로 처리 (API 제외)
     app.get("*", (req, res) => {
       res.sendFile(path.join(distPath, "index.html"));
     });
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+    console.log("========================================");
+    console.log(`🚀 Server started on http://0.0.0.0:${PORT}`);
+    console.log(`📡 Mode: ${process.env.NODE_ENV || 'development'}`);
+    console.log("========================================");
   });
 }
 
