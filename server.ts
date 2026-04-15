@@ -3,9 +3,16 @@ import path from "path";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
 import axios from "axios";
+import fs from "fs";
 
-// .env 파일 로드
-dotenv.config();
+// .env 파일 로드 (.env.local 우선)
+if (fs.existsSync(".env.local")) {
+  dotenv.config({ path: ".env.local" });
+  console.log("[Server] Loaded config from .env.local");
+} else {
+  dotenv.config();
+  console.log("[Server] Loaded config from .env");
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -33,6 +40,12 @@ async function startServer() {
   app.post("/api/payments/confirm", async (req, res) => {
     const { paymentKey, orderId, amount } = req.body;
     const secretKey = (process.env.TOSS_SECRET_KEY || "").trim();
+
+    if (!secretKey) {
+      console.error("[Server] TOSS_SECRET_KEY is missing in environment variables");
+      return res.status(500).json({ message: "TOSS_SECRET_KEY is missing" });
+    }
+
     const encryptedSecretKey = Buffer.from(secretKey + ":").toString("base64");
 
     try {

@@ -2,7 +2,13 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Mail, Lock, User as UserIcon, GraduationCap, School } from 'lucide-react';
 import { auth, db } from '../../firebase';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { 
+  createUserWithEmailAndPassword, 
+  signInWithEmailAndPassword, 
+  updateProfile,
+  setPersistence,
+  browserSessionPersistence
+} from 'firebase/auth';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { Button } from '../ui/Button';
 
@@ -28,6 +34,9 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
     setLoading(true);
 
     try {
+      // Set persistence to session (logout when browser/tab closes)
+      await setPersistence(auth, browserSessionPersistence);
+
       if (mode === 'signup') {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;

@@ -153,12 +153,12 @@ service cloud.firestore {
     // ===============================================================
 
     match /tutor_requests/{requestId} {
-      allow create: if true; // Allow public submission
+      allow create: if isAuthenticated();
       allow read, update, delete: if isAdmin();
     }
 
     match /consultations/{consultationId} {
-      allow create: if true; // Allow public submission
+      allow create: if isAuthenticated();
       allow read, update, delete: if isAdmin();
     }
 
@@ -175,7 +175,7 @@ service cloud.firestore {
     }
 
     match /mail/{mailId} {
-      allow create: if isValidMail(request.resource.data);
+      allow create: if isAuthenticated() && isValidMail(request.resource.data);
       allow read, update, delete: if isAdmin();
     }
 
