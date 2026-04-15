@@ -104,6 +104,13 @@ export function TutorFinderModal({ isOpen, onClose }: TutorFinderModalProps) {
         const templateId = serverConfig?.emailjsTemplateId || (import.meta as any).env.VITE_EMAILJS_TEMPLATE_ID;
         const publicKey = serverConfig?.emailjsPublicKey || (import.meta as any).env.VITE_EMAILJS_PUBLIC_KEY;
 
+        console.log("[Client] EmailJS Config Attempt:", { 
+          source: serverConfig ? 'server' : 'inline',
+          hasServiceId: !!serviceId,
+          hasTemplateId: !!templateId,
+          hasPublicKey: !!publicKey
+        });
+
         if (!serviceId || !templateId || !publicKey) {
           console.error('EmailJS 설정 누락:', { serviceId: !!serviceId, templateId: !!templateId, publicKey: !!publicKey });
           console.warn('설정(Settings) 메뉴에서 EmailJS 환경 변수를 입력해주세요.');

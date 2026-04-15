@@ -1,5 +1,5 @@
 {
-  "name": "플루언트콜 (FluentCall) - 전화영어 서비스",
-  "description": "원어민 튜터와 1:1 전화/화상 레슨을 연결해주는 현대적인 영어 학습 플랫폼입니다.",
+  "name": "EnglishBites (잉글리시바이츠) - 원어민 1:1 회화",
+  "description": "야금야금 영어가 느는 구조. 북미/유럽 원어민 튜터와 함께하는 가장 자유로운 1:1 회화 서비스입니다.",
   "requestFramePermissions": ["microphone", "camera"]
 }

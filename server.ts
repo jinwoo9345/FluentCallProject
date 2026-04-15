@@ -17,7 +17,8 @@ async function startServer() {
   // [최우선] 환경변수 API
   app.get("/api/config", (req, res) => {
     console.log("[Server] Incoming /api/config request");
-    res.setHeader('X-Custom-Server', 'Express-Vite-Final-Fix');
+    console.log("[Server] TOSS_KEY exists:", !!process.env.VITE_TOSS_CLIENT_KEY);
+    res.setHeader('X-Custom-Server', 'Express-Production-Final');
     res.json({
       tossClientKey: (process.env.VITE_TOSS_CLIENT_KEY || "").trim(),
       emailjsPublicKey: (process.env.VITE_EMAILJS_PUBLIC_KEY || "").trim(),
@@ -51,17 +52,20 @@ async function startServer() {
     }
   });
 
-  // Vite Middleware (개발 모드 강제)
-  console.log("[Server] Starting Vite Middleware...");
-  const { createServer: createViteServer } = await import("vite");
-  const vite = await createViteServer({
-    server: { middlewareMode: true },
-    appType: "spa",
+  // 정적 파일 서빙 (dist 폴더)
+  const distPath = path.join(__dirname, "dist");
+  app.use(express.static(distPath));
+
+  // SPA Fallback: 모든 요청에 대해 index.html 반환 (API 제외)
+  app.get("*", (req, res) => {
+    if (req.path.startsWith("/api")) {
+      return res.status(404).json({ error: "Not Found" });
+    }
+    res.sendFile(path.join(distPath, "index.html"));
   });
-  app.use(vite.middlewares);
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`[Server] READY on port ${PORT}`);
+    console.log(`[Server] PRODUCTION READY on port ${PORT}`);
   });
 }
 
