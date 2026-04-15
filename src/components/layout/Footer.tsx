@@ -1,4 +1,4 @@
-import { Phone, Github, Twitter, Instagram } from 'lucide-react';
+import { Phone, Github, Twitter, Instagram, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export const Footer = () => {
@@ -7,14 +7,16 @@ export const Footer = () => {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
           <div className="col-span-1 md:col-span-1">
-            <Link to="/" className="flex items-center gap-2 text-xl font-bold text-blue-600">
+            <Link to="/" className="flex items-center gap-2 text-xl font-black text-slate-900 font-display tracking-tight">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white">
-                <Phone size={18} />
+                <Sparkles size={16} />
               </div>
-              <span>플루언트콜</span>
+              <span>English<span className="text-blue-600">Bites</span></span>
             </Link>
-            <p className="mt-4 text-sm text-slate-500">
-              원어민과 1:1 대화를 통해 영어를 마스터하세요. 언제 어디서나 가능합니다.
+            <p className="mt-4 text-sm text-slate-500 leading-relaxed">
+              야금야금 영어가 느는 구조. <br />
+              북미/유럽 원어민과 함께하는 <br />
+              가장 자유로운 1:1 회화 서비스입니다.
             </p>
           </div>
           
@@ -48,7 +50,7 @@ export const Footer = () => {
         </div>
         <div className="mt-12 border-t border-slate-200 pt-8 text-center">
           <p className="text-xs text-slate-400">
-            © {new Date().getFullYear()} FluentCall. All rights reserved.
+            © {new Date().getFullYear()} EnglishBites. All rights reserved.
           </p>
         </div>
       </div>

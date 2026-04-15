@@ -136,8 +136,8 @@ export function TutorDetailModal({ isOpen, onClose, tutor, onRegister }: TutorDe
             <div className="border-t border-slate-100 bg-slate-50 p-6 sm:px-10">
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <p className="text-sm text-slate-500">수강료</p>
-                  <p className="text-2xl font-black text-slate-900">{tutor.hourlyRate.toLocaleString()}원 <span className="text-sm font-normal text-slate-400">/ 월</span></p>
+                  <p className="text-sm font-bold text-blue-600">베이직 플랜 (8회)</p>
+                  <p className="text-2xl font-black text-slate-900">179,000원</p>
                 </div>
                 <Button size="lg" className="px-10 py-6 text-lg font-bold rounded-2xl shadow-lg shadow-blue-200" onClick={onRegister}>
                   등록하기

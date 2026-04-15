@@ -13,9 +13,13 @@ export const MOCK_TUTORS: Tutor[] = [
     avatar: 'https://picsum.photos/seed/kev/200/200',
     rating: 5.0,
     reviewCount: 0,
-    specialties: ['Business course', 'Interviewing', 'Test (TOEIC Speaking)', 'Professional English', 'Korean'],
-    bio: 'Business English and test preparation expert based in Korea.',
-    longBio: '안녕하세요! 한국에 거주하며 비즈니스 영어와 각종 시험 대비를 전문으로 하고 있는 Kev입니다. 10년 이상의 교육 경험을 바탕으로 실무에서 바로 활용 가능한 영어를 가르쳐 드립니다. 면접 준비부터 프레젠테이션까지, 여러분의 커리어 성장을 돕겠습니다.',
+    specialties: ['Casual Conversation', 'Business English', 'Interviewing', 'Document Translation'],
+    bio: 'For those who want to be fluent in casual convo and business english.',
+    longBio: `For those who want to be fluent in casual convo and business english.
+
+- 8+ years experience in document translation, business meeting translation.
+- Former military interpreter (Korea Defense Intelligence Command)
+- 990 TOEIC, AL OpiC`,
     hourlyRate: 179000,
     availability: ['월 09:00', '월 10:00', '수 15:00', '금 11:00'],
     languages: ['English (Native)', 'Korean'],
@@ -24,14 +28,16 @@ export const MOCK_TUTORS: Tutor[] = [
     reviews: []
   },
   {
-    id: 'tutor-ezeter',
-    name: 'Ezeter',
-    avatar: 'https://picsum.photos/seed/ezeter/200/200',
+    id: 'tutor-esther',
+    name: 'Esther',
+    avatar: 'https://picsum.photos/seed/esther/200/200',
     rating: 4.9,
     reviewCount: 0,
-    specialties: ['Hungarian', 'Casual', 'High Level'],
-    bio: 'High-level casual conversation and Hungarian language expert.',
-    longBio: '일상 회화부터 고급 비즈니스 대화까지, 자연스러운 영어 구사를 목표로 하는 Ezeter입니다. 언어는 즐거워야 한다는 신념으로 지루하지 않은 수업을 약속드립니다. 헝가리어 수업도 가능하니 관심 있으신 분들은 언제든 문의주세요!',
+    specialties: ['Casual', 'Basics', 'Finance', 'High Level'],
+    bio: 'Do you freeze up when you have to talk to someone? I can help you.',
+    longBio: `Do you freeze up when you have to talk to someone?
+I can help you get through the basics, clear up the questions you might have and lift u up to the next level.
+If you are looking for some more specific subjects I'm quite familiar with the world of finances.`,
     hourlyRate: 179000,
     availability: ['화 10:00', '목 14:00', '토 09:00'],
     languages: ['English (Fluent)', 'Hungarian (Native)'],

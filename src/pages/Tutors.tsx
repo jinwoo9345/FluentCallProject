@@ -83,11 +83,14 @@ export default function Tutors() {
                 </div>
               </div>
               <div>
-                <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">가격대</label>
-                <input type="range" className="mt-3 w-full accent-blue-600" />
-                <div className="mt-1 flex justify-between text-xs text-slate-400">
-                  <span>10,000원</span>
-                  <span>200,000원+</span>
+                <label className="text-xs font-semibold uppercase tracking-wider text-slate-500">수업 방식</label>
+                <div className="mt-3 space-y-2">
+                  {['25~30분 집중', '자유로운 대화', '비즈니스 특화'].map((s) => (
+                    <label key={s} className="flex items-center gap-2 text-sm text-slate-600">
+                      <input type="checkbox" className="rounded border-slate-300 text-blue-600 focus:ring-blue-500" />
+                      {s}
+                    </label>
+                  ))}
                 </div>
               </div>
             </div>
@@ -154,8 +157,8 @@ export default function Tutors() {
 
                     <div className="mt-6 flex items-center justify-between border-t border-slate-50 pt-4">
                       <div>
-                        <span className="text-lg font-bold text-slate-900">{tutor.hourlyRate.toLocaleString()}원</span>
-                        <span className="text-xs text-slate-400"> / 월</span>
+                        <span className="text-sm font-bold text-blue-600">베이직 플랜</span>
+                        <span className="text-xs text-slate-400 block">8회 수업 패키지</span>
                       </div>
                       <Button size="sm" className="gap-2 px-6" onClick={(e) => handleRegisterClick(e, tutor)}>
                         <CreditCard size={16} />

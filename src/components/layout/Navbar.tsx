@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Phone, User, Calendar, Search, Menu, X, LogOut } from 'lucide-react';
+import { Phone, User, Calendar, Search, Menu, X, LogOut, Sparkles } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '../ui/Button';
 import { cn } from '@/src/lib/utils';
@@ -32,11 +32,11 @@ export const Navbar = () => {
     <nav className="sticky top-0 z-50 w-full border-b border-slate-100 bg-white/80 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <div className="flex items-center gap-2">
-          <Link to="/" className="flex items-center gap-2 text-xl font-bold text-blue-600">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white">
-              <Phone size={18} />
+          <Link to="/" className="flex items-center gap-2 text-2xl font-black text-slate-900 font-display tracking-tight">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-200">
+              <Sparkles size={20} />
             </div>
-            <span>플루언트콜</span>
+            <span>English<span className="text-blue-600">Bites</span></span>
           </Link>
         </div>
 
