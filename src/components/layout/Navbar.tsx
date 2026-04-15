@@ -33,8 +33,8 @@ export const Navbar = () => {
     <nav className="sticky top-0 z-50 w-full border-b border-brand-cream-dark/50 bg-brand-cream/80 backdrop-blur-md">
       <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <div className="flex items-center gap-2">
-          <Link to="/" className="flex items-center gap-2">
-            <Logo />
+          <Link to="/" className="flex items-center gap-2 text-2xl font-black text-slate-900 font-display tracking-tight">
+            <span>English<span className="text-blue-600">Bites</span></span>
           </Link>
         </div>
 

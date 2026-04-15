@@ -8,8 +8,8 @@ export const Footer = () => {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
           <div className="col-span-1 md:col-span-1">
-            <Link to="/" className="flex items-center gap-2">
-              <Logo className="h-10" />
+            <Link to="/" className="flex items-center gap-2 text-xl font-black text-slate-900 font-display tracking-tight">
+              <span>English<span className="text-blue-600">Bites</span></span>
             </Link>
             <p className="mt-4 text-sm text-slate-500 leading-relaxed">
               야금야금 영어가 느는 구조. <br />

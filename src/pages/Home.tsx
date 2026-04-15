@@ -46,7 +46,6 @@ export default function Home() {
                 transition={{ delay: 0.2 }}
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-50 text-blue-600 text-sm font-bold mb-8 border border-blue-100"
               >
-                <img src="/logo.png" alt="EnglishBites" className="h-8 w-8 object-cover rounded-lg shadow-sm" />
                 <span>야금야금 영어가 느는 구조, EnglishBites</span>
               </motion.div>
               
@@ -116,14 +115,13 @@ export default function Home() {
               transition={{ duration: 1, delay: 0.3 }}
               className="relative"
             >
-              <div className="relative z-10 aspect-[4/5] rounded-[3rem] overflow-hidden shadow-2xl border-8 border-white">
+              <div className="relative z-10 aspect-square rounded-[3rem] overflow-hidden shadow-2xl border-8 border-white bg-white">
                 <img
-                  src="https://picsum.photos/seed/expression/800/1000"
-                  alt="Expressing thoughts"
-                  className="h-full w-full object-cover"
+                  src="/logo.png"
+                  alt="EnglishBites Logo"
+                  className="h-full w-full object-contain p-8"
                   referrerPolicy="no-referrer"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-900/40 to-transparent" />
               </div>
               
               {/* Floating elements */}
@@ -133,7 +131,7 @@ export default function Home() {
                 className="absolute -top-10 -right-10 z-20 bg-white p-6 rounded-3xl shadow-2xl border border-slate-50 max-w-[200px]"
               >
                 <div className="flex items-center gap-3 mb-2">
-                  <img src="/logo.png" alt="EnglishBites" className="h-6 w-6 object-cover rounded-md shadow-sm" />
+                  <div className="w-3 h-3 rounded-full bg-blue-500 animate-pulse" />
                   <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">EnglishBites</span>
                 </div>
                 <p className="text-sm font-bold text-slate-800 leading-snug">
