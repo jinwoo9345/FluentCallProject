@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { CheckCircle, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '../components/ui/Button';
+import { auth } from '../firebase';
 
 export default function PaymentSuccess() {
   const [searchParams] = useSearchParams();
@@ -17,10 +18,13 @@ export default function PaymentSuccess() {
   useEffect(() => {
     const confirmPayment = async () => {
       try {
+        const idToken = await auth.currentUser?.getIdToken();
+        
         const response = await fetch('/api/payments/confirm', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'Authorization': idToken ? `Bearer ${idToken}` : '',
           },
           body: JSON.stringify({
             paymentKey,

@@ -4,6 +4,8 @@ import { X, Check, ExternalLink, CreditCard, ShieldCheck, AlertCircle } from 'lu
 import { Button } from '../ui/Button';
 import { Link } from 'react-router-dom';
 import { loadTossPayments } from '@tosspayments/payment-sdk';
+import { db, auth } from '../../firebase';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -90,6 +92,19 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
       const tossPayments = await loadTossPayments(clientKey);
       
       const orderId = `order_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+
+      // 1. Create a pending payment document in Firestore for verification
+      if (auth.currentUser) {
+        await setDoc(doc(db, 'payments', orderId), {
+          orderId,
+          userId: auth.currentUser.uid,
+          amount: amount,
+          productId: productId,
+          productName: productName,
+          status: 'pending',
+          createdAt: serverTimestamp()
+        });
+      }
 
       console.log('Requesting payment...', { orderId, amount, productName });
 

@@ -4,6 +4,14 @@ interface Env {
 
 export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   try {
+    const authHeader = request.headers.get("Authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ message: "Authentication required" }), {
+        status: 401,
+        headers: { "Content-Type": "application/json" }
+      });
+    }
+
     const { paymentKey, orderId, amount } = await request.json<any>();
     const secretKey = (env.TOSS_SECRET_KEY || "").trim();
 
@@ -13,6 +21,12 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
         headers: { "Content-Type": "application/json" }
       });
     }
+
+    // [Security Refinement] 
+    // In a real production environment, you should verify the orderId and amount 
+    // against your database (Firestore) here before calling Toss.
+    // Example: const order = await getOrderFromFirestore(orderId);
+    // if (order.amount !== amount) throw new Error("Amount mismatch");
 
     const encryptedSecretKey = btoa(secretKey + ":");
 

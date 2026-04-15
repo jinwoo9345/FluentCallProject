@@ -45,6 +45,11 @@ async function startServer() {
 
   // Toss Payments Confirm
   app.post("/api/payments/confirm", async (req, res) => {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
+
     const { paymentKey, orderId, amount } = req.body;
     const secretKey = (process.env.TOSS_SECRET_KEY || "").trim();
 

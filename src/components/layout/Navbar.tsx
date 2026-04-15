@@ -6,6 +6,7 @@ import { cn } from '@/src/lib/utils';
 import { useAuth } from '../../contexts/AuthContext';
 import { auth } from '../../firebase';
 import { signOut } from 'firebase/auth';
+import { Logo } from '../ui/Logo';
 
 export const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -32,11 +33,8 @@ export const Navbar = () => {
     <nav className="sticky top-0 z-50 w-full border-b border-slate-100 bg-white/80 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <div className="flex items-center gap-2">
-          <Link to="/" className="flex items-center gap-2 text-2xl font-black text-slate-900 font-display tracking-tight">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-200">
-              <Sparkles size={20} />
-            </div>
-            <span>English<span className="text-blue-600">Bites</span></span>
+          <Link to="/" className="flex items-center gap-2">
+            <Logo className="h-10" />
           </Link>
         </div>
 
