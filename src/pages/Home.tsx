@@ -50,17 +50,38 @@ export default function Home() {
                 <span>야금야금 영어가 느는 구조, EnglishBites</span>
               </motion.div>
               
-              <h1 className="text-5xl font-extrabold tracking-tight text-slate-900 sm:text-7xl leading-[1.1] mb-8 font-display">
+              <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl leading-[1.2] mb-8 font-display">
                 머릿속 단어가 <br />
                 <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">입 밖으로 터지는</span> <br />
                 진짜 회화의 시작
               </h1>
               
-              <p className="text-xl text-slate-600 leading-relaxed mb-10 max-w-xl">
-                비싼 학원비, 딱딱한 커리큘럼은 이제 그만. <br />
-                북미/유럽 원어민 튜터와 함께 가장 자유로운 분위기에서 <br />
-                당신의 일상을 영어로 채워보세요.
-              </p>
+              <div className="space-y-6 mb-12">
+                <motion.div 
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.4 }}
+                  className="flex items-center gap-3"
+                >
+                  <div className="h-px w-8 bg-slate-200" />
+                  <p className="text-slate-400 font-medium line-through decoration-slate-300">
+                    비싼 학원비, 딱딱한 커리큘럼은 이제 그만
+                  </p>
+                </motion.div>
+
+                <motion.div 
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.5 }}
+                  className="bg-slate-50/50 border border-slate-100 p-6 rounded-3xl max-w-lg"
+                >
+                  <p className="text-lg sm:text-xl text-slate-700 leading-relaxed font-medium">
+                    북미/유럽 원어민 튜터와 함께 <br />
+                    <span className="text-blue-600 font-bold">가장 자유로운 분위기</span>에서 <br />
+                    당신의 일상을 영어로 채워보세요.
+                  </p>
+                </motion.div>
+              </div>
 
               <div className="flex flex-col sm:flex-row items-center gap-4">
                 <Button 
@@ -84,12 +105,7 @@ export default function Home() {
                 <div className="w-px h-10 bg-slate-100" />
                 <div>
                   <p className="text-2xl font-bold text-slate-900">25-30m</p>
-                  <p className="text-sm text-slate-500">집중 수업 시간</p>
-                </div>
-                <div className="w-px h-10 bg-slate-100" />
-                <div>
-                  <p className="text-2xl font-bold text-slate-900">4.9/5</p>
-                  <p className="text-sm text-slate-500">수강생 만족도</p>
+                  <p className="text-sm text-slate-500">수업 시간</p>
                 </div>
               </div>
             </motion.div>
@@ -117,30 +133,12 @@ export default function Home() {
                 className="absolute -top-10 -right-10 z-20 bg-white p-6 rounded-3xl shadow-2xl border border-slate-50 max-w-[200px]"
               >
                 <div className="flex items-center gap-3 mb-2">
-                  <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse" />
-                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Live Now</span>
+                  <div className="w-3 h-3 rounded-full bg-blue-500 animate-pulse" />
+                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">EnglishBites</span>
                 </div>
                 <p className="text-sm font-bold text-slate-800 leading-snug">
                   "머릿속에 맴도는 단어들, 이제 바로 내뱉으세요!"
                 </p>
-              </motion.div>
-
-              <motion.div 
-                animate={{ y: [0, 15, 0] }}
-                transition={{ duration: 5, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-                className="absolute -bottom-10 -left-10 z-20 bg-slate-900 p-6 rounded-3xl shadow-2xl text-white"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="flex -space-x-3">
-                    {[1, 2, 3].map(i => (
-                      <img key={i} src={`https://picsum.photos/seed/user${i}/100/100`} className="w-10 h-10 rounded-full border-2 border-slate-900" referrerPolicy="no-referrer" />
-                    ))}
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-400 font-medium">함께하는 수강생</p>
-                    <p className="text-sm font-bold">1,200+ 명 돌파</p>
-                  </div>
-                </div>
               </motion.div>
 
               {/* Background Glow */}
