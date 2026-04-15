@@ -32,7 +32,7 @@ export default function Home() {
   return (
     <div className="flex flex-col font-sans overflow-x-hidden">
       {/* Hero Section */}
-      <section className="relative min-h-[90vh] flex items-center bg-white pt-20 pb-32 overflow-hidden">
+      <section className="relative min-h-[90vh] flex items-center bg-brand-cream pt-20 pb-32 overflow-hidden">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="grid grid-cols-1 items-center gap-16 lg:grid-cols-2">
             <motion.div
@@ -46,7 +46,7 @@ export default function Home() {
                 transition={{ delay: 0.2 }}
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-50 text-blue-600 text-sm font-bold mb-8 border border-blue-100"
               >
-                <img src="/logo.png" alt="EnglishBites" className="h-5 w-5 object-contain" />
+                <img src="/logo.png" alt="EnglishBites" className="h-8 w-8 object-cover rounded-lg shadow-sm" />
                 <span>야금야금 영어가 느는 구조, EnglishBites</span>
               </motion.div>
               
@@ -133,7 +133,7 @@ export default function Home() {
                 className="absolute -top-10 -right-10 z-20 bg-white p-6 rounded-3xl shadow-2xl border border-slate-50 max-w-[200px]"
               >
                 <div className="flex items-center gap-3 mb-2">
-                  <img src="/logo.png" alt="EnglishBites" className="h-4 w-4 object-contain" />
+                  <img src="/logo.png" alt="EnglishBites" className="h-6 w-6 object-cover rounded-md shadow-sm" />
                   <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">EnglishBites</span>
                 </div>
                 <p className="text-sm font-bold text-slate-800 leading-snug">

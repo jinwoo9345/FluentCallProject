@@ -12,7 +12,10 @@ export const Logo: React.FC<LogoProps> = ({ className, iconOnly = false }) => {
       <img 
         src="/logo.png" 
         alt="EnglishBites" 
-        className={cn("object-contain", iconOnly ? "h-9 w-9" : "h-10")}
+        className={cn(
+          "object-cover rounded-xl shadow-sm border border-brand-cream-dark/10", 
+          iconOnly ? "h-12 w-12" : "h-14 w-auto"
+        )}
         referrerPolicy="no-referrer"
       />
       {!iconOnly && (
