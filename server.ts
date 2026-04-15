@@ -5,6 +5,13 @@ import dotenv from "dotenv";
 import axios from "axios";
 import fs from "fs";
 
+/**
+ * [Local Development Server]
+ * This Express server is used for local development (npm run dev).
+ * In production (Cloudflare Pages), the API is handled by Cloudflare Pages Functions 
+ * located in the /functions directory.
+ */
+
 // .env 파일 로드 (.env.local 우선)
 if (fs.existsSync(".env.local")) {
   dotenv.config({ path: ".env.local" });
