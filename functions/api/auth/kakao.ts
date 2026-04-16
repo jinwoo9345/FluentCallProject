@@ -55,21 +55,30 @@ async function createCustomToken(uid: string, clientEmail: string, privateKey: s
 
 export const onRequestPost: PagesFunction<any> = async ({ request, env }) => {
   try {
-    // [DEBUG] 현재 환경 변수 상태 체크 (키 이름만 확인)
+    // 모든 환경 변수 앞뒤 공백 제거 (매우 중요)
+    const clientEmail = (env.FIREBASE_CLIENT_EMAIL || "").trim();
+    const privateKey = (env.FIREBASE_PRIVATE_KEY || "").trim();
+    const kakaoRestKey = (env.KAKAO_REST_API_KEY || "").trim();
+    const projectId = (env.FIREBASE_PROJECT_ID || "").trim();
+
     const envKeys = Object.keys(env);
-    const requiredKeys = ['FIREBASE_PRIVATE_KEY', 'FIREBASE_CLIENT_EMAIL', 'KAKAO_REST_API_KEY'];
-    const missingKeys = requiredKeys.filter(key => !env[key]);
+    const missingKeys = [];
+    if (!clientEmail) missingKeys.push('FIREBASE_CLIENT_EMAIL');
+    if (!privateKey) missingKeys.push('FIREBASE_PRIVATE_KEY');
+    if (!kakaoRestKey) missingKeys.push('KAKAO_REST_API_KEY');
 
     if (missingKeys.length > 0) {
-      console.error('[Env Error] Missing keys:', missingKeys);
       return new Response(JSON.stringify({ 
         message: '서버 환경 변수 설정 오류',
-        detail: `${missingKeys.join(', ')} 변수가 Cloudflare에 등록되어 있지 않거나 비어있습니다.`,
-        availableKeys: envKeys // 현재 서버가 알고 있는 변수 목록 (디버깅용)
-      }), { 
-        status: 500,
-        headers: { 'Content-Type': 'application/json' }
-      });
+        detail: `${missingKeys.join(', ')} 변수가 비어있습니다.`,
+        availableKeys: envKeys
+      }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+    }
+
+    // [보안/정합성 체크] 서비스 계정 이메일에 프로젝트 ID가 포함되어 있는지 확인
+    if (projectId && !clientEmail.includes(projectId)) {
+      console.warn('[Project ID Mismatch]', { projectId, clientEmail });
+      // 차단하지는 않되 로그를 남김
     }
 
     const body = await request.json() as any;
@@ -83,7 +92,7 @@ export const onRequestPost: PagesFunction<any> = async ({ request, env }) => {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8' },
       body: new URLSearchParams({
         grant_type: 'authorization_code',
-        client_id: env.KAKAO_REST_API_KEY || '',
+        client_id: kakaoRestKey,
         redirect_uri: redirectUri,
         code,
       }),
@@ -95,7 +104,7 @@ export const onRequestPost: PagesFunction<any> = async ({ request, env }) => {
         message: '카카오 토큰 교환 실패',
         detail: tokenData.error_description || tokenData.error,
         errorCode: tokenData.error_code
-      }), { status: 400 });
+      }), { status: 400, headers: { 'Content-Type': 'application/json' } });
     }
 
     // 2. 카카오 사용자 정보 가져오기
@@ -108,15 +117,17 @@ export const onRequestPost: PagesFunction<any> = async ({ request, env }) => {
     const uid = `kakao:${userData.id}`;
 
     // 3. Firebase Custom Token 생성
-    const customToken = await createCustomToken(uid, env.FIREBASE_CLIENT_EMAIL, env.FIREBASE_PRIVATE_KEY);
+    const customToken = await createCustomToken(uid, clientEmail, privateKey);
 
     return new Response(JSON.stringify({ 
       customToken,
       userName: userData.kakao_account?.profile?.nickname,
-      userPhoto: userData.kakao_account?.profile?.profile_image_url
-    }), {
-      headers: { 'Content-Type': 'application/json' }
-    });
+      userPhoto: userData.kakao_account?.profile?.profile_image_url,
+      debug: { // 디버깅용 (문제 해결 후 삭제 권장)
+        iss: clientEmail,
+        uid: uid
+      }
+    }), { headers: { 'Content-Type': 'application/json' } });
 
   } catch (error: any) {
     console.error('[Backend Error]', error);
