@@ -4,6 +4,8 @@
  */
 
 async function createCustomToken(uid: string, clientEmail: string, privateKey: string) {
+  if (!privateKey) throw new Error('FIREBASE_PRIVATE_KEY is missing');
+  
   const header = { alg: 'RS256', typ: 'JWT' };
   const now = Math.floor(Date.now() / 1000);
   const payload = {
