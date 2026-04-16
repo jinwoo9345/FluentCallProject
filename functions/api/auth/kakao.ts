@@ -27,17 +27,21 @@ async function createCustomToken(uid: string, clientEmail: string, privateKey: s
 
   // Use the safe keyStr variable
   const pemContents = keyStr
+    .replace(/\\n/g, "\n") // 글자 그대로의 \n을 실제 줄바꿈으로 변환
     .replace(/-----BEGIN PRIVATE KEY-----/g, "")
     .replace(/-----END PRIVATE KEY-----/g, "")
-    .replace(/\s/g, "");
+    .replace(/\s/g, ""); // 모든 공백 및 줄바꿈 제거
     
-  const binaryDer = Uint8Array.from(atob(pemContents), c => c.charCodeAt(0));
+  try {
+    const binaryDer = Uint8Array.from(atob(pemContents), c => c.charCodeAt(0));
+    const key = await crypto.subtle.importKey("pkcs8", binaryDer, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["sign"]);
+    const signature = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", key, new TextEncoder().encode(unsignedToken));
+    const encodedSignature = btoa(String.fromCharCode(...new Uint8Array(signature))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
 
-  const key = await crypto.subtle.importKey("pkcs8", binaryDer, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["sign"]);
-  const signature = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", key, new TextEncoder().encode(unsignedToken));
-  const encodedSignature = btoa(String.fromCharCode(...new Uint8Array(signature))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-
-  return `${unsignedToken}.${encodedSignature}`;
+    return `${unsignedToken}.${encodedSignature}`;
+  } catch (e: any) {
+    throw new Error(`Base64 디코딩 실패: ${e.message}. 키 형식을 확인해주세요.`);
+  }
 }
 
 export const onRequestPost: PagesFunction<any> = async ({ request, env }) => {
