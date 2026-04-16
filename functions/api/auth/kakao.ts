@@ -31,9 +31,9 @@ async function createCustomToken(uid: string, clientEmail: string, privateKey: s
 
 export const onRequestPost: PagesFunction<any> = async ({ request, env }) => {
   try {
-    const { code } = await request.json() as any;
+    const { code, redirectUri: clientRedirectUri } = await request.json() as any;
     const origin = new URL(request.url).origin;
-    const redirectUri = `${origin}/dashboard`;
+    const redirectUri = clientRedirectUri || `${origin}/dashboard`;
 
     // 1. 인가 코드를 액세스 토큰으로 교환
     const tokenRes = await fetch('https://kauth.kakao.com/oauth/token', {

@@ -26,10 +26,11 @@ function AppContent() {
     if (code) {
       const handleKakaoAuth = async () => {
         try {
+          const redirectUri = `${window.location.origin}/dashboard`;
           const response = await fetch('/api/auth/kakao', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code })
+            body: JSON.stringify({ code, redirectUri }) 
           });
 
           const data = await response.json();
