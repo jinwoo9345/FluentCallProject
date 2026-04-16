@@ -1,22 +1,23 @@
 import { useState } from 'react';
 import React from 'react';
 import { motion } from 'motion/react';
-import { Star, Search, Filter, CreditCard, Heart } from 'lucide-react';
-import { MOCK_TUTORS } from '../constants';
+import { Star, Search, Filter, CreditCard, Heart, Loader2 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { PaymentModal } from '../components/Payment/PaymentModal';
 import { TutorDetailModal } from '../components/Tutors/TutorDetailModal';
 import { useAuth } from '../contexts/AuthContext';
+import { useTutors } from '../hooks/useTutors';
 
 export default function Tutors() {
   const { user, setIsAuthModalOpen, setAuthMode, toggleWishlist } = useAuth();
+  const { tutors, loading } = useTutors();
   const [searchQuery, setSearchQuery] = useState('');
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [selectedTutor, setSelectedTutor] = useState<any>(null);
 
-  const filteredTutors = MOCK_TUTORS.filter(tutor => 
+  const filteredTutors = tutors.filter(tutor => 
     tutor.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     tutor.specialties.some(s => s.toLowerCase().includes(searchQuery.toLowerCase()))
   );
@@ -41,6 +42,15 @@ export default function Tutors() {
     e.stopPropagation();
     toggleWishlist(tutorId);
   };
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh]">
+        <Loader2 className="animate-spin text-blue-600 mb-4" size={40} />
+        <p className="text-slate-600">최고의 원어민 튜터들을 불러오는 중...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">

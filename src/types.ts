@@ -44,6 +44,8 @@ export interface User {
   referredBy?: string;
   discountBalance?: number;
   wishlist?: string[]; // Array of tutor IDs
+  hasCompletedConsultation?: boolean;
+  studentAvailability?: string[]; // student's preferred times
 }
 
 export interface Consultation {

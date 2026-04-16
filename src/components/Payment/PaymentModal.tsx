@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Check, ExternalLink, CreditCard, ShieldCheck, AlertCircle } from 'lucide-react';
+import { X, Check, ExternalLink, CreditCard, ShieldCheck, AlertCircle, Ticket } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Link } from 'react-router-dom';
 import { loadTossPayments } from '@tosspayments/payment-sdk';
 import { db, auth } from '../../firebase';
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -17,71 +18,49 @@ interface PaymentModalProps {
 }
 
 export function PaymentModal({ isOpen, onClose, productId, productName, price, amount }: PaymentModalProps) {
+  const { user } = useAuth();
   const [termsAgreed, setTermsAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [serverConfig, setServerConfig] = useState<any>(null);
+  const [useCredits, setUseCredits] = useState(false);
+
+  // Credit discount logic: 1 credit = 1000 won (Example)
+  const CREDIT_VALUE = 1000;
+  const availableCredits = user?.credits || 0;
+  const creditDiscount = useCredits ? Math.min(availableCredits * CREDIT_VALUE, amount) : 0;
+  const finalAmount = amount - creditDiscount;
 
   const clientKey = serverConfig?.tossClientKey || ((import.meta as any).env.VITE_TOSS_CLIENT_KEY || '').trim();
 
   useEffect(() => {
-    // 서버에서 환경변수 가져오기
     const loadConfig = async (retries = 2) => {
-      console.log(`[Client] Step 1: Starting loadConfig (Attempt ${3 - retries})`);
       try {
         const url = `/api/config?t=${Date.now()}`;
-        console.log(`[Client] Step 2: Fetching URL: ${url}`);
-        
         const res = await fetch(url, { 
           cache: 'no-store',
           headers: { 'Accept': 'application/json' }
         });
-        
-        console.log(`[Client] Step 3: Fetch complete. Status: ${res.status} ${res.statusText}`);
-        console.log("[Client] Step 4: Response Headers:", {
-          contentType: res.headers.get('Content-Type'),
-          customServer: res.headers.get('X-Custom-Server')
-        });
-        
         const text = await res.text();
-        console.log(`[Client] Step 5: Received body text (first 50 chars): "${text.substring(0, 50)}..."`);
-        
         try {
-          console.log("[Client] Step 6: Attempting to parse JSON...");
           const data = JSON.parse(text);
-          console.log("[Client] Step 7: JSON parsed successfully. Keys found:", Object.keys(data));
           setServerConfig(data);
-          console.log("[Client] Step 8: serverConfig state updated.");
         } catch (parseErr) {
-          console.error("[Client] ERROR: JSON parsing failed.", parseErr);
-          if (retries > 0) {
-            console.log(`[Client] Retrying in 1s... (${retries} retries left)`);
-            setTimeout(() => loadConfig(retries - 1), 1000);
-          } else {
-            setError("서버 설정 데이터를 불러오는 데 실패했습니다. 페이지를 새로고침해 주세요.");
-          }
+          if (retries > 0) setTimeout(() => loadConfig(retries - 1), 1000);
+          else setError("서버 설정 데이터를 불러오는 데 실패했습니다.");
         }
       } catch (err: any) {
-        console.error('[Client] ERROR: Fetch request failed.', err);
-        if (retries > 0) {
-          setTimeout(() => loadConfig(retries - 1), 1000);
-        }
+        if (retries > 0) setTimeout(() => loadConfig(retries - 1), 1000);
       }
     };
-
     loadConfig();
   }, []);
 
   const handlePayment = async () => {
     if (!termsAgreed) return;
     
-    console.log("[Client] handlePayment triggered. Current clientKey:", clientKey);
-    console.log("[Client] serverConfig state:", serverConfig);
-    console.log("[Client] import.meta.env fallback:", (import.meta as any).env.VITE_TOSS_CLIENT_KEY);
-    
     if (!clientKey) {
-      const availableKeys = Object.keys((import.meta as any).env).filter(key => key.startsWith('VITE_')).join(', ');
-      setError(`결제 설정(VITE_TOSS_CLIENT_KEY)을 찾을 수 없습니다. Settings 메뉴에서 값을 확인한 후 페이지를 새로고침해 주세요. (인식된 변수: ${availableKeys || '없음'})`);
+      setError(`결제 설정을 찾을 수 없습니다.`);
       return;
     }
     
@@ -90,41 +69,34 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
 
     try {
       const tossPayments = await loadTossPayments(clientKey);
-      
       const orderId = `order_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
-      // 1. Create a pending payment document in Firestore for verification
       if (auth.currentUser) {
         await setDoc(doc(db, 'payments', orderId), {
           orderId,
           userId: auth.currentUser.uid,
-          amount: amount,
+          amount: finalAmount,
+          originalAmount: amount,
+          creditsUsed: useCredits ? Math.floor(creditDiscount / CREDIT_VALUE) : 0,
           productId: productId,
           productName: productName,
           status: 'pending',
+          referredBy: user?.referredBy || null, // Track referral for reward logic later
           createdAt: serverTimestamp()
         });
       }
 
-      console.log('Requesting payment...', { orderId, amount, productName });
-
       await tossPayments.requestPayment('카드', {
-        amount: amount,
+        amount: finalAmount,
         orderId: orderId,
         orderName: productName,
-        customerName: '회원',
+        customerName: user?.name || '회원',
         successUrl: `${window.location.origin}/payment/success`,
         failUrl: `${window.location.origin}/payment/fail`,
       });
     } catch (err: any) {
       console.error('Toss Payment Error:', err);
-      if (err.code === 'USER_CANCEL') {
-        setError('결제가 취소되었습니다.');
-      } else if (err.message?.includes('401') || err.code === 'INVALID_CLIENT_KEY' || err.message?.includes('인증되지 않은')) {
-        setError('토스페이먼츠 인증에 실패했습니다. 입력하신 클라이언트 키가 해당 환경(테스트/실제)에 맞는지 확인해주세요.');
-      } else {
-        setError(err.message || '결제 중 오류가 발생했습니다.');
-      }
+      setError(err.message || '결제 중 오류가 발생했습니다.');
     } finally {
       setLoading(false);
     }
@@ -143,7 +115,7 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
             >
               <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                 <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                  <CreditCard className="text-blue-600" size={24} /> 수강 신청 및 약관 동의
+                  <CreditCard className="text-blue-600" size={24} /> 수강 신청 및 결제
                 </h2>
                 <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
                   <X size={24} />
@@ -155,68 +127,58 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
                 <div className="bg-blue-50 rounded-2xl p-6 border border-blue-100">
                   <p className="text-sm text-blue-600 font-bold mb-1">선택한 수강권</p>
                   <div className="flex justify-between items-end">
-                    <h3 className="text-2xl font-black text-slate-900">{productName}</h3>
+                    <h3 className="text-lg font-bold text-slate-900">{productName}</h3>
                     <p className="text-xl font-bold text-blue-700">{price}</p>
                   </div>
                 </div>
 
-                {/* Terms Summary */}
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold text-slate-700">서비스 이용약관 및 환불정책</span>
-                    <div className="flex gap-3">
-                      <Link to="/terms-of-service" target="_blank" className="text-[10px] text-blue-600 flex items-center gap-1 hover:underline">
-                        이용약관 보기 <ExternalLink size={10} />
-                      </Link>
-                      <Link to="/refund-policy" target="_blank" className="text-[10px] text-blue-600 flex items-center gap-1 hover:underline">
-                        환불정책 보기 <ExternalLink size={10} />
-                      </Link>
+                {/* Credits Discount Section */}
+                {availableCredits > 0 && (
+                  <div className="bg-amber-50 rounded-2xl p-6 border border-amber-100">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        <Ticket className="text-amber-600" size={20} />
+                        <span className="font-bold text-slate-900">보유 크레딧 사용</span>
+                      </div>
+                      <span className="text-sm font-bold text-amber-700">{availableCredits} 크레딧 보유</span>
                     </div>
-                  </div>
-                  
-                  <div className="h-40 overflow-y-auto text-[11px] text-slate-500 bg-slate-50 p-4 rounded-xl border border-slate-100 leading-relaxed">
-                    <p className="font-bold mb-1 text-slate-700">[서비스 이용약관 요약]</p>
-                    <p>- 본 서비스는 강사와 회원을 연결하는 중개 서비스입니다.</p>
-                    <p>- 수업 일정은 강사와 상호 협의하여 결정합니다.</p>
-                    <p>- 강사와 직접 거래 시 서비스 이용이 제한될 수 있습니다.</p>
-                    <p className="font-bold mt-3 mb-1 text-slate-700">[환불 정책 요약]</p>
-                    <p>- 수업 시작 전: 100% 전액 환불</p>
-                    <p>- 수업 시작 후: 진행 횟수 제외 후 환불</p>
-                    <p>- 3/8 이상 진행 시 서비스 이용료(49,000원) 공제 후 환불</p>
-                    <p className="mt-3 text-[10px] text-slate-400">※ 신청 완료 시 위 약관에 동의한 것으로 간주됩니다.</p>
-                  </div>
-
-                  <label className="flex items-center gap-3 p-4 rounded-2xl border-2 border-slate-100 hover:border-blue-100 cursor-pointer transition-all group">
-                    <div className={`flex h-6 w-6 items-center justify-center rounded-lg border-2 transition-all ${termsAgreed ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-200 group-hover:border-blue-300'}`}>
-                      {termsAgreed && <Check size={16} />}
-                    </div>
-                    <input 
-                      type="checkbox" 
-                      className="hidden" 
-                      checked={termsAgreed}
-                      onChange={(e) => setTermsAgreed(e.target.checked)}
-                    />
-                    <span className="text-sm font-bold text-slate-700">위 약관 및 환불정책에 동의합니다 (필수)</span>
-                  </label>
-                </div>
-
-                {error && (
-                  <div className="p-4 rounded-xl bg-red-50 text-red-600 text-xs flex items-center gap-2">
-                    <AlertCircle size={16} /> {error}
+                    <label className="flex items-center justify-between p-3 rounded-xl bg-white border border-amber-200 cursor-pointer">
+                      <span className="text-sm text-slate-600">전액 사용 (최대 -{(availableCredits * CREDIT_VALUE).toLocaleString()}원)</span>
+                      <input 
+                        type="checkbox" 
+                        className="h-5 w-5 rounded border-amber-300 text-amber-600 focus:ring-amber-500"
+                        checked={useCredits}
+                        onChange={(e) => setUseCredits(e.target.checked)}
+                      />
+                    </label>
                   </div>
                 )}
 
-                <div className="pt-2">
-                  <Button 
-                    className="w-full py-6 rounded-2xl gap-2 text-lg shadow-lg shadow-blue-100" 
-                    onClick={handlePayment} 
-                    disabled={loading || !termsAgreed}
-                  >
-                    {loading ? '처리 중...' : <><ShieldCheck size={20} /> 동의하고 신청하기</>}
+                {/* Final Amount */}
+                <div className="flex justify-between items-center px-4 py-2 bg-slate-50 rounded-xl">
+                  <span className="text-sm font-medium text-slate-600">최종 결제 금액</span>
+                  <span className="text-2xl font-black text-slate-900">{finalAmount.toLocaleString()}원</span>
+                </div>
+
+                {/* Terms & Button */}
+                <div className="space-y-4">
+                  <label className="flex items-center gap-3 p-4 rounded-2xl border-2 border-slate-100 hover:border-blue-100 cursor-pointer transition-all group">
+                    <div className={`flex h-6 w-6 items-center justify-center rounded-lg border-2 transition-all ${termsAgreed ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-200'}`}>
+                      {termsAgreed && <Check size={16} />}
+                    </div>
+                    <input type="checkbox" className="hidden" checked={termsAgreed} onChange={(e) => setTermsAgreed(e.target.checked)} />
+                    <span className="text-sm font-bold text-slate-700">이용약관 및 환불정책에 동의합니다 (필수)</span>
+                  </label>
+
+                  {error && (
+                    <div className="p-4 rounded-xl bg-red-50 text-red-600 text-xs flex items-center gap-2">
+                      <AlertCircle size={16} /> {error}
+                    </div>
+                  )}
+
+                  <Button className="w-full py-6 rounded-2xl gap-2 text-lg shadow-lg" onClick={handlePayment} disabled={loading || !termsAgreed}>
+                    {loading ? '처리 중...' : <><ShieldCheck size={20} /> {finalAmount.toLocaleString()}원 결제하기</>}
                   </Button>
-                  <p className="text-center text-[10px] text-slate-400 mt-4">
-                    신청 후 담당자가 결제 안내를 위해 연락드릴 예정입니다.
-                  </p>
                 </div>
               </div>
             </motion.div>
