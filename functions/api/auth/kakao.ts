@@ -49,10 +49,11 @@ export const onRequestPost: PagesFunction<any> = async ({ request, env }) => {
 
     const tokenData = await tokenRes.json() as any;
     if (!tokenData.access_token) {
-      console.error('[Kakao] Token Exchange Error:', tokenData);
       return new Response(JSON.stringify({ 
         message: '카카오 토큰 교환 실패',
-        detail: tokenData.error_description || tokenData.error 
+        detail: tokenData.error_description || tokenData.error,
+        errorCode: tokenData.error_code,
+        sentRedirectUri: redirectUri // 디버깅을 위해 보낸 URI 포함
       }), { status: 400 });
     }
 
