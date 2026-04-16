@@ -5,7 +5,7 @@
 
 async function createCustomToken(uid: string, clientEmail: string, privateKey: string) {
   const header = { alg: 'RS256', typ: 'JWT' };
-  const iat = Math.floor(Date.now() / 1000) - 30; // 30초 여유
+  const iat = Math.floor(Date.now() / 1000) - 30;
   const exp = iat + 3600;
   
   const payload = {
@@ -17,48 +17,42 @@ async function createCustomToken(uid: string, clientEmail: string, privateKey: s
     uid: String(uid)
   };
 
-  const stringToBase64Url = (str: string) => {
-    const b64 = btoa(unescape(encodeURIComponent(str)));
-    return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-  };
-
-  const arrayBufferToBase64Url = (buffer: ArrayBuffer) => {
-    const bytes = new Uint8Array(buffer);
-    let binary = '';
-    for (let i = 0; i < bytes.byteLength; i++) {
-      binary += String.fromCharCode(bytes[i]);
+  const toB64Url = (buf: ArrayBuffer | string) => {
+    const encoder = new TextEncoder();
+    const data = typeof buf === 'string' ? encoder.encode(buf) : new Uint8Array(buf);
+    let binary = "";
+    for (let i = 0; i < data.byteLength; i++) {
+      binary += String.fromCharCode(data[i]);
     }
     return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
   };
 
-  const encodedHeader = stringToBase64Url(JSON.stringify(header));
-  const encodedPayload = stringToBase64Url(JSON.stringify(payload));
-  const unsignedToken = `${encodedHeader}.${encodedPayload}`;
+  const part1 = toB64Url(JSON.stringify(header));
+  const part2 = toB64Url(JSON.stringify(payload));
+  const unsignedToken = `${part1}.${part2}`;
 
-  const pemContents = privateKey
+  const pem = privateKey
     .replace(/-----BEGIN PRIVATE KEY-----/g, "")
     .replace(/-----END PRIVATE KEY-----/g, "")
     .replace(/\\n/g, "")
     .replace(/\s/g, "");
     
   try {
-    const binaryDer = Uint8Array.from(atob(pemContents), c => c.charCodeAt(0));
     const key = await crypto.subtle.importKey(
       "pkcs8", 
-      binaryDer, 
+      Uint8Array.from(atob(pem), c => c.charCodeAt(0)),
       { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, 
       false, 
       ["sign"]
     );
     
-    const signature = await crypto.subtle.sign(
+    const sig = await crypto.subtle.sign(
       "RSASSA-PKCS1-v1_5", 
       key, 
       new TextEncoder().encode(unsignedToken)
     );
     
-    const encodedSignature = arrayBufferToBase64Url(signature);
-    return `${unsignedToken}.${encodedSignature}`;
+    return `${unsignedToken}.${toB64Url(sig)}`;
   } catch (e: any) {
     throw new Error(`서명 실패: ${e.message}`);
   }
@@ -71,21 +65,14 @@ export const onRequestPost: PagesFunction<any> = async ({ request, env }) => {
     const kakaoRestKey = (env.KAKAO_REST_API_KEY || "").trim();
     const projectId = (env.FIREBASE_PROJECT_ID || "").trim();
 
-    const envKeys = Object.keys(env);
     if (!clientEmail || !privateKey || !kakaoRestKey) {
-      return new Response(JSON.stringify({ 
-        message: '환경 변수 누락',
-        detail: '필수 환경 변수가 설정되지 않았습니다.',
-        availableKeys: envKeys
-      }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ message: '설정 오류', detail: '환경 변수가 부족합니다.' }), { status: 500 });
     }
 
-    const body = await request.json() as any;
-    const { code, redirectUri: clientRedirectUri } = body;
+    const { code, redirectUri: clientRedirectUri } = await request.json() as any;
     const origin = new URL(request.url).origin;
     const redirectUri = clientRedirectUri || `${origin}/dashboard`;
 
-    // 1. 카카오 토큰 교환
     const tokenRes = await fetch('https://kauth.kakao.com/oauth/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8' },
@@ -98,21 +85,14 @@ export const onRequestPost: PagesFunction<any> = async ({ request, env }) => {
     });
 
     const tokenData = await tokenRes.json() as any;
-    if (!tokenData.access_token) {
-      return new Response(JSON.stringify({ 
-        message: '카카오 인증 실패', 
-        detail: tokenData.error_description 
-      }), { status: 400 });
-    }
+    if (!tokenData.access_token) return new Response(JSON.stringify({ message: '카카오 인증 실패' }), { status: 400 });
 
-    // 2. 카카오 사용자 정보
     const userRes = await fetch('https://kapi.kakao.com/v2/user/me', {
       headers: { Authorization: `Bearer ${tokenData.access_token}` },
     });
     const userData = await userRes.json() as any;
     const uid = `kakao:${userData.id}`;
 
-    // 3. 토큰 생성
     const customToken = await createCustomToken(uid, clientEmail, privateKey);
 
     return new Response(JSON.stringify({ 
