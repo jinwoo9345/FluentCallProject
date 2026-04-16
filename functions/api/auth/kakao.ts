@@ -41,14 +41,20 @@ export const onRequestPost: PagesFunction<any> = async ({ request, env }) => {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8' },
       body: new URLSearchParams({
         grant_type: 'authorization_code',
-        client_id: env.KAKAO_REST_API_KEY, // REST API 키 사용
+        client_id: env.KAKAO_REST_API_KEY,
         redirect_uri: redirectUri,
         code,
       }),
     });
 
     const tokenData = await tokenRes.json() as any;
-    if (!tokenData.access_token) return new Response(JSON.stringify({ message: '카카오 토큰 교환 실패' }), { status: 400 });
+    if (!tokenData.access_token) {
+      console.error('[Kakao] Token Exchange Error:', tokenData);
+      return new Response(JSON.stringify({ 
+        message: '카카오 토큰 교환 실패',
+        detail: tokenData.error_description || tokenData.error 
+      }), { status: 400 });
+    }
 
     // 2. 카카오 사용자 정보 가져오기
     const userRes = await fetch('https://kapi.kakao.com/v2/user/me', {
