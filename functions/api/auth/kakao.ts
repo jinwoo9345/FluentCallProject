@@ -72,7 +72,54 @@ export const onRequestPost: PagesFunction<any> = async ({ request, env }) => {
     const kakaoRestKey = (env.KAKAO_REST_API_KEY || "").trim();
     const projectId = (env.FIREBASE_PROJECT_ID || "").trim();
 
-    // ... (검증 로직 생략)
+    const envKeys = Object.keys(env);
+    const missingKeys = [];
+    if (!clientEmail) missingKeys.push('FIREBASE_CLIENT_EMAIL');
+    if (!privateKey) missingKeys.push('FIREBASE_PRIVATE_KEY');
+    if (!kakaoRestKey) missingKeys.push('KAKAO_REST_API_KEY');
+
+    if (missingKeys.length > 0) {
+      return new Response(JSON.stringify({ 
+        message: '서버 환경 변수 설정 오류',
+        detail: `${missingKeys.join(', ')} 변수가 비어있습니다.`,
+        availableKeys: envKeys
+      }), { status: 500, headers: { 'Content-Type': 'application/json' } });
+    }
+
+    const body = await request.json() as any;
+    const { code, redirectUri: clientRedirectUri } = body;
+    const origin = new URL(request.url).origin;
+    const redirectUri = clientRedirectUri || `${origin}/dashboard`;
+
+    // 1. 인가 코드를 액세스 토큰으로 교환
+    const tokenRes = await fetch('https://kauth.kakao.com/oauth/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8' },
+      body: new URLSearchParams({
+        grant_type: 'authorization_code',
+        client_id: kakaoRestKey,
+        redirect_uri: redirectUri,
+        code,
+      }),
+    });
+
+    const tokenData = await tokenRes.json() as any;
+    if (!tokenData.access_token) {
+      return new Response(JSON.stringify({ 
+        message: '카카오 토큰 교환 실패',
+        detail: tokenData.error_description || tokenData.error,
+        errorCode: tokenData.error_code
+      }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+    }
+
+    // 2. 카카오 사용자 정보 가져오기
+    const userRes = await fetch('https://kapi.kakao.com/v2/user/me', {
+      headers: { Authorization: `Bearer ${tokenData.access_token}` },
+    });
+    const userData = await userRes.json() as any;
+    if (!userData.id) throw new Error('카카오 사용자 정보 획득 실패');
+    
+    const uid = `kakao:${userData.id}`;
 
     // 3. Firebase Custom Token 생성
     const customToken = await createCustomToken(uid, clientEmail, privateKey, privateKeyId);
