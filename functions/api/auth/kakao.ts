@@ -25,14 +25,14 @@ async function createCustomToken(uid: string, clientEmail: string, privateKey: s
     uid: uid,
   };
 
-  const base64UrlEncode = (str: string) => {
-    const bytes = new TextEncoder().encode(str);
-    const base64 = btoa(String.fromCharCode(...bytes));
+  const base64UrlEncode = (uint8array: Uint8Array) => {
+    const base64 = btoa(Array.from(uint8array).map(b => String.fromCharCode(b)).join(''));
     return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
   };
 
-  const encodedHeader = base64UrlEncode(JSON.stringify(header));
-  const encodedPayload = base64UrlEncode(JSON.stringify(payload));
+  const encoder = new TextEncoder();
+  const encodedHeader = base64UrlEncode(encoder.encode(JSON.stringify(header)));
+  const encodedPayload = base64UrlEncode(encoder.encode(JSON.stringify(payload)));
   const unsignedToken = `${encodedHeader}.${encodedPayload}`;
 
   const pemContents = keyStr
@@ -43,15 +43,21 @@ async function createCustomToken(uid: string, clientEmail: string, privateKey: s
     
   try {
     const binaryDer = Uint8Array.from(atob(pemContents), c => c.charCodeAt(0));
-    const key = await crypto.subtle.importKey("pkcs8", binaryDer, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["sign"]);
-    const signature = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", key, new TextEncoder().encode(unsignedToken));
+    const key = await crypto.subtle.importKey(
+      "pkcs8", 
+      binaryDer, 
+      { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, 
+      false, 
+      ["sign"]
+    );
     
-    const signatureBytes = new Uint8Array(signature);
-    const encodedSignature = btoa(String.fromCharCode(...signatureBytes))
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=/g, '');
-
+    const signature = await crypto.subtle.sign(
+      "RSASSA-PKCS1-v1_5", 
+      key, 
+      encoder.encode(unsignedToken)
+    );
+    
+    const encodedSignature = base64UrlEncode(new Uint8Array(signature));
     return `${unsignedToken}.${encodedSignature}`;
   } catch (e: any) {
     throw new Error(`토큰 서명 실패: ${e.message}`);
