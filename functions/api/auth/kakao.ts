@@ -15,19 +15,28 @@ async function createCustomToken(uid: string, clientEmail: string, privateKey: s
     header.kid = privateKeyId;
   }
 
-  const now = Math.floor(Date.now() / 1000);
+  const now = Math.floor(Date.now() / 1000) - 60; // 60초 전으로 설정하여 시간 오차 방지
   const payload = {
     iss: clientEmail,
     sub: clientEmail,
     aud: 'https://identitytoolkit.googleapis.com/google.firebase.auth.v1.CustomTokenAudience',
     iat: now,
     exp: now + 3600,
-    uid: uid,
+    uid: String(uid), // 확실하게 문자열로 변환
   };
 
-  const encoder = new TextEncoder();
-  const encodedHeader = btoa(JSON.stringify(header)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-  const encodedPayload = btoa(JSON.stringify(payload)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  const base64UrlEncode = (str: string) => {
+    // UTF-8 문자열을 Base64URL로 변환
+    const bytes = new TextEncoder().encode(str);
+    let binary = "";
+    for (let i = 0; i < bytes.byteLength; i++) {
+      binary += String.fromCharCode(bytes[i]);
+    }
+    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  };
+
+  const encodedHeader = base64UrlEncode(JSON.stringify(header));
+  const encodedPayload = base64UrlEncode(JSON.stringify(payload));
   const unsignedToken = `${encodedHeader}.${encodedPayload}`;
 
   const pemContents = keyStr
@@ -49,13 +58,16 @@ async function createCustomToken(uid: string, clientEmail: string, privateKey: s
     const signature = await crypto.subtle.sign(
       "RSASSA-PKCS1-v1_5", 
       key, 
-      encoder.encode(unsignedToken)
+      new TextEncoder().encode(unsignedToken)
     );
     
-    const encodedSignature = btoa(String.fromCharCode(...new Uint8Array(signature)))
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=/g, '');
+    // 서명(바이너리)을 Base64URL로 변환
+    const sigBytes = new Uint8Array(signature);
+    let sigBinary = "";
+    for (let i = 0; i < sigBytes.byteLength; i++) {
+      sigBinary += String.fromCharCode(sigBytes[i]);
+    }
+    const encodedSignature = btoa(sigBinary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
 
     return `${unsignedToken}.${encodedSignature}`;
   } catch (e: any) {
