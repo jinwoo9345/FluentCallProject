@@ -4,7 +4,6 @@
  */
 
 async function createCustomToken(uid: string, clientEmail: string, privateKey: string) {
-  // Ensure privateKey is a string before calling replace
   const keyStr = String(privateKey || "");
   if (!keyStr || keyStr.length < 10) {
     throw new Error('FIREBASE_PRIVATE_KEY is invalid or missing');
@@ -21,26 +20,36 @@ async function createCustomToken(uid: string, clientEmail: string, privateKey: s
     uid: uid,
   };
 
-  const encodedHeader = btoa(JSON.stringify(header)).replace(/=/g, '');
-  const encodedPayload = btoa(JSON.stringify(payload)).replace(/=/g, '');
+  const base64UrlEncode = (str: string) => {
+    const bytes = new TextEncoder().encode(str);
+    const base64 = btoa(String.fromCharCode(...bytes));
+    return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  };
+
+  const encodedHeader = base64UrlEncode(JSON.stringify(header));
+  const encodedPayload = base64UrlEncode(JSON.stringify(payload));
   const unsignedToken = `${encodedHeader}.${encodedPayload}`;
 
-  // Use the safe keyStr variable
   const pemContents = keyStr
-    .replace(/\\n/g, "\n") // 글자 그대로의 \n을 실제 줄바꿈으로 변환
+    .replace(/\\n/g, "\n")
     .replace(/-----BEGIN PRIVATE KEY-----/g, "")
     .replace(/-----END PRIVATE KEY-----/g, "")
-    .replace(/\s/g, ""); // 모든 공백 및 줄바꿈 제거
+    .replace(/\s/g, "");
     
   try {
     const binaryDer = Uint8Array.from(atob(pemContents), c => c.charCodeAt(0));
     const key = await crypto.subtle.importKey("pkcs8", binaryDer, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["sign"]);
     const signature = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", key, new TextEncoder().encode(unsignedToken));
-    const encodedSignature = btoa(String.fromCharCode(...new Uint8Array(signature))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+    
+    const signatureBytes = new Uint8Array(signature);
+    const encodedSignature = btoa(String.fromCharCode(...signatureBytes))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=/g, '');
 
     return `${unsignedToken}.${encodedSignature}`;
   } catch (e: any) {
-    throw new Error(`Base64 디코딩 실패: ${e.message}. 키 형식을 확인해주세요.`);
+    throw new Error(`토큰 서명 실패: ${e.message}`);
   }
 }
 
