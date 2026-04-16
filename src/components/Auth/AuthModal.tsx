@@ -35,33 +35,82 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
     try {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
-
-      // Check if user document exists in Firestore
-      const userRef = doc(db, 'users', user.uid);
-      const userSnap = await getDoc(userRef);
-
-      if (!userSnap.exists()) {
-        // Initial social login -> create student profile
-        const referralCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-        await setDoc(userRef, {
-          uid: user.uid,
-          name: user.displayName || '회원',
-          email: user.email,
-          role: 'student', // Default role for social login
-          credits: 60,
-          referralCode,
-          referredBy: '',
-          discountBalance: 0,
-          createdAt: serverTimestamp(),
-          avatar: user.photoURL || `https://picsum.photos/seed/${user.uid}/200/200`
-        });
-      }
+      await ensureUserDocument(user);
       onClose();
     } catch (err: any) {
       console.error(err);
       setError('소셜 로그인에 실패했습니다. 다시 시도해주세요.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleKakaoLogin = async () => {
+    setError('');
+    setLoading(true);
+    try {
+      const Kakao = (window as any).Kakao;
+      if (!Kakao || !Kakao.isInitialized()) {
+        throw new Error('카카오 SDK가 초기화되지 않았습니다.');
+      }
+
+      Kakao.Auth.login({
+        success: async (authObj: any) => {
+          console.log('[Kakao] Login Success, token:', authObj.access_token);
+          
+          // 백엔드 API를 통해 Firebase Custom Token 받아오기
+          try {
+            const response = await fetch('/api/auth/kakao', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ accessToken: authObj.access_token })
+            });
+
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.message || '카카오 로그인 처리 실패');
+
+            // Firebase 로그인
+            const { signInWithCustomToken } = await import('firebase/auth');
+            const userCredential = await signInWithCustomToken(auth, data.customToken);
+            await ensureUserDocument(userCredential.user);
+            onClose();
+          } catch (apiErr: any) {
+            console.error('[Kakao] Backend Error:', apiErr);
+            setError('로그인 처리 중 서버 오류가 발생했습니다.');
+            setLoading(false);
+          }
+        },
+        fail: (err: any) => {
+          console.error('[Kakao] Login Fail:', err);
+          setError('카카오 로그인에 실패했습니다.');
+          setLoading(false);
+        }
+      });
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || '카카오 로그인 중 오류가 발생했습니다.');
+      setLoading(false);
+    }
+  };
+
+  const ensureUserDocument = async (user: any) => {
+    const userRef = doc(db, 'users', user.uid);
+    const userSnap = await getDoc(userRef);
+
+    if (!userSnap.exists()) {
+      const referralCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+      await setDoc(userRef, {
+        uid: user.uid,
+        name: user.displayName || '회원',
+        email: user.email || '',
+        role: 'student',
+        credits: 60,
+        referralCode,
+        referredBy: '',
+        discountBalance: 0,
+        createdAt: serverTimestamp(),
+        avatar: user.photoURL || `https://picsum.photos/seed/${user.uid}/200/200`
+      });
     }
   };
 
@@ -139,11 +188,11 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
                   <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5" />
                   구글 계정으로 {mode === 'signin' ? '로그인' : '시작하기'}
                 </button>
-                {/* Kakao Button Placeholder */}
+                {/* Kakao Button */}
                 <button
                   type="button"
                   className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl bg-[#FEE500] text-[#3c1e1e] font-bold hover:opacity-90 transition-all"
-                  onClick={() => alert('카카오 로그인은 개발자 설정이 필요합니다. 안내 문서를 확인해주세요.')}
+                  onClick={handleKakaoLogin}
                 >
                   <div className="w-5 h-5 flex items-center justify-center bg-[#3c1e1e] rounded-sm text-[#FEE500] text-[10px]">K</div>
                   카카오 계정으로 {mode === 'signin' ? '로그인' : '시작하기'}
