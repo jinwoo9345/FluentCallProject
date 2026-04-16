@@ -67,8 +67,9 @@ function AppContent() {
           // Clear query params
           searchParams.delete('code');
           setSearchParams(searchParams);
-        } catch (err) {
+        } catch (err: any) {
           console.error('Kakao auth error:', err);
+          alert('카카오 로그인 실패: ' + (err.message || '알 수 없는 오류'));
         }
       };
       handleKakaoAuth();

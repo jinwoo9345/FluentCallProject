@@ -11,7 +11,7 @@ async function createCustomToken(uid: string, clientEmail: string, privateKey: s
   const payload = {
     iss: clientEmail,
     sub: clientEmail,
-    aud: 'https://identitytoolkit.googleapis.com/google.firebase.auth.v1.CustomTokenAudience',
+    aud: 'https://identitytoolkit.googleapis.com/google.identity.identitytoolkit.v1.IdentityToolkit',
     iat,
     exp,
     uid: String(uid)
