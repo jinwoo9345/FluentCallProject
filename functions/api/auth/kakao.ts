@@ -4,7 +4,11 @@
  */
 
 async function createCustomToken(uid: string, clientEmail: string, privateKey: string) {
-  if (!privateKey) throw new Error('FIREBASE_PRIVATE_KEY is missing');
+  // Ensure privateKey is a string before calling replace
+  const keyStr = String(privateKey || "");
+  if (!keyStr || keyStr.length < 10) {
+    throw new Error('FIREBASE_PRIVATE_KEY is invalid or missing');
+  }
   
   const header = { alg: 'RS256', typ: 'JWT' };
   const now = Math.floor(Date.now() / 1000);
@@ -21,7 +25,12 @@ async function createCustomToken(uid: string, clientEmail: string, privateKey: s
   const encodedPayload = btoa(JSON.stringify(payload)).replace(/=/g, '');
   const unsignedToken = `${encodedHeader}.${encodedPayload}`;
 
-  const pemContents = privateKey.replace(/-----BEGIN PRIVATE KEY-----/g, "").replace(/-----END PRIVATE KEY-----/g, "").replace(/\s/g, "");
+  // Use the safe keyStr variable
+  const pemContents = keyStr
+    .replace(/-----BEGIN PRIVATE KEY-----/g, "")
+    .replace(/-----END PRIVATE KEY-----/g, "")
+    .replace(/\s/g, "");
+    
   const binaryDer = Uint8Array.from(atob(pemContents), c => c.charCodeAt(0));
 
   const key = await crypto.subtle.importKey("pkcs8", binaryDer, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["sign"]);
@@ -33,6 +42,14 @@ async function createCustomToken(uid: string, clientEmail: string, privateKey: s
 
 export const onRequestPost: PagesFunction<any> = async ({ request, env }) => {
   try {
+    // Check environment variables at the very beginning
+    if (!env.FIREBASE_PRIVATE_KEY) {
+      return new Response(JSON.stringify({ 
+        message: '서버 환경 변수 설정 오류',
+        detail: 'FIREBASE_PRIVATE_KEY가 Cloudflare에 등록되어 있지 않습니다.' 
+      }), { status: 500 });
+    }
+
     const { code, redirectUri: clientRedirectUri } = await request.json() as any;
     const origin = new URL(request.url).origin;
     const redirectUri = clientRedirectUri || `${origin}/dashboard`;
@@ -43,7 +60,7 @@ export const onRequestPost: PagesFunction<any> = async ({ request, env }) => {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8' },
       body: new URLSearchParams({
         grant_type: 'authorization_code',
-        client_id: env.KAKAO_REST_API_KEY,
+        client_id: env.KAKAO_REST_API_KEY || '',
         redirect_uri: redirectUri,
         code,
       }),
@@ -54,8 +71,7 @@ export const onRequestPost: PagesFunction<any> = async ({ request, env }) => {
       return new Response(JSON.stringify({ 
         message: '카카오 토큰 교환 실패',
         detail: tokenData.error_description || tokenData.error,
-        errorCode: tokenData.error_code,
-        sentRedirectUri: redirectUri // 디버깅을 위해 보낸 URI 포함
+        errorCode: tokenData.error_code
       }), { status: 400 });
     }
 
@@ -64,14 +80,26 @@ export const onRequestPost: PagesFunction<any> = async ({ request, env }) => {
       headers: { Authorization: `Bearer ${tokenData.access_token}` },
     });
     const userData = await userRes.json() as any;
+    if (!userData.id) throw new Error('카카오 사용자 정보 획득 실패');
+    
     const uid = `kakao:${userData.id}`;
 
     // 3. Firebase Custom Token 생성
     const customToken = await createCustomToken(uid, env.FIREBASE_CLIENT_EMAIL, env.FIREBASE_PRIVATE_KEY);
 
-    return new Response(JSON.stringify({ customToken }));
+    return new Response(JSON.stringify({ 
+      customToken,
+      userName: userData.kakao_account?.profile?.nickname,
+      userPhoto: userData.kakao_account?.profile?.profile_image_url
+    }), {
+      headers: { 'Content-Type': 'application/json' }
+    });
 
   } catch (error: any) {
-    return new Response(JSON.stringify({ message: error.message }), { status: 500 });
+    console.error('[Backend Error]', error);
+    return new Response(JSON.stringify({ 
+      message: '서버 내부 오류',
+      detail: error.message 
+    }), { status: 500 });
   }
 };
