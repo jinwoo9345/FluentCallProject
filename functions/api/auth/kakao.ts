@@ -25,14 +25,9 @@ async function createCustomToken(uid: string, clientEmail: string, privateKey: s
     uid: uid,
   };
 
-  const base64UrlEncode = (uint8array: Uint8Array) => {
-    const base64 = btoa(Array.from(uint8array).map(b => String.fromCharCode(b)).join(''));
-    return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-  };
-
   const encoder = new TextEncoder();
-  const encodedHeader = base64UrlEncode(encoder.encode(JSON.stringify(header)));
-  const encodedPayload = base64UrlEncode(encoder.encode(JSON.stringify(payload)));
+  const encodedHeader = btoa(JSON.stringify(header)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  const encodedPayload = btoa(JSON.stringify(payload)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
   const unsignedToken = `${encodedHeader}.${encodedPayload}`;
 
   const pemContents = keyStr
@@ -57,7 +52,11 @@ async function createCustomToken(uid: string, clientEmail: string, privateKey: s
       encoder.encode(unsignedToken)
     );
     
-    const encodedSignature = base64UrlEncode(new Uint8Array(signature));
+    const encodedSignature = btoa(String.fromCharCode(...new Uint8Array(signature)))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=/g, '');
+
     return `${unsignedToken}.${encodedSignature}`;
   } catch (e: any) {
     throw new Error(`토큰 서명 실패: ${e.message}`);
