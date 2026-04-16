@@ -42,15 +42,25 @@ async function createCustomToken(uid: string, clientEmail: string, privateKey: s
 
 export const onRequestPost: PagesFunction<any> = async ({ request, env }) => {
   try {
-    // Check environment variables at the very beginning
-    if (!env.FIREBASE_PRIVATE_KEY) {
+    // [DEBUG] 현재 환경 변수 상태 체크 (키 이름만 확인)
+    const envKeys = Object.keys(env);
+    const requiredKeys = ['FIREBASE_PRIVATE_KEY', 'FIREBASE_CLIENT_EMAIL', 'KAKAO_REST_API_KEY'];
+    const missingKeys = requiredKeys.filter(key => !env[key]);
+
+    if (missingKeys.length > 0) {
+      console.error('[Env Error] Missing keys:', missingKeys);
       return new Response(JSON.stringify({ 
         message: '서버 환경 변수 설정 오류',
-        detail: 'FIREBASE_PRIVATE_KEY가 Cloudflare에 등록되어 있지 않습니다.' 
-      }), { status: 500 });
+        detail: `${missingKeys.join(', ')} 변수가 Cloudflare에 등록되어 있지 않거나 비어있습니다.`,
+        availableKeys: envKeys // 현재 서버가 알고 있는 변수 목록 (디버깅용)
+      }), { 
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      });
     }
 
-    const { code, redirectUri: clientRedirectUri } = await request.json() as any;
+    const body = await request.json() as any;
+    const { code, redirectUri: clientRedirectUri } = body;
     const origin = new URL(request.url).origin;
     const redirectUri = clientRedirectUri || `${origin}/dashboard`;
 
