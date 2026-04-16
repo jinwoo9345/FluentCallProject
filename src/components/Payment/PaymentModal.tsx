@@ -25,7 +25,7 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
   const [serverConfig, setServerConfig] = useState<any>(null);
   const [useCredits, setUseCredits] = useState(false);
 
-  // Credit discount logic: 1 credit = 1000 won (Example)
+  // Credit discount logic: 1 credit = 1000 won
   const CREDIT_VALUE = 1000;
   const availableCredits = user?.credits || 0;
   const creditDiscount = useCredits ? Math.min(availableCredits * CREDIT_VALUE, amount) : 0;
@@ -41,15 +41,9 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
           cache: 'no-store',
           headers: { 'Accept': 'application/json' }
         });
-        const text = await res.text();
-        try {
-          const data = JSON.parse(text);
-          setServerConfig(data);
-        } catch (parseErr) {
-          if (retries > 0) setTimeout(() => loadConfig(retries - 1), 1000);
-          else setError("서버 설정 데이터를 불러오는 데 실패했습니다.");
-        }
-      } catch (err: any) {
+        const data = await res.json();
+        setServerConfig(data);
+      } catch (err) {
         if (retries > 0) setTimeout(() => loadConfig(retries - 1), 1000);
       }
     };
@@ -58,9 +52,8 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
 
   const handlePayment = async () => {
     if (!termsAgreed) return;
-    
     if (!clientKey) {
-      setError(`결제 설정을 찾을 수 없습니다.`);
+      setError(`결제 설정을 찾을 수 없습니다. 페이지를 새로고침 해주세요.`);
       return;
     }
     
@@ -71,6 +64,7 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
       const tossPayments = await loadTossPayments(clientKey);
       const orderId = `order_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
+      // Create a pending payment document
       if (auth.currentUser) {
         await setDoc(doc(db, 'payments', orderId), {
           orderId,
@@ -81,7 +75,7 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
           productId: productId,
           productName: productName,
           status: 'pending',
-          referredBy: user?.referredBy || null, // Track referral for reward logic later
+          referredBy: user?.referredBy || null,
           createdAt: serverTimestamp()
         });
       }
@@ -96,7 +90,7 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
       });
     } catch (err: any) {
       console.error('Toss Payment Error:', err);
-      setError(err.message || '결제 중 오류가 발생했습니다.');
+      setError(err.message || '결제 진행 중 권한 오류가 발생했습니다. Firestore 규칙을 확인해주세요.');
     } finally {
       setLoading(false);
     }
@@ -132,7 +126,7 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
                   </div>
                 </div>
 
-                {/* Credits Discount Section */}
+                {/* Credits Discount */}
                 {availableCredits > 0 && (
                   <div className="bg-amber-50 rounded-2xl p-6 border border-amber-100">
                     <div className="flex items-center justify-between mb-4">
@@ -154,30 +148,53 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
                   </div>
                 )}
 
-                {/* Final Amount */}
-                <div className="flex justify-between items-center px-4 py-2 bg-slate-50 rounded-xl">
-                  <span className="text-sm font-medium text-slate-600">최종 결제 금액</span>
-                  <span className="text-2xl font-black text-slate-900">{finalAmount.toLocaleString()}원</span>
-                </div>
-
-                {/* Terms & Button */}
+                {/* Detailed Terms & Refund Policy (RESTORED) */}
                 <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-bold text-slate-700">서비스 이용약관 및 환불정책</span>
+                    <div className="flex gap-3">
+                      <Link to="/terms-of-service" target="_blank" className="text-[10px] text-blue-600 flex items-center gap-1 hover:underline">
+                        이용약관 <ExternalLink size={10} />
+                      </Link>
+                      <Link to="/refund-policy" target="_blank" className="text-[10px] text-blue-600 flex items-center gap-1 hover:underline">
+                        환불정책 <ExternalLink size={10} />
+                      </Link>
+                    </div>
+                  </div>
+                  
+                  <div className="h-32 overflow-y-auto text-[11px] text-slate-500 bg-slate-50 p-4 rounded-xl border border-slate-100 leading-relaxed">
+                    <p className="font-bold mb-1 text-slate-700">[서비스 이용약관 요약]</p>
+                    <p>- 본 서비스는 강사와 회원을 연결하는 중개 서비스입니다.</p>
+                    <p>- 수업 일정은 강사와 상호 협의하여 결정합니다.</p>
+                    <p className="font-bold mt-3 mb-1 text-slate-700">[환불 정책 요약]</p>
+                    <p>- 수업 시작 전: 100% 전액 환불</p>
+                    <p>- 수업 시작 후: 진행 횟수 제외 후 환불</p>
+                    <p>- 3/8 이상 진행 시 서비스 이용료 공제 후 환불</p>
+                  </div>
+
                   <label className="flex items-center gap-3 p-4 rounded-2xl border-2 border-slate-100 hover:border-blue-100 cursor-pointer transition-all group">
                     <div className={`flex h-6 w-6 items-center justify-center rounded-lg border-2 transition-all ${termsAgreed ? 'bg-blue-600 border-blue-600 text-white' : 'border-slate-200'}`}>
                       {termsAgreed && <Check size={16} />}
                     </div>
                     <input type="checkbox" className="hidden" checked={termsAgreed} onChange={(e) => setTermsAgreed(e.target.checked)} />
-                    <span className="text-sm font-bold text-slate-700">이용약관 및 환불정책에 동의합니다 (필수)</span>
+                    <span className="text-sm font-bold text-slate-700">위 약관 및 환불정책에 동의합니다 (필수)</span>
                   </label>
+                </div>
 
+                <div className="pt-2">
                   {error && (
-                    <div className="p-4 rounded-xl bg-red-50 text-red-600 text-xs flex items-center gap-2">
+                    <div className="mb-4 p-4 rounded-xl bg-red-50 text-red-600 text-xs flex items-center gap-2">
                       <AlertCircle size={16} /> {error}
                     </div>
                   )}
 
+                  <div className="flex justify-between items-center mb-4 px-2">
+                    <span className="text-sm text-slate-500">최종 결제 금액</span>
+                    <span className="text-2xl font-black text-slate-900">{finalAmount.toLocaleString()}원</span>
+                  </div>
+
                   <Button className="w-full py-6 rounded-2xl gap-2 text-lg shadow-lg" onClick={handlePayment} disabled={loading || !termsAgreed}>
-                    {loading ? '처리 중...' : <><ShieldCheck size={20} /> {finalAmount.toLocaleString()}원 결제하기</>}
+                    {loading ? '처리 중...' : <><ShieldCheck size={20} /> 결제하기</>}
                   </Button>
                 </div>
               </div>
