@@ -41,7 +41,7 @@ function AppContent() {
           if (!response.ok) throw new Error(data.detail || data.message);
 
           const userCredential = await signInWithCustomToken(auth, data.customToken);
-          // ... (이후 로직 동일)
+          const user = userCredential.user;
 
           // Ensure user document exists
           const userRef = doc(db, 'users', user.uid);
