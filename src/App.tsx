@@ -38,6 +38,8 @@ function AppContent() {
           });
 
           const data = await response.json();
+          console.log('[Kakao Auth] Backend raw response:', data); // 응답 데이터 전체 출력
+          
           if (!response.ok) throw new Error(data.detail || data.message);
 
           const userCredential = await signInWithCustomToken(auth, data.customToken);
