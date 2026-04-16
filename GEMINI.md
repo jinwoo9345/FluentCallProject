@@ -31,6 +31,7 @@
 ### 2. Role-Based Dashboard
 - **Student:** `hasCompletedConsultation`이 `false`인 경우 상담 신청 폼(`ConsultationForm`)만 노출됩니다 (Hard Blocker).
 - **Tutor:** 자신의 수업 가능 시간(`availability`)을 설정하고 관리할 수 있습니다.
+- **Admin:** 전체 유저 현황, 상담 신청 내역, 결제 기록을 관리합니다 (`/admin` 경로).
 - **Schedule Management:** `ScheduleManager` 컴포넌트를 사용하여 각 역할에 맞는 시간표 데이터를 관리합니다.
 
 ### 3. Referral & Payment System

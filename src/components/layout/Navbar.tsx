@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Phone, User, Calendar, Search, Menu, X, LogOut, Sparkles } from 'lucide-react';
+import { Phone, User, Calendar, Search, Menu, X, LogOut, Sparkles, Shield } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '../ui/Button';
 import { cn } from '@/src/lib/utils';
@@ -16,6 +16,7 @@ export const Navbar = () => {
   const navLinks = [
     { name: '튜터 찾기', path: '/tutors', icon: Search },
     { name: '내 강의실', path: '/dashboard', icon: Calendar },
+    ...(user?.role === 'admin' ? [{ name: '관리자', path: '/admin', icon: Shield }] : []),
   ];
 
   const isActive = (path: string) => location.pathname === path;

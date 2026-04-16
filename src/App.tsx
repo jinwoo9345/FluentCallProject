@@ -6,6 +6,7 @@ import { AuthModal } from './components/Auth/AuthModal';
 import Home from './pages/Home';
 import Tutors from './pages/Tutors';
 import Dashboard from './pages/Dashboard';
+import AdminDashboard from './pages/AdminDashboard';
 import RefundPolicy from './pages/RefundPolicy';
 import TermsOfService from './pages/TermsOfService';
 import PaymentSuccess from './pages/PaymentSuccess';
@@ -23,6 +24,7 @@ function AppContent() {
             <Route path="/" element={<Home />} />
             <Route path="/tutors" element={<Tutors />} />
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/admin" element={<AdminDashboard />} />
             <Route path="/refund-policy" element={<RefundPolicy />} />
             <Route path="/terms-of-service" element={<TermsOfService />} />
             <Route path="/payment/success" element={<PaymentSuccess />} />

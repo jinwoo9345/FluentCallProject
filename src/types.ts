@@ -39,13 +39,13 @@ export interface User {
   email: string;
   avatar?: string;
   credits: number;
-  role: 'student' | 'tutor';
+  role: 'student' | 'tutor' | 'admin';
   referralCode?: string;
   referredBy?: string;
   discountBalance?: number;
-  wishlist?: string[]; // Array of tutor IDs
+  wishlist?: string[];
   hasCompletedConsultation?: boolean;
-  studentAvailability?: string[]; // student's preferred times
+  studentAvailability?: string[];
 }
 
 export interface Consultation {
