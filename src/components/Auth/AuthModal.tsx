@@ -49,11 +49,21 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
     setError('');
     try {
       const Kakao = (window as any).Kakao;
-      if (!Kakao || !Kakao.isInitialized()) {
-        throw new Error('카카오 SDK가 초기화되지 않았습니다.');
+      const KAKAO_KEY = (import.meta as any).env.VITE_KAKAO_JS_KEY;
+
+      if (!Kakao) {
+        throw new Error('카카오 SDK 로드에 실패했습니다. 페이지를 새로고침 해주세요.');
       }
 
-      // 팝업 대신 리다이렉트 방식 사용 (더 안정적임)
+      // 동적 초기화 시도
+      if (!Kakao.isInitialized()) {
+        if (KAKAO_KEY) {
+          Kakao.init(KAKAO_KEY);
+        } else {
+          throw new Error('VITE_KAKAO_JS_KEY 설정이 누력되었습니다. Settings 메뉴를 확인해주세요.');
+        }
+      }
+
       const redirectUri = `${window.location.origin}/dashboard`; 
       Kakao.Auth.authorize({
         redirectUri: redirectUri,
