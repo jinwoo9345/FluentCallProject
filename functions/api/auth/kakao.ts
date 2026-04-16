@@ -1,11 +1,8 @@
 /**
  * [Kakao Auth Handler]
- * Exchanges a Kakao Access Token for a Firebase Custom Token.
- * Requires FIREBASE_PRIVATE_KEY, FIREBASE_CLIENT_EMAIL, and FIREBASE_PROJECT_ID 
- * to be set in Cloudflare Environment Variables.
+ * Exchanges a Kakao Authorization Code for a Firebase Custom Token.
  */
 
-// Simple JWT generation for Cloudflare Workers (without heavy node-jose)
 async function createCustomToken(uid: string, clientEmail: string, privateKey: string) {
   const header = { alg: 'RS256', typ: 'JWT' };
   const now = Math.floor(Date.now() / 1000);
@@ -22,62 +19,48 @@ async function createCustomToken(uid: string, clientEmail: string, privateKey: s
   const encodedPayload = btoa(JSON.stringify(payload)).replace(/=/g, '');
   const unsignedToken = `${encodedHeader}.${encodedPayload}`;
 
-  // Cloudflare Workers Web Crypto API for RSA signing
-  const pemHeader = "-----BEGIN PRIVATE KEY-----";
-  const pemFooter = "-----END PRIVATE KEY-----";
-  const pemContents = privateKey.replace(pemHeader, "").replace(pemFooter, "").replace(/\s/g, "");
+  const pemContents = privateKey.replace(/-----BEGIN PRIVATE KEY-----/g, "").replace(/-----END PRIVATE KEY-----/g, "").replace(/\s/g, "");
   const binaryDer = Uint8Array.from(atob(pemContents), c => c.charCodeAt(0));
 
-  const key = await crypto.subtle.importKey(
-    "pkcs8",
-    binaryDer,
-    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
-    false,
-    ["sign"]
-  );
-
-  const signature = await crypto.subtle.sign(
-    "RSASSA-PKCS1-v1_5",
-    key,
-    new TextEncoder().encode(unsignedToken)
-  );
-
-  const encodedSignature = btoa(String.fromCharCode(...new Uint8Array(signature)))
-    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  const key = await crypto.subtle.importKey("pkcs8", binaryDer, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["sign"]);
+  const signature = await crypto.subtle.sign("RSASSA-PKCS1-v1_5", key, new TextEncoder().encode(unsignedToken));
+  const encodedSignature = btoa(String.fromCharCode(...new Uint8Array(signature))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
 
   return `${unsignedToken}.${encodedSignature}`;
 }
 
 export const onRequestPost: PagesFunction<any> = async ({ request, env }) => {
   try {
-    const { accessToken } = await request.json() as any;
-    
-    // 1. 카카오 사용자 정보 가져오기
-    const kakaoUserRes = await fetch('https://kapi.kakao.com/v2/user/me', {
-      headers: { Authorization: `Bearer ${accessToken}` },
+    const { code } = await request.json() as any;
+    const origin = new URL(request.url).origin;
+    const redirectUri = `${origin}/dashboard`;
+
+    // 1. 인가 코드를 액세스 토큰으로 교환
+    const tokenRes = await fetch('https://kauth.kakao.com/oauth/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8' },
+      body: new URLSearchParams({
+        grant_type: 'authorization_code',
+        client_id: env.KAKAO_REST_API_KEY, // REST API 키 사용
+        redirect_uri: redirectUri,
+        code,
+      }),
     });
-    const kakaoUser = await kakaoUserRes.json() as any;
 
-    if (!kakaoUser.id) {
-      return new Response(JSON.stringify({ message: '카카오 인증 실패' }), { status: 401 });
-    }
+    const tokenData = await tokenRes.json() as any;
+    if (!tokenData.access_token) return new Response(JSON.stringify({ message: '카카오 토큰 교환 실패' }), { status: 400 });
 
-    const uid = `kakao:${kakaoUser.id}`;
-    
-    // 2. Cloudflare 환경 변수에서 서비스 계정 정보 읽기
-    const clientEmail = env.FIREBASE_CLIENT_EMAIL;
-    const privateKey = env.FIREBASE_PRIVATE_KEY; // "\n" 포함된 원본 문자열이어야 함
-
-    if (!clientEmail || !privateKey) {
-      return new Response(JSON.stringify({ message: '서버 설정(Service Account)이 누락되었습니다.' }), { status: 500 });
-    }
-
-    // 3. Custom Token 생성
-    const customToken = await createCustomToken(uid, clientEmail, privateKey);
-
-    return new Response(JSON.stringify({ customToken }), {
-      headers: { 'Content-Type': 'application/json' }
+    // 2. 카카오 사용자 정보 가져오기
+    const userRes = await fetch('https://kapi.kakao.com/v2/user/me', {
+      headers: { Authorization: `Bearer ${tokenData.access_token}` },
     });
+    const userData = await userRes.json() as any;
+    const uid = `kakao:${userData.id}`;
+
+    // 3. Firebase Custom Token 생성
+    const customToken = await createCustomToken(uid, env.FIREBASE_CLIENT_EMAIL, env.FIREBASE_PRIVATE_KEY);
+
+    return new Response(JSON.stringify({ customToken }));
 
   } catch (error: any) {
     return new Response(JSON.stringify({ message: error.message }), { status: 500 });

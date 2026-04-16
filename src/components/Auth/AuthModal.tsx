@@ -45,51 +45,22 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
     }
   };
 
-  const handleKakaoLogin = async () => {
+  const handleKakaoLogin = () => {
     setError('');
-    setLoading(true);
     try {
       const Kakao = (window as any).Kakao;
       if (!Kakao || !Kakao.isInitialized()) {
         throw new Error('카카오 SDK가 초기화되지 않았습니다.');
       }
 
-      Kakao.Auth.login({
-        success: async (authObj: any) => {
-          console.log('[Kakao] Login Success, token:', authObj.access_token);
-          
-          // 백엔드 API를 통해 Firebase Custom Token 받아오기
-          try {
-            const response = await fetch('/api/auth/kakao', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ accessToken: authObj.access_token })
-            });
-
-            const data = await response.json();
-            if (!response.ok) throw new Error(data.message || '카카오 로그인 처리 실패');
-
-            // Firebase 로그인
-            const { signInWithCustomToken } = await import('firebase/auth');
-            const userCredential = await signInWithCustomToken(auth, data.customToken);
-            await ensureUserDocument(userCredential.user);
-            onClose();
-          } catch (apiErr: any) {
-            console.error('[Kakao] Backend Error:', apiErr);
-            setError('로그인 처리 중 서버 오류가 발생했습니다.');
-            setLoading(false);
-          }
-        },
-        fail: (err: any) => {
-          console.error('[Kakao] Login Fail:', err);
-          setError('카카오 로그인에 실패했습니다.');
-          setLoading(false);
-        }
+      // 팝업 대신 리다이렉트 방식 사용 (더 안정적임)
+      const redirectUri = `${window.location.origin}/dashboard`; 
+      Kakao.Auth.authorize({
+        redirectUri: redirectUri,
       });
     } catch (err: any) {
       console.error(err);
       setError(err.message || '카카오 로그인 중 오류가 발생했습니다.');
-      setLoading(false);
     }
   };
 
