@@ -3,46 +3,42 @@
  * Exchanges a Kakao Authorization Code for a Firebase Custom Token.
  */
 
-async function createCustomToken(uid: string, clientEmail: string, privateKey: string, privateKeyId?: string) {
-  const keyStr = String(privateKey || "");
-  if (!keyStr || keyStr.length < 10) {
-    throw new Error('FIREBASE_PRIVATE_KEY is invalid or missing');
-  }
+async function createCustomToken(uid: string, clientEmail: string, privateKey: string) {
+  const header = { alg: 'RS256', typ: 'JWT' };
+  const iat = Math.floor(Date.now() / 1000) - 30; // 30초 여유
+  const exp = iat + 3600;
   
-  // Header에 kid 추가 (Firebase 검증에 필수적일 수 있음)
-  const header: any = { alg: 'RS256', typ: 'JWT' };
-  if (privateKeyId) {
-    header.kid = privateKeyId;
-  }
-
-  const now = Math.floor(Date.now() / 1000) - 60; // 60초 전으로 설정하여 시간 오차 방지
   const payload = {
     iss: clientEmail,
     sub: clientEmail,
     aud: 'https://identitytoolkit.googleapis.com/google.firebase.auth.v1.CustomTokenAudience',
-    iat: now,
-    exp: now + 3600,
-    uid: String(uid), // 확실하게 문자열로 변환
+    iat,
+    exp,
+    uid: String(uid)
   };
 
-  const base64UrlEncode = (str: string) => {
-    // UTF-8 문자열을 Base64URL로 변환
-    const bytes = new TextEncoder().encode(str);
-    let binary = "";
+  const stringToBase64Url = (str: string) => {
+    const b64 = btoa(unescape(encodeURIComponent(str)));
+    return b64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  };
+
+  const arrayBufferToBase64Url = (buffer: ArrayBuffer) => {
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
     for (let i = 0; i < bytes.byteLength; i++) {
       binary += String.fromCharCode(bytes[i]);
     }
     return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
   };
 
-  const encodedHeader = base64UrlEncode(JSON.stringify(header));
-  const encodedPayload = base64UrlEncode(JSON.stringify(payload));
+  const encodedHeader = stringToBase64Url(JSON.stringify(header));
+  const encodedPayload = stringToBase64Url(JSON.stringify(payload));
   const unsignedToken = `${encodedHeader}.${encodedPayload}`;
 
-  const pemContents = keyStr
-    .replace(/\\n/g, "\n")
+  const pemContents = privateKey
     .replace(/-----BEGIN PRIVATE KEY-----/g, "")
     .replace(/-----END PRIVATE KEY-----/g, "")
+    .replace(/\\n/g, "")
     .replace(/\s/g, "");
     
   try {
@@ -61,17 +57,10 @@ async function createCustomToken(uid: string, clientEmail: string, privateKey: s
       new TextEncoder().encode(unsignedToken)
     );
     
-    // 서명(바이너리)을 Base64URL로 변환
-    const sigBytes = new Uint8Array(signature);
-    let sigBinary = "";
-    for (let i = 0; i < sigBytes.byteLength; i++) {
-      sigBinary += String.fromCharCode(sigBytes[i]);
-    }
-    const encodedSignature = btoa(sigBinary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-
+    const encodedSignature = arrayBufferToBase64Url(signature);
     return `${unsignedToken}.${encodedSignature}`;
   } catch (e: any) {
-    throw new Error(`토큰 서명 실패: ${e.message}`);
+    throw new Error(`서명 실패: ${e.message}`);
   }
 }
 
@@ -79,20 +68,14 @@ export const onRequestPost: PagesFunction<any> = async ({ request, env }) => {
   try {
     const clientEmail = (env.FIREBASE_CLIENT_EMAIL || "").trim();
     const privateKey = (env.FIREBASE_PRIVATE_KEY || "").trim();
-    const privateKeyId = (env.FIREBASE_PRIVATE_KEY_ID || "").trim();
     const kakaoRestKey = (env.KAKAO_REST_API_KEY || "").trim();
     const projectId = (env.FIREBASE_PROJECT_ID || "").trim();
 
     const envKeys = Object.keys(env);
-    const missingKeys = [];
-    if (!clientEmail) missingKeys.push('FIREBASE_CLIENT_EMAIL');
-    if (!privateKey) missingKeys.push('FIREBASE_PRIVATE_KEY');
-    if (!kakaoRestKey) missingKeys.push('KAKAO_REST_API_KEY');
-
-    if (missingKeys.length > 0) {
+    if (!clientEmail || !privateKey || !kakaoRestKey) {
       return new Response(JSON.stringify({ 
-        message: '서버 환경 변수 설정 오류',
-        detail: `${missingKeys.join(', ')} 변수가 비어있습니다.`,
+        message: '환경 변수 누락',
+        detail: '필수 환경 변수가 설정되지 않았습니다.',
         availableKeys: envKeys
       }), { status: 500, headers: { 'Content-Type': 'application/json' } });
     }
@@ -102,7 +85,7 @@ export const onRequestPost: PagesFunction<any> = async ({ request, env }) => {
     const origin = new URL(request.url).origin;
     const redirectUri = clientRedirectUri || `${origin}/dashboard`;
 
-    // 1. 인가 코드를 액세스 토큰으로 교환
+    // 1. 카카오 토큰 교환
     const tokenRes = await fetch('https://kauth.kakao.com/oauth/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=utf-8' },
@@ -117,48 +100,29 @@ export const onRequestPost: PagesFunction<any> = async ({ request, env }) => {
     const tokenData = await tokenRes.json() as any;
     if (!tokenData.access_token) {
       return new Response(JSON.stringify({ 
-        message: '카카오 토큰 교환 실패',
-        detail: tokenData.error_description || tokenData.error,
-        errorCode: tokenData.error_code
-      }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+        message: '카카오 인증 실패', 
+        detail: tokenData.error_description 
+      }), { status: 400 });
     }
 
-    // 2. 카카오 사용자 정보 가져오기
+    // 2. 카카오 사용자 정보
     const userRes = await fetch('https://kapi.kakao.com/v2/user/me', {
       headers: { Authorization: `Bearer ${tokenData.access_token}` },
     });
     const userData = await userRes.json() as any;
-    if (!userData.id) throw new Error('카카오 사용자 정보 획득 실패');
-    
     const uid = `kakao:${userData.id}`;
 
-    // 3. Firebase Custom Token 생성
-    const customToken = await createCustomToken(uid, clientEmail, privateKey, privateKeyId);
-
-    // 프로젝트 ID 추출 및 검증
-    const emailProjectId = clientEmail.split('@')[1]?.split('.')[0];
-    const isProjectMatched = projectId === emailProjectId;
+    // 3. 토큰 생성
+    const customToken = await createCustomToken(uid, clientEmail, privateKey);
 
     return new Response(JSON.stringify({ 
       customToken,
       userName: userData.kakao_account?.profile?.nickname,
       userPhoto: userData.kakao_account?.profile?.profile_image_url,
-      debug: {
-        uid,
-        iss: clientEmail,
-        envProjectId: projectId,
-        extractedProjectId: emailProjectId,
-        isMatched: isProjectMatched
-      }
-    }), { 
-      headers: { 'Content-Type': 'application/json' } 
-    });
+      debug: { iss: clientEmail, projectId }
+    }), { headers: { 'Content-Type': 'application/json' } });
 
   } catch (error: any) {
-    console.error('[Backend Error]', error);
-    return new Response(JSON.stringify({ 
-      message: '서버 내부 오류',
-      detail: error.message 
-    }), { status: 500 });
+    return new Response(JSON.stringify({ message: '서버 오류', detail: error.message }), { status: 500 });
   }
 };
