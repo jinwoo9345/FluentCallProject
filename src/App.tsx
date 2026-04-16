@@ -11,7 +11,7 @@ import RefundPolicy from './pages/RefundPolicy';
 import TermsOfService from './pages/TermsOfService';
 import PaymentSuccess from './pages/PaymentSuccess';
 import PaymentFail from './pages/PaymentFail';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { db, auth } from './firebase';
 import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { signInWithCustomToken } from 'firebase/auth';
@@ -19,14 +19,18 @@ import { signInWithCustomToken } from 'firebase/auth';
 function AppContent() {
   const { isAuthModalOpen, setIsAuthModalOpen, authMode } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
+  const processingRef = useRef(false);
 
   // Handle Kakao Redirect
   useEffect(() => {
     const code = searchParams.get('code');
-    if (code) {
+    if (code && !processingRef.current) {
+      processingRef.current = true;
       const handleKakaoAuth = async () => {
         try {
           const redirectUri = `${window.location.origin}/dashboard`;
+          console.log('[Kakao Auth] Sending code to backend...', { redirectUri });
+
           const response = await fetch('/api/auth/kakao', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -34,10 +38,10 @@ function AppContent() {
           });
 
           const data = await response.json();
-          if (!response.ok) throw new Error(data.message);
+          if (!response.ok) throw new Error(data.detail || data.message);
 
           const userCredential = await signInWithCustomToken(auth, data.customToken);
-          const user = userCredential.user;
+          // ... (이후 로직 동일)
 
           // Ensure user document exists
           const userRef = doc(db, 'users', user.uid);
