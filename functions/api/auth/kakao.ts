@@ -119,15 +119,24 @@ export const onRequestPost: PagesFunction<any> = async ({ request, env }) => {
     // 3. Firebase Custom Token 생성
     const customToken = await createCustomToken(uid, clientEmail, privateKey);
 
+    // 프로젝트 ID 추출 및 검증
+    const emailProjectId = clientEmail.split('@')[1]?.split('.')[0];
+    const isProjectMatched = projectId === emailProjectId;
+
     return new Response(JSON.stringify({ 
       customToken,
       userName: userData.kakao_account?.profile?.nickname,
       userPhoto: userData.kakao_account?.profile?.profile_image_url,
-      debug: { // 디버깅용 (문제 해결 후 삭제 권장)
+      debug: {
+        uid,
         iss: clientEmail,
-        uid: uid
+        envProjectId: projectId,
+        extractedProjectId: emailProjectId,
+        isMatched: isProjectMatched
       }
-    }), { headers: { 'Content-Type': 'application/json' } });
+    }), { 
+      headers: { 'Content-Type': 'application/json' } 
+    });
 
   } catch (error: any) {
     console.error('[Backend Error]', error);
