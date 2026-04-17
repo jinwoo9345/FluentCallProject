@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import {
   User, Calendar, Menu, X, LogOut, Shield, ChevronDown,
-  BookOpen, ClipboardList, Info,
+  BookOpen, ClipboardList, Info, GraduationCap,
 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '../ui/Button';
@@ -27,6 +27,14 @@ export const Navbar = () => {
       items: [
         { name: '프로그램 소개', path: '/about' },
         { name: '튜터 소개', path: '/tutors' },
+      ],
+    },
+    {
+      name: '수업',
+      icon: GraduationCap,
+      items: [
+        { name: '수업 등록·신청', path: '/tutors' },
+        { name: '상담 신청', path: '/consultation' },
       ],
     },
     {
@@ -132,19 +140,6 @@ export const Navbar = () => {
             )}
           </div>
 
-          {/* 내 강의실 — 로그인 시에만 */}
-          {firebaseUser && (
-            <Link
-              to="/dashboard"
-              className={cn(
-                'flex items-center gap-1.5 px-3 py-2 text-sm font-bold transition-colors rounded-lg hover:text-blue-600',
-                isActive('/dashboard') ? 'text-blue-600' : 'text-slate-600'
-              )}
-            >
-              <Calendar size={16} />내 강의실
-            </Link>
-          )}
-
           {/* 관리자 — admin만 */}
           {user?.role === 'admin' && (
             <Link
@@ -159,10 +154,23 @@ export const Navbar = () => {
           )}
         </div>
 
-        {/* 우측: 인증 영역 (데스크톱) */}
+        {/* 우측: 내 강의실(로그인시) + 인증 영역 (데스크톱) */}
         <div className="hidden md:flex md:items-center md:gap-3 justify-self-end">
+          {/* 내 강의실 — 프로필 바로 왼쪽 */}
+          {firebaseUser && (
+            <Link
+              to="/dashboard"
+              className={cn(
+                'flex items-center gap-1.5 px-3 py-2 text-sm font-bold transition-colors rounded-lg hover:text-blue-600',
+                isActive('/dashboard') ? 'text-blue-600' : 'text-slate-600'
+              )}
+            >
+              <Calendar size={16} />내 강의실
+            </Link>
+          )}
+
           {firebaseUser ? (
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-3 pl-2 border-l border-slate-200">
               <div className="flex items-center gap-2">
                 <img
                   src={user?.avatar || `https://picsum.photos/seed/${firebaseUser.uid}/100/100`}

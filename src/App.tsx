@@ -13,6 +13,7 @@ import PaymentSuccess from './pages/PaymentSuccess';
 import PaymentFail from './pages/PaymentFail';
 import ReferralProgram from './pages/ReferralProgram';
 import Placeholder from './pages/Placeholder';
+import ConsultationRequest from './pages/ConsultationRequest';
 import { useEffect, useRef } from 'react';
 import { db, auth } from './firebase';
 import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -145,6 +146,7 @@ function AppContent() {
           <Route path="/payment/success" element={<PaymentSuccess />} />
           <Route path="/payment/fail" element={<PaymentFail />} />
           <Route path="/referral" element={<ReferralProgram />} />
+          <Route path="/consultation" element={<ConsultationRequest />} />
           <Route
             path="/about"
             element={<Placeholder title="프로그램 소개 · 소개와 목적" />}
