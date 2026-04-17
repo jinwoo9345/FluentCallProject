@@ -35,6 +35,7 @@ export default function AdminDashboard() {
   const [tutors, setTutors] = useState<any[]>([]);
   const [usersList, setUsersList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [detailConsult, setDetailConsult] = useState<any | null>(null);
 
   const fetchAdminData = async () => {
     setLoading(true);
@@ -362,14 +363,24 @@ export default function AdminDashboard() {
                             </span>
                           </td>
                           <td className="px-6 py-4 text-right">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="text-xs"
-                              onClick={() => handleToggleConsultStatus(c)}
-                            >
-                              {c.status === 'completed' ? '대기로 변경' : '완료 처리'}
-                            </Button>
+                            <div className="flex gap-1 justify-end">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-xs"
+                                onClick={() => setDetailConsult(c)}
+                              >
+                                상세보기
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-xs"
+                                onClick={() => handleToggleConsultStatus(c)}
+                              >
+                                {c.status === 'completed' ? '대기로 변경' : '완료 처리'}
+                              </Button>
+                            </div>
                           </td>
                         </tr>
                       ))}
@@ -575,6 +586,132 @@ export default function AdminDashboard() {
             </motion.div>
           )}
         </AnimatePresence>
+      )}
+
+      {/* 상담 상세보기 모달 */}
+      <AnimatePresence>
+        {detailConsult && (
+          <div className="fixed inset-0 z-[250] overflow-y-auto bg-slate-900/60 backdrop-blur-sm">
+            <div className="flex min-h-full items-center justify-center p-4">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden"
+              >
+                <div className="bg-slate-900 text-white p-6 flex items-start justify-between">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-widest text-blue-300">상담 신청 상세</p>
+                    <h2 className="mt-1 text-2xl font-bold">{detailConsult.name || '미입력'}</h2>
+                    <p className="mt-1 text-sm text-slate-300">
+                      {detailConsult.contactType ? `${detailConsult.contactType} · ` : ''}
+                      {detailConsult.contactValue || detailConsult.contact || '-'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setDetailConsult(null)}
+                    className="text-slate-400 hover:text-white transition-colors"
+                  >
+                    <span className="text-2xl leading-none">×</span>
+                  </button>
+                </div>
+
+                <div className="p-8 space-y-6 max-h-[70vh] overflow-y-auto">
+                  {/* 상태 / 신청일 */}
+                  <div className="flex flex-wrap gap-3 text-xs">
+                    <span className={cn(
+                      'px-3 py-1 rounded-full font-black uppercase tracking-wider',
+                      detailConsult.status === 'completed'
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-rose-100 text-rose-700'
+                    )}>
+                      {detailConsult.status === 'completed' ? '완료' : '대기 중'}
+                    </span>
+                    <span className="px-3 py-1 rounded-full bg-slate-100 text-slate-600 font-bold">
+                      신청 시간: {formatTS(detailConsult.createdAt, 'datetime')}
+                    </span>
+                    {detailConsult.userId && (
+                      <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-700 font-bold">회원 가입됨</span>
+                    )}
+                    {detailConsult.type && (
+                      <span className="px-3 py-1 rounded-full bg-purple-100 text-purple-700 font-bold">
+                        {detailConsult.type}
+                      </span>
+                    )}
+                  </div>
+
+                  <DetailSection title="공부 목적" value={detailConsult.goals || detailConsult.purpose} />
+                  <DetailSection title="수강 기간" value={detailConsult.duration} />
+                  <DetailSection title="회화 레벨" value={detailConsult.level} />
+                  <DetailSection title="원하는 수업 스타일" value={detailConsult.styles} />
+                  <DetailSection title="친구 동행 여부" value={detailConsult.companion} />
+                  <DetailSection
+                    title="상담 가능 시간"
+                    value={
+                      [detailConsult.availableTime, detailConsult.availableDetail]
+                        .filter(Boolean)
+                        .join(' / ')
+                    }
+                  />
+                  <DetailSection title="구체적 목표" value={detailConsult.specificGoals} />
+                  <DetailSection title="학습 동기 / 메모" value={detailConsult.motivation} />
+                  <DetailSection title="기타 메모" value={detailConsult.notes} />
+
+                  {/* 원본 데이터 (접을 수 있는 디버그) */}
+                  <details className="mt-2">
+                    <summary className="cursor-pointer text-xs font-bold text-slate-400 hover:text-slate-600">
+                      원본 데이터 보기
+                    </summary>
+                    <pre className="mt-2 bg-slate-50 p-3 rounded-xl text-[11px] text-slate-600 overflow-x-auto">
+                      {JSON.stringify(detailConsult, null, 2)}
+                    </pre>
+                  </details>
+                </div>
+
+                <div className="p-6 border-t border-slate-100 flex gap-3 justify-end bg-slate-50/50">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      handleToggleConsultStatus(detailConsult);
+                      setDetailConsult(null);
+                    }}
+                  >
+                    {detailConsult.status === 'completed' ? '대기로 변경' : '완료 처리'}
+                  </Button>
+                  <Button onClick={() => setDetailConsult(null)}>닫기</Button>
+                </div>
+              </motion.div>
+            </div>
+          </div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function DetailSection({ title, value }: { title: string; value: any }) {
+  const isEmpty =
+    value == null ||
+    (typeof value === 'string' && value.trim() === '') ||
+    (Array.isArray(value) && value.length === 0);
+  if (isEmpty) return null;
+
+  return (
+    <div>
+      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">{title}</p>
+      {Array.isArray(value) ? (
+        <div className="flex flex-wrap gap-2">
+          {value.map((v: any, i: number) => (
+            <span
+              key={i}
+              className="inline-flex items-center bg-blue-50 text-blue-700 text-sm font-bold px-3 py-1.5 rounded-full border border-blue-100"
+            >
+              {String(v)}
+            </span>
+          ))}
+        </div>
+      ) : (
+        <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-wrap">{String(value)}</p>
       )}
     </div>
   );
