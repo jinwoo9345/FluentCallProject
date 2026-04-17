@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
-import { doc, onSnapshot, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { doc, onSnapshot, updateDoc, arrayUnion, arrayRemove, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import { User } from '../types';
 
@@ -44,9 +44,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(true);
       const unsubscribeUser = onSnapshot(
         doc(db, 'users', firebaseUser.uid),
-        (docSnap) => {
+        async (docSnap) => {
           if (docSnap.exists()) {
-            setUser(docSnap.data() as User);
+            const data = docSnap.data() as User;
+            setUser(data);
+
+            // 기존 유저 마이그레이션: referral_codes 인덱스 문서가 없으면 자동 생성
+            if (data.referralCode) {
+              try {
+                const codeRef = doc(db, 'referral_codes', data.referralCode);
+                const codeSnap = await getDoc(codeRef);
+                if (!codeSnap.exists()) {
+                  await setDoc(codeRef, {
+                    userId: firebaseUser.uid,
+                    name: data.name || '회원',
+                    createdAt: serverTimestamp(),
+                  });
+                }
+              } catch (err) {
+                // 조용히 실패해도 앱 동작에는 영향 없음
+                console.warn('referral_codes 인덱스 자동 생성 실패:', err);
+              }
+            }
           } else {
             setUser(null);
           }

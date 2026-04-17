@@ -72,16 +72,14 @@ function AppContent() {
             const fallbackName = `카카오회원${user.uid.slice(-4)}`;
             const kakaoName = data.userName || user.displayName || fallbackName;
 
-            // 추천인 코드 검증 (localStorage에 pendingReferralCode가 있을 때만)
+            // 추천인 코드 검증 (referral_codes 인덱스 사용 — 비로그인 상태에서도 읽기 가능)
             let validatedReferral = '';
             if (pendingReferral) {
               try {
-                const refQuery = query(
-                  collection(db, 'users'),
-                  where('referralCode', '==', pendingReferral.toUpperCase())
+                const codeDoc = await getDoc(
+                  doc(db, 'referral_codes', pendingReferral.toUpperCase())
                 );
-                const refSnap = await getDocs(refQuery);
-                if (!refSnap.empty) validatedReferral = pendingReferral.toUpperCase();
+                if (codeDoc.exists()) validatedReferral = pendingReferral.toUpperCase();
               } catch (err) {
                 console.warn('추천인 코드 검증 실패:', err);
               }
@@ -101,6 +99,18 @@ function AppContent() {
               avatar: `https://picsum.photos/seed/${user.uid}/200/200`,
               hasCompletedConsultation: !!pendingConsultationId
             });
+
+            // 추천 코드 인덱스 문서 생성 (공개 조회용 · 이름 스냅샷 포함)
+            try {
+              await setDoc(doc(db, 'referral_codes', referralCode), {
+                userId: user.uid,
+                name: kakaoName,
+                createdAt: serverTimestamp(),
+              });
+            } catch (err) {
+              console.warn('referral_codes 인덱스 생성 실패:', err);
+            }
+
             if (validatedReferral) localStorage.removeItem('pendingReferralCode');
           } else {
             // Update existing user profile — realName 없으면 보정, 표시명(name)은 사용자 설정값 유지

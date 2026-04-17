@@ -4,7 +4,7 @@ import { X, Send, AlertCircle, CheckCircle2, User as UserIcon, Lock } from 'luci
 import { Button } from '../ui/Button';
 import { db, auth } from '../../firebase';
 import {
-  collection, query, where, getDocs, runTransaction, doc,
+  collection, runTransaction, doc, getDoc,
   serverTimestamp,
 } from 'firebase/firestore';
 import { useAuth } from '../../contexts/AuthContext';
@@ -37,14 +37,19 @@ export function PointTransferModal({ isOpen, onClose }: PointTransferModalProps)
     setLookupLoading(true);
     (async () => {
       try {
-        const q = query(collection(db, 'users'), where('referralCode', '==', code));
-        const snap = await getDocs(q);
-        if (!snap.empty) {
-          const docSnap = snap.docs[0];
-          setRecipient({ id: docSnap.id, ...docSnap.data() });
-        } else {
+        // referral_codes 인덱스에서 추천인 uid + 표시명 조회 (공개 read, 민감정보 없음)
+        const codeSnap = await getDoc(doc(db, 'referral_codes', code));
+        if (!codeSnap.exists()) {
           setError('등록된 추천인 계정을 찾을 수 없습니다. 관리자에게 문의해주세요.');
+          return;
         }
+        const data = codeSnap.data() as any;
+        setRecipient({
+          id: data.userId,
+          name: data.name || '추천인',
+          email: '',
+          credits: 0,
+        });
       } catch (err) {
         setError('추천인 정보를 불러오는 중 오류가 발생했습니다.');
       } finally {

@@ -10,7 +10,7 @@ import {
   browserSessionPersistence,
   signInWithPopup,
 } from 'firebase/auth';
-import { doc, setDoc, serverTimestamp, getDoc, addDoc, collection, updateDoc, query, where, getDocs } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp, getDoc, addDoc, collection, updateDoc } from 'firebase/firestore';
 import { Button } from '../ui/Button';
 
 interface AuthModalProps {
@@ -51,12 +51,12 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
   };
 
   // 입력된 추천인 코드가 유효한지 검증하고 정규화된 코드 반환
+  // referral_codes/{code} 문서를 공개 read로 확인 (로그인 전에도 검증 가능)
   const validateReferral = async (raw: string): Promise<string> => {
     const code = (raw || '').trim().toUpperCase();
     if (!code) return '';
-    const q = query(collection(db, 'users'), where('referralCode', '==', code));
-    const snap = await getDocs(q);
-    if (snap.empty) {
+    const snap = await getDoc(doc(db, 'referral_codes', code));
+    if (!snap.exists()) {
       throw new Error('존재하지 않는 추천인 코드입니다. 비워두거나 올바른 코드를 입력해주세요.');
     }
     return code;
@@ -138,6 +138,18 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
         createdAt: serverTimestamp(),
         avatar: `https://picsum.photos/seed/${user.uid}/200/200`,
       });
+
+      // 추천 코드 인덱스 문서 생성 (공개 조회용)
+      try {
+        await setDoc(doc(db, 'referral_codes', referralCode), {
+          userId: user.uid,
+          name: displayName,
+          createdAt: serverTimestamp(),
+        });
+      } catch (err) {
+        console.warn('referral_codes 인덱스 생성 실패:', err);
+      }
+
       if (validatedReferral) localStorage.removeItem('pendingReferralCode');
     }
   };
@@ -210,6 +222,17 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
         }
 
         await setDoc(doc(db, 'users', user.uid), userDoc);
+
+        // 추천 코드 인덱스 문서 생성 (공개 조회용 · 이름 스냅샷 포함)
+        try {
+          await setDoc(doc(db, 'referral_codes', referralCode), {
+            userId: user.uid,
+            name: displayName,
+            createdAt: serverTimestamp(),
+          });
+        } catch (err) {
+          console.warn('referral_codes 인덱스 생성 실패:', err);
+        }
 
         if (role === 'tutor') {
           const appRef = await addDoc(collection(db, 'tutor_applications'), {

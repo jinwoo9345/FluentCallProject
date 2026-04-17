@@ -8,7 +8,7 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { useAuth } from '../contexts/AuthContext';
 import { db } from '../firebase';
-import { collection, query, getDocs, orderBy, where, doc, updateDoc, writeBatch, increment, addDoc, serverTimestamp, deleteDoc, setDoc } from 'firebase/firestore';
+import { collection, query, getDocs, getDoc, orderBy, where, doc, updateDoc, writeBatch, increment, addDoc, serverTimestamp, deleteDoc, setDoc } from 'firebase/firestore';
 import { cn } from '@/src/lib/utils';
 import { Pagination, usePaginated } from '../components/ui/Pagination';
 
@@ -384,18 +384,13 @@ export default function AdminDashboard() {
         confirmedBy: 'admin',
       });
 
-      // 2. 추천인 보상 지급 (중복 지급 방지)
+      // 2. 추천인 보상 지급 (중복 지급 방지) — referral_codes 인덱스 기반
       if (p.referredBy && !p.referralRewarded) {
         try {
-          const referrerQuery = query(
-            collection(db, 'users'),
-            where('referralCode', '==', p.referredBy.toUpperCase())
-          );
-          const refSnap = await getDocs(referrerQuery);
-          if (!refSnap.empty) {
-            const referrerDoc = refSnap.docs[0];
-            const referrerId = referrerDoc.id;
-            if (referrerId !== p.userId) {
+          const codeDoc = await getDoc(doc(db, 'referral_codes', p.referredBy.toUpperCase()));
+          if (codeDoc.exists()) {
+            const referrerId = (codeDoc.data() as any).userId as string;
+            if (referrerId && referrerId !== p.userId) {
               await updateDoc(doc(db, 'users', referrerId), {
                 credits: increment(20),
               });

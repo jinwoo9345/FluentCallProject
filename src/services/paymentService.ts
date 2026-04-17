@@ -1,4 +1,4 @@
-import { collection, serverTimestamp, doc, updateDoc, increment, setDoc, query, where, getDocs } from 'firebase/firestore';
+import { serverTimestamp, doc, updateDoc, increment, setDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 
 const PAYMENTS_COLLECTION = 'payments';
@@ -27,18 +27,17 @@ export const paymentService = {
 
   async handleReferralReward(payerUserId: string, referrerCode: string) {
     if (!referrerCode) return;
+    const code = referrerCode.trim().toUpperCase();
 
-    const usersRef = collection(db, 'users');
-    const q = query(usersRef, where('referralCode', '==', referrerCode.trim().toUpperCase()));
-    const snapshot = await getDocs(q);
+    // referral_codes 인덱스에서 추천인 uid 조회 (공개 read)
+    const { getDoc } = await import('firebase/firestore');
+    const codeDoc = await getDoc(doc(db, 'referral_codes', code));
+    if (!codeDoc.exists()) return;
 
-    if (snapshot.empty) return;
-
-    const referrerDoc = snapshot.docs[0];
-    const referrerId = referrerDoc.id;
+    const referrerId = (codeDoc.data() as any).userId as string;
 
     // 본인 코드로 본인 결제 시 지급 금지
-    if (referrerId === payerUserId) return;
+    if (!referrerId || referrerId === payerUserId) return;
 
     // 결제자(친구)는 보상을 받지 않음. 초대한 사람(추천인)에게만 20 포인트 지급
     const REWARD_AMOUNT = 20;

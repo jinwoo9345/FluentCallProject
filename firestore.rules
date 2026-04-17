@@ -31,6 +31,15 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // 추천 코드 인덱스 (비로그인 상태에서도 코드 유효성 검증 가능)
+    // 각 문서는 `{ userId, createdAt }` 형태의 최소 정보만 보관 (민감 정보 없음)
+    match /referral_codes/{code} {
+      allow read: if true;
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid;
+      allow delete: if isAdmin();
+    }
+
     // 포인트 이체 내역
     match /point_transfers/{transferId} {
       allow create: if isSignedIn()
