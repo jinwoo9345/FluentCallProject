@@ -1,6 +1,6 @@
 import {
   Calendar, Clock, ChevronRight, Award, BookOpen,
-  User as UserIcon,
+  User as UserIcon, Settings,
   Heart, CreditCard, Share2, Copy, Check, Gift, Loader2
 } from 'lucide-react';
 import { Card } from '../components/ui/Card';
@@ -12,6 +12,7 @@ import { useSessions } from '../hooks/useSessions';
 import { useTutors } from '../hooks/useTutors';
 import { ScheduleManager } from '../components/Dashboard/ScheduleManager';
 import { PointTransferModal } from '../components/Payment/PointTransferModal';
+import { ProfileEditModal } from '../components/Dashboard/ProfileEditModal';
 import { ConsultationForm } from '../components/Consultation/ConsultationForm';
 import { db } from '../firebase';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
@@ -30,6 +31,7 @@ export default function Dashboard() {
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
+  const [isProfileEditOpen, setIsProfileEditOpen] = useState(false);
 
   // Safety: Ensure user and wishlist exist before filtering
   const wishlistedTutors = tutors.filter(t => user?.wishlist?.includes(t.id) || false);
@@ -153,6 +155,14 @@ export default function Dashboard() {
                 )}
               </div>
               <span className="font-bold text-slate-900">{user?.name || '회원'}님</span>
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1 text-xs"
+                onClick={() => setIsProfileEditOpen(true)}
+              >
+                <Settings size={14} /> 프로필 수정
+              </Button>
             </div>
           </header>
 
@@ -316,6 +326,44 @@ export default function Dashboard() {
 
         {/* Sidebar */}
         <div className="w-full lg:w-80 space-y-6">
+          {/* My Info Card */}
+          <Card className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-slate-900 flex items-center gap-2">
+                <UserIcon size={18} className="text-blue-600" /> 내 정보
+              </h3>
+              <Button size="sm" variant="outline" className="text-xs" onClick={() => setIsProfileEditOpen(true)}>
+                수정
+              </Button>
+            </div>
+            <div className="flex items-center gap-4 mb-4">
+              <img
+                src={user?.avatar || `https://picsum.photos/seed/${firebaseUser.uid}/200/200`}
+                alt="프로필"
+                className="w-14 h-14 rounded-2xl object-cover border border-slate-100"
+                referrerPolicy="no-referrer"
+              />
+              <div>
+                <p className="font-bold text-slate-900">{user?.name || '회원'}</p>
+                <p className="text-xs text-slate-500 truncate max-w-[160px]">{user?.email || '이메일 미등록'}</p>
+              </div>
+            </div>
+            <div className="space-y-2 text-xs">
+              <div className="flex justify-between items-center p-2 rounded-lg bg-slate-50">
+                <span className="font-bold text-slate-500 uppercase tracking-wider">역할</span>
+                <span className="font-bold text-slate-800 uppercase">{user?.role}</span>
+              </div>
+              <div className="flex justify-between items-center p-2 rounded-lg bg-slate-50">
+                <span className="font-bold text-slate-500 uppercase tracking-wider">추천 코드</span>
+                <span className="font-mono font-bold text-slate-900">{user?.referralCode || '-'}</span>
+              </div>
+              <div className="flex justify-between items-center p-2 rounded-lg bg-slate-50">
+                <span className="font-bold text-slate-500 uppercase tracking-wider">상담 완료</span>
+                <span className="font-bold text-slate-800">{user?.hasCompletedConsultation ? '예' : '아니오'}</span>
+              </div>
+            </div>
+          </Card>
+
           {/* Credits Card */}
           <Card className="bg-slate-900 text-white border-none shadow-xl">
             <h3 className="font-bold text-lg mb-2">보유 포인트</h3>
@@ -380,10 +428,18 @@ export default function Dashboard() {
         </div>
       </div>
       
-      <PointTransferModal 
-        isOpen={isTransferModalOpen} 
-        onClose={() => setIsTransferModalOpen(false)} 
+      <PointTransferModal
+        isOpen={isTransferModalOpen}
+        onClose={() => setIsTransferModalOpen(false)}
       />
+
+      {user && (
+        <ProfileEditModal
+          isOpen={isProfileEditOpen}
+          onClose={() => setIsProfileEditOpen(false)}
+          user={user}
+        />
+      )}
     </div>
   );
 }

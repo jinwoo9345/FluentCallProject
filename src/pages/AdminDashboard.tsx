@@ -36,6 +36,8 @@ export default function AdminDashboard() {
   const [usersList, setUsersList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [detailConsult, setDetailConsult] = useState<any | null>(null);
+  const [detailUser, setDetailUser] = useState<any | null>(null);
+  const [editTutor, setEditTutor] = useState<any | null>(null);
 
   const fetchAdminData = async () => {
     setLoading(true);
@@ -132,6 +134,27 @@ export default function AdminDashboard() {
       setCreditDelta(prev => ({ ...prev, [u.id]: '' }));
     } catch (err: any) {
       alert('크레딧 조정 실패: ' + (err.message || '알 수 없는 오류'));
+    }
+  };
+
+  const handleToggleTutorHidden = async (t: any) => {
+    const nextHidden = !t.hidden;
+    try {
+      await updateDoc(doc(db, 'tutors', t.id), { hidden: nextHidden });
+      setTutors(prev => prev.map(x => (x.id === t.id ? { ...x, hidden: nextHidden } : x)));
+    } catch (err: any) {
+      alert('처리 실패: ' + (err.message || '알 수 없는 오류'));
+    }
+  };
+
+  const handleSaveTutor = async (payload: any) => {
+    if (!editTutor) return;
+    try {
+      await updateDoc(doc(db, 'tutors', editTutor.id), payload);
+      setTutors(prev => prev.map(x => (x.id === editTutor.id ? { ...x, ...payload } : x)));
+      setEditTutor(null);
+    } catch (err: any) {
+      alert('저장 실패: ' + (err.message || '알 수 없는 오류'));
     }
   };
 
@@ -286,11 +309,14 @@ export default function AdminDashboard() {
                             </div>
                             <div>
                               <p className="font-bold text-slate-900">{c.name || '미입력'} <span className="text-xs text-slate-500 font-normal ml-2">{c.contactType || '연락처'}: {c.contactValue || c.contact}</span></p>
-                              <p className="text-xs text-slate-500 line-clamp-1 mt-1">{c.motivation || c.purpose || '상세 내용 없음'}</p>
+                              <p className="text-xs text-slate-500 line-clamp-1 mt-1">{c.motivation || c.purpose || (Array.isArray(c.goals) ? c.goals.join(', ') : '상세 내용 없음')}</p>
                             </div>
                           </div>
-                          <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-3">
                             <span className="text-xs text-slate-400 font-bold">{formatTS(c.createdAt, 'date')}</span>
+                            <Button variant="outline" size="sm" className="text-xs" onClick={() => setDetailConsult(c)}>
+                              상세보기
+                            </Button>
                           </div>
                         </Card>
                       ))
@@ -524,14 +550,24 @@ export default function AdminDashboard() {
                               </div>
                             </td>
                             <td className="px-4 py-3 text-right">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="text-[10px] text-slate-500 hover:text-slate-700"
-                                onClick={() => handleResetUserCredits(u)}
-                              >
-                                0으로 초기화
-                              </Button>
+                              <div className="flex gap-1 justify-end">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-[10px]"
+                                  onClick={() => setDetailUser(u)}
+                                >
+                                  상세보기
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-[10px] text-slate-500 hover:text-slate-700"
+                                  onClick={() => handleResetUserCredits(u)}
+                                >
+                                  0으로 초기화
+                                </Button>
+                              </div>
                             </td>
                           </tr>
                         );
@@ -558,7 +594,18 @@ export default function AdminDashboard() {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {tutors.map(tutor => (
-                  <Card key={tutor.id} className="p-6 relative overflow-hidden group hover:shadow-md transition-shadow">
+                  <Card
+                    key={tutor.id}
+                    className={cn(
+                      'p-6 relative overflow-hidden group hover:shadow-md transition-shadow',
+                      tutor.hidden && 'opacity-60 bg-slate-50'
+                    )}
+                  >
+                    {tutor.hidden && (
+                      <span className="absolute top-3 right-3 text-[10px] bg-slate-900 text-white px-2 py-0.5 rounded-full font-black uppercase tracking-widest">
+                        숨김
+                      </span>
+                    )}
                     <div className="flex items-start gap-4">
                       <img src={tutor.avatar} alt={tutor.name} className="w-16 h-16 rounded-2xl object-cover shadow-sm" referrerPolicy="no-referrer" />
                       <div>
@@ -577,8 +624,25 @@ export default function AdminDashboard() {
                       </div>
                     </div>
                     <div className="mt-6 flex gap-2">
-                      <Button variant="outline" className="w-full text-xs">정보 수정</Button>
-                      <Button variant="outline" className="w-full text-xs text-red-600 hover:text-red-700 hover:bg-red-50">숨기기</Button>
+                      <Button
+                        variant="outline"
+                        className="w-full text-xs"
+                        onClick={() => setEditTutor(tutor)}
+                      >
+                        정보 수정
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          'w-full text-xs',
+                          tutor.hidden
+                            ? 'text-green-600 hover:text-green-700 hover:bg-green-50'
+                            : 'text-red-600 hover:text-red-700 hover:bg-red-50'
+                        )}
+                        onClick={() => handleToggleTutorHidden(tutor)}
+                      >
+                        {tutor.hidden ? '숨김 해제' : '숨기기'}
+                      </Button>
                     </div>
                   </Card>
                 ))}
@@ -685,6 +749,241 @@ export default function AdminDashboard() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* 유저 상세보기 모달 */}
+      <AnimatePresence>
+        {detailUser && (
+          <div className="fixed inset-0 z-[250] overflow-y-auto bg-slate-900/60 backdrop-blur-sm">
+            <div className="flex min-h-full items-center justify-center p-4">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="w-full max-w-xl bg-white rounded-3xl shadow-2xl overflow-hidden"
+              >
+                <div className="bg-slate-900 text-white p-6 flex items-start justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <img
+                      src={detailUser.avatar || `https://picsum.photos/seed/${detailUser.id}/200/200`}
+                      alt={detailUser.name || 'user'}
+                      className="w-16 h-16 rounded-2xl object-cover border border-white/20"
+                      referrerPolicy="no-referrer"
+                    />
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-widest text-blue-300">User Detail</p>
+                      <h2 className="mt-1 text-2xl font-bold">{detailUser.name || '—'}</h2>
+                      <p className="text-sm text-slate-300">{detailUser.email || '이메일 없음'}</p>
+                    </div>
+                  </div>
+                  <button onClick={() => setDetailUser(null)} className="text-slate-400 hover:text-white">
+                    <span className="text-2xl leading-none">×</span>
+                  </button>
+                </div>
+
+                <div className="p-8 space-y-5 max-h-[70vh] overflow-y-auto">
+                  <div className="grid grid-cols-2 gap-4">
+                    <FieldBlock label="역할" value={detailUser.role || 'student'} badge />
+                    <FieldBlock
+                      label="보유 크레딧"
+                      value={`${(detailUser.credits || 0).toLocaleString()} P`}
+                      highlight
+                    />
+                    <FieldBlock label="추천 코드" value={detailUser.referralCode || '-'} mono />
+                    <FieldBlock label="추천받은 코드" value={detailUser.referredBy || '-'} mono />
+                    <FieldBlock label="상담 완료" value={detailUser.hasCompletedConsultation ? '예' : '아니오'} />
+                    <FieldBlock label="가입일" value={formatTS(detailUser.createdAt, 'date')} />
+                  </div>
+
+                  <DetailSection title="찜한 강사 ID" value={detailUser.wishlist} />
+                  <DetailSection title="학생 가용 시간" value={detailUser.studentAvailability} />
+                  <DetailSection title="튜터 가용 시간" value={detailUser.availability} />
+
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">UID (Firestore 문서 ID)</p>
+                    <p className="text-xs font-mono text-slate-600 bg-slate-50 p-3 rounded-lg break-all">{detailUser.id}</p>
+                  </div>
+
+                  <details className="mt-2">
+                    <summary className="cursor-pointer text-xs font-bold text-slate-400 hover:text-slate-600">
+                      원본 데이터 보기
+                    </summary>
+                    <pre className="mt-2 bg-slate-50 p-3 rounded-xl text-[11px] text-slate-600 overflow-x-auto">
+                      {JSON.stringify(detailUser, null, 2)}
+                    </pre>
+                  </details>
+                </div>
+
+                <div className="p-6 border-t border-slate-100 flex gap-3 justify-end bg-slate-50/50">
+                  <Button onClick={() => setDetailUser(null)}>닫기</Button>
+                </div>
+              </motion.div>
+            </div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* 튜터 정보 수정 모달 */}
+      <AnimatePresence>
+        {editTutor && (
+          <TutorEditModal
+            tutor={editTutor}
+            onClose={() => setEditTutor(null)}
+            onSave={handleSaveTutor}
+          />
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function FieldBlock({
+  label, value, mono = false, badge = false, highlight = false,
+}: {
+  label: string; value: any; mono?: boolean; badge?: boolean; highlight?: boolean;
+}) {
+  return (
+    <div>
+      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">{label}</p>
+      {badge ? (
+        <span className="inline-block text-xs font-black uppercase px-2 py-0.5 rounded-md bg-blue-50 text-blue-700">
+          {value}
+        </span>
+      ) : (
+        <p className={cn(
+          'text-sm text-slate-800',
+          mono && 'font-mono',
+          highlight && 'text-xl font-black text-slate-900'
+        )}>
+          {value}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function TutorEditModal({
+  tutor, onClose, onSave,
+}: {
+  tutor: any;
+  onClose: () => void;
+  onSave: (payload: any) => void;
+}) {
+  const [form, setForm] = useState({
+    name: tutor.name || '',
+    location: tutor.location || '',
+    hourlyRate: tutor.hourlyRate || 0,
+    tier: tutor.tier || '',
+    bio: tutor.bio || '',
+    longBio: tutor.longBio || '',
+    avatar: tutor.avatar || '',
+    specialtiesText: (tutor.specialties || []).join(', '),
+    languagesText: (tutor.languages || []).join(', '),
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSave({
+      name: form.name.trim(),
+      location: form.location.trim(),
+      hourlyRate: Number(form.hourlyRate) || 0,
+      tier: form.tier.trim(),
+      bio: form.bio.trim(),
+      longBio: form.longBio.trim(),
+      avatar: form.avatar.trim(),
+      specialties: form.specialtiesText.split(',').map(s => s.trim()).filter(Boolean),
+      languages: form.languagesText.split(',').map(s => s.trim()).filter(Boolean),
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 z-[260] overflow-y-auto bg-slate-900/60 backdrop-blur-sm">
+      <div className="flex min-h-full items-center justify-center p-4">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: 20 }}
+          className="w-full max-w-xl bg-white rounded-3xl shadow-2xl overflow-hidden"
+        >
+          <div className="p-6 border-b border-slate-100 flex items-center justify-between">
+            <h2 className="text-xl font-bold text-slate-900">튜터 정보 수정</h2>
+            <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
+              <span className="text-2xl leading-none">×</span>
+            </button>
+          </div>
+
+          <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
+            <EditField label="이름" value={form.name} onChange={v => setForm({ ...form, name: v })} />
+            <EditField label="지역" value={form.location} onChange={v => setForm({ ...form, location: v })} />
+            <EditField
+              label="회당 수강료 (원)"
+              type="number"
+              value={String(form.hourlyRate)}
+              onChange={v => setForm({ ...form, hourlyRate: Number(v) })}
+            />
+            <EditField label="티어/등급" value={form.tier} onChange={v => setForm({ ...form, tier: v })} placeholder="예: Premium" />
+            <EditField
+              label="전공 분야 (쉼표로 구분)"
+              value={form.specialtiesText}
+              onChange={v => setForm({ ...form, specialtiesText: v })}
+              placeholder="예: 비즈니스 영어, IELTS"
+            />
+            <EditField
+              label="언어 (쉼표로 구분)"
+              value={form.languagesText}
+              onChange={v => setForm({ ...form, languagesText: v })}
+              placeholder="예: English, Korean"
+            />
+            <EditField label="아바타 이미지 URL" value={form.avatar} onChange={v => setForm({ ...form, avatar: v })} />
+
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-1">한 줄 소개</label>
+              <textarea
+                rows={2}
+                className="w-full rounded-xl border border-slate-200 px-4 py-2 text-sm outline-none focus:border-blue-500 resize-none"
+                value={form.bio}
+                onChange={e => setForm({ ...form, bio: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-bold text-slate-700 mb-1">상세 소개</label>
+              <textarea
+                rows={5}
+                className="w-full rounded-xl border border-slate-200 px-4 py-2 text-sm outline-none focus:border-blue-500 resize-none"
+                value={form.longBio}
+                onChange={e => setForm({ ...form, longBio: e.target.value })}
+              />
+            </div>
+
+            <div className="flex gap-3 justify-end pt-4 border-t border-slate-100">
+              <Button type="button" variant="outline" onClick={onClose}>취소</Button>
+              <Button type="submit">저장</Button>
+            </div>
+          </form>
+        </motion.div>
+      </div>
+    </div>
+  );
+}
+
+function EditField({
+  label, value, onChange, type = 'text', placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  type?: string;
+  placeholder?: string;
+}) {
+  return (
+    <div>
+      <label className="block text-sm font-bold text-slate-700 mb-1">{label}</label>
+      <input
+        type={type}
+        value={value}
+        placeholder={placeholder}
+        onChange={e => onChange(e.target.value)}
+        className="w-full rounded-xl border border-slate-200 px-4 py-2 text-sm outline-none focus:border-blue-500"
+      />
     </div>
   );
 }

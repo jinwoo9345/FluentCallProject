@@ -16,32 +16,51 @@ interface PointTransferModalProps {
 
 export function PointTransferModal({ isOpen, onClose }: PointTransferModalProps) {
   const { user } = useAuth();
-  const [email, setEmail] = useState('');
+  const [searchInput, setSearchInput] = useState('');
   const [amount, setAmount] = useState<number>(0);
   const [recipient, setRecipient] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
 
-  // Find recipient by email
+  // Find recipient by email OR referral code
   const handleSearchRecipient = async () => {
-    if (!email || email === user?.email) {
-      setError('본인 이메일이 아닌 올바른 상대방 이메일을 입력해주세요.');
+    const input = searchInput.trim();
+    if (!input) {
+      setError('상대방 이메일 또는 추천 코드를 입력해주세요.');
       return;
     }
-    
+
+    const isEmail = input.includes('@');
+    const normalized = isEmail ? input.toLowerCase() : input.toUpperCase();
+
+    if (isEmail && normalized === (user?.email || '').toLowerCase()) {
+      setError('본인 이메일은 사용할 수 없습니다.');
+      return;
+    }
+    if (!isEmail && normalized === (user?.referralCode || '').toUpperCase()) {
+      setError('본인의 추천 코드는 사용할 수 없습니다.');
+      return;
+    }
+
     setLoading(true);
     setError('');
     try {
-      const q = query(collection(db, 'users'), where('email', '==', email));
+      const q = isEmail
+        ? query(collection(db, 'users'), where('email', '==', normalized))
+        : query(collection(db, 'users'), where('referralCode', '==', normalized));
       const snapshot = await getDocs(q);
-      
+
       if (snapshot.empty) {
-        setError('해당 이메일을 사용하는 회원을 찾을 수 없습니다.');
+        setError(
+          isEmail
+            ? '해당 이메일을 사용하는 회원을 찾을 수 없습니다.'
+            : '해당 추천 코드의 회원을 찾을 수 없습니다.'
+        );
         setRecipient(null);
       } else {
-        const doc = snapshot.docs[0];
-        setRecipient({ id: doc.id, ...doc.data() });
+        const docSnap = snapshot.docs[0];
+        setRecipient({ id: docSnap.id, ...docSnap.data() });
       }
     } catch (err) {
       setError('회원 조회 중 오류가 발생했습니다.');
@@ -108,7 +127,7 @@ export function PointTransferModal({ isOpen, onClose }: PointTransferModalProps)
   };
 
   const resetAndClose = () => {
-    setEmail('');
+    setSearchInput('');
     setAmount(0);
     setRecipient(null);
     setError('');
@@ -153,19 +172,23 @@ export function PointTransferModal({ isOpen, onClose }: PointTransferModalProps)
                   <div className="space-y-6">
                     {/* Search Recipient */}
                     <div className="space-y-2">
-                      <label className="text-sm font-bold text-slate-700">받는 분 이메일</label>
+                      <label className="text-sm font-bold text-slate-700">받는 분 이메일 또는 추천 코드</label>
                       <div className="flex gap-2">
                         <input
-                          type="email"
-                          placeholder="example@email.com"
+                          type="text"
+                          placeholder="example@email.com 또는 A1B2C3"
                           className="flex-1 rounded-xl border border-slate-200 px-4 py-3 text-sm focus:border-blue-500 outline-none"
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
+                          value={searchInput}
+                          onChange={(e) => setSearchInput(e.target.value)}
                         />
                         <Button variant="outline" onClick={handleSearchRecipient} disabled={loading}>
                           <Search size={18} />
                         </Button>
                       </div>
+                      <p className="text-[11px] text-slate-500">
+                        카카오 로그인 유저는 <strong>추천 코드</strong>로만 찾을 수 있습니다.
+                        내 추천 코드는 대시보드 사이드바에서 확인하세요.
+                      </p>
                     </div>
 
                     {recipient && (

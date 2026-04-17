@@ -8,7 +8,9 @@ export const tutorService = {
   async getAllTutors(): Promise<Tutor[]> {
     const tutorRef = collection(db, TUTORS_COLLECTION);
     const snapshot = await getDocs(tutorRef);
-    return snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Tutor));
+    return snapshot.docs
+      .map(d => ({ id: d.id, ...d.data() } as Tutor & { hidden?: boolean }))
+      .filter(t => !t.hidden) as Tutor[];
   },
 
   async getTutorById(id: string): Promise<Tutor | null> {
