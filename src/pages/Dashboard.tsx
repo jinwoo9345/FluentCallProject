@@ -2,7 +2,7 @@ import { motion } from 'motion/react';
 import { 
   Calendar, Clock, Video, ChevronRight, Award, BookOpen, 
   MessageSquare, DollarSign, Users, User as UserIcon, 
-  Heart, Star, CreditCard, ClipboardList, Share2, Copy, Check, Gift
+  Heart, Star, CreditCard, ClipboardList, Share2, Copy, Check, Gift, Loader2
 } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -13,6 +13,7 @@ import { useSessions } from '../hooks/useSessions';
 import { useTutors } from '../hooks/useTutors';
 import { ScheduleManager } from '../components/Dashboard/ScheduleManager';
 import { PointTransferModal } from '../components/Payment/PointTransferModal';
+import { ConsultationForm } from '../components/Consultation/ConsultationForm';
 import { db } from '../firebase';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { shareReferralCode } from '../lib/kakao';
@@ -20,9 +21,9 @@ import { shareReferralCode } from '../lib/kakao';
 type TabType = 'sessions' | 'payments' | 'consultations';
 
 export default function Dashboard() {
-  const { user, firebaseUser } = useAuth();
+  const { user, firebaseUser, loading: authLoading, isAuthReady } = useAuth();
   const { sessions, loading: sessionsLoading } = useSessions(firebaseUser?.uid, user?.role);
-  const { tutors } = useTutors();
+  const { tutors, loading: tutorsLoading } = useTutors();
   
   const [activeTab, setActiveTab] = useState<TabType>('sessions');
   const [payments, setPayments] = useState<any[]>([]);
@@ -31,11 +32,12 @@ export default function Dashboard() {
   const [copied, setCopied] = useState(false);
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
 
-  const wishlistedTutors = tutors.filter(t => user?.wishlist?.includes(t.id));
+  // Safety: Ensure user and wishlist exist before filtering
+  const wishlistedTutors = tutors.filter(t => user?.wishlist?.includes(t.id) || false);
 
   // Fetch Payment & Consultation History
   useEffect(() => {
-    if (!firebaseUser) return;
+    if (!firebaseUser || !isAuthReady) return;
     
     async function fetchHistory() {
       setLoadingHistory(true);
@@ -65,7 +67,7 @@ export default function Dashboard() {
     }
 
     fetchHistory();
-  }, [firebaseUser, activeTab]);
+  }, [firebaseUser, isAuthReady, activeTab]);
 
   const handleCopyCode = () => {
     if (user?.referralCode) {
@@ -77,10 +79,21 @@ export default function Dashboard() {
 
   const handleKakaoShare = () => {
     if (user?.referralCode) {
-      shareReferralCode(user.referralCode, user.name);
+      shareReferralCode(user.referralCode, user.name || 'EnglishBites 회원');
     }
   };
 
+  // 1. Loading State
+  if (authLoading || !isAuthReady) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[70vh]">
+        <Loader2 className="animate-spin text-blue-600 mb-4" size={40} />
+        <p className="text-slate-500 font-medium">강의실 입장 중...</p>
+      </div>
+    );
+  }
+
+  // 2. Not Logged In
   if (!firebaseUser) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] px-4 text-center">
@@ -88,29 +101,26 @@ export default function Dashboard() {
           <UserIcon size={48} className="text-slate-300" />
         </div>
         <h2 className="text-2xl font-bold text-slate-900">로그인이 필요한 서비스입니다.</h2>
-        <Button className="mt-8">로그인하러 가기</Button>
+        <p className="mt-2 text-slate-600 mb-8">수업 일정을 확인하려면 로그인해 주세요.</p>
+        <Button onClick={() => window.location.href = '/'}>메인으로 가기</Button>
       </div>
     );
   }
 
-  // Phase 2: Consultation Hard Blocker for Students
+  // 3. Consultation Hard Blocker (Real implementation)
   if (user?.role === 'student' && !user?.hasCompletedConsultation) {
     return (
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="text-center mb-12">
-          <h1 className="text-3xl font-bold text-slate-900 mb-4">환영합니다, {user.name}님!</h1>
-          <p className="text-slate-600">본격적인 수업 시작 전, 먼저 학습 상담을 완료해 주세요.</p>
+          <h1 className="text-3xl font-bold text-slate-900 mb-4">환영합니다, {user?.name || '수강생'}님!</h1>
+          <p className="text-slate-600 font-medium bg-blue-50 inline-block px-4 py-2 rounded-full border border-blue-100 text-sm">
+            본격적인 수업 시작 전, 먼저 학습 상담을 완료해 주세요.
+          </p>
         </div>
-        <Card className="max-w-2xl mx-auto p-0 overflow-hidden">
-          <div className="bg-blue-600 p-8 text-white text-center">
-            <ClipboardList size={48} className="mx-auto mb-4 opacity-80" />
-            <h2 className="text-2xl font-bold">무료 상담 신청</h2>
-            <p className="mt-2 text-blue-100">나에게 맞는 튜터와 커리큘럼을 추천해 드립니다.</p>
-          </div>
-          <div className="p-8">
-             <p className="text-center text-slate-500">홈 페이지의 상담 신청 과정을 완료해 주세요.</p>
-          </div>
-        </Card>
+        <ConsultationForm 
+          userId={firebaseUser.uid} 
+          onComplete={() => window.location.reload()} 
+        />
       </div>
     );
   }
@@ -131,11 +141,15 @@ export default function Dashboard() {
               <h1 className="text-3xl font-bold text-slate-900">대시보드</h1>
               <p className="mt-1 text-slate-600">수업 일정과 내역을 관리하세요.</p>
             </div>
-            <div className="flex items-center gap-2">
-              <div className="h-10 w-10 rounded-full border-2 border-white shadow-sm overflow-hidden">
-                <img src={user?.avatar} alt="Profile" className="h-full w-full object-cover" />
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-full border-2 border-white shadow-sm overflow-hidden bg-slate-100 flex items-center justify-center">
+                {user?.avatar ? (
+                  <img src={user.avatar} alt="Profile" className="h-full w-full object-cover" />
+                ) : (
+                  <UserIcon size={20} className="text-slate-400" />
+                )}
               </div>
-              <span className="font-bold text-slate-900">{user?.name}님</span>
+              <span className="font-bold text-slate-900">{user?.name || '회원'}님</span>
             </div>
           </header>
 
@@ -172,97 +186,128 @@ export default function Dashboard() {
             </div>
 
             <div className="space-y-4">
-              {activeTab === 'sessions' && (
-                <div className="space-y-4">
-                  {sessions.length === 0 ? (
-                    <Card className="p-12 text-center text-slate-500 border-dashed">
-                      아직 예약된 수업이 없습니다.
-                    </Card>
-                  ) : (
-                    sessions.map((cls) => (
-                      <Card key={cls.id} className="flex items-center justify-between p-4 hover:shadow-md transition-shadow">
-                        <div className="flex items-center gap-4">
-                          <div className="h-12 w-12 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 font-bold">
-                            {tutors.find(t => t.id === cls.tutorId)?.name.charAt(0)}
-                          </div>
-                          <div>
-                            <h3 className="font-bold text-slate-900">
-                              {tutors.find(t => t.id === cls.tutorId)?.name || '튜터'}와의 수업
-                            </h3>
-                            <div className="flex items-center gap-3 text-sm text-slate-500">
-                              <span className="flex items-center gap-1"><Calendar size={14} /> {cls.startTime instanceof Date ? cls.startTime.toLocaleDateString() : '일정 확인 중'}</span>
-                              <span className="flex items-center gap-1"><Clock size={14} /> {cls.duration}분</span>
+              {loadingHistory ? (
+                <div className="p-20 flex justify-center"><Loader2 className="animate-spin text-slate-200" size={32} /></div>
+              ) : (
+                <>
+                  {activeTab === 'sessions' && (
+                    <div className="space-y-4">
+                      {sessions.length === 0 ? (
+                        <Card className="p-12 text-center text-slate-500 border-dashed">
+                          아직 예약된 수업이 없습니다.
+                        </Card>
+                      ) : (
+                        sessions.map((cls) => (
+                          <Card key={cls.id} className="flex items-center justify-between p-4 hover:shadow-md transition-shadow">
+                            <div className="flex items-center gap-4">
+                              <div className="h-12 w-12 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 font-bold uppercase text-lg">
+                                {tutors.find(t => t.id === cls.tutorId)?.name.charAt(0) || 'T'}
+                              </div>
+                              <div>
+                                <h3 className="font-bold text-slate-900">
+                                  {tutors.find(t => t.id === cls.tutorId)?.name || '튜터'}와의 수업
+                                </h3>
+                                <div className="flex items-center gap-3 text-sm text-slate-500">
+                                  <span className="flex items-center gap-1"><Calendar size={14} /> {cls.startTime instanceof Date ? cls.startTime.toLocaleDateString() : '일정 확인 중'}</span>
+                                  <span className="flex items-center gap-1"><Clock size={14} /> {cls.duration}분</span>
+                                </div>
+                              </div>
                             </div>
-                          </div>
-                        </div>
-                        <Button variant="secondary" size="sm" className="font-bold">입장하기</Button>
-                      </Card>
-                    ))
+                            <Button variant="secondary" size="sm" className="font-bold">입장하기</Button>
+                          </Card>
+                        ))
+                      )}
+                    </div>
                   )}
-                </div>
-              )}
 
-              {activeTab === 'payments' && (
-                <div className="space-y-4">
-                  {payments.length === 0 ? (
-                    <Card className="p-12 text-center text-slate-500 border-dashed">
-                      결제 내역이 없습니다.
-                    </Card>
-                  ) : (
-                    payments.map((p) => (
-                      <Card key={p.id} className="flex items-center justify-between p-4">
-                        <div className="flex items-center gap-4">
-                          <div className="h-12 w-12 rounded-xl bg-green-50 flex items-center justify-center text-green-600">
-                            <CreditCard size={24} />
-                          </div>
-                          <div>
-                            <h3 className="font-bold text-slate-900">{p.productName}</h3>
-                            <p className="text-sm text-slate-500">
-                              {p.createdAt?.toDate ? p.createdAt.toDate().toLocaleDateString() : '날짜 미상'} · {p.status === 'completed' ? '결제 완료' : '진행 중'}
-                            </p>
-                          </div>
-                        </div>
-                        <span className="text-lg font-black text-slate-900">{p.amount.toLocaleString()}원</span>
-                      </Card>
-                    ))
+                  {activeTab === 'payments' && (
+                    <div className="space-y-4">
+                      {payments.length === 0 ? (
+                        <Card className="p-12 text-center text-slate-500 border-dashed">
+                          결제 내역이 없습니다.
+                        </Card>
+                      ) : (
+                        payments.map((p) => (
+                          <Card key={p.id} className="flex items-center justify-between p-4">
+                            <div className="flex items-center gap-4">
+                              <div className="h-12 w-12 rounded-xl bg-green-50 flex items-center justify-center text-green-600">
+                                <CreditCard size={24} />
+                              </div>
+                              <div>
+                                <h3 className="font-bold text-slate-900">{p.productName}</h3>
+                                <p className="text-sm text-slate-500">
+                                  {p.createdAt?.toDate ? p.createdAt.toDate().toLocaleDateString() : '날짜 미상'} · {p.status === 'completed' ? '결제 완료' : '진행 중'}
+                                </p>
+                              </div>
+                            </div>
+                            <span className="text-lg font-black text-slate-900">{p.amount.toLocaleString()}원</span>
+                          </Card>
+                        ))
+                      )}
+                    </div>
                   )}
-                </div>
-              )}
 
-              {activeTab === 'consultations' && (
-                <div className="space-y-4">
-                  {consultations.length === 0 ? (
-                    <Card className="p-12 text-center text-slate-500 border-dashed">
-                      상담 신청 내역이 없습니다.
-                    </Card>
-                  ) : (
-                    consultations.map((c) => (
-                      <Card key={c.id} className="p-6">
-                        <div className="flex items-start justify-between mb-4">
-                          <div>
-                            <span className={cn(
-                              "text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-md",
-                              c.status === 'pending' ? "bg-amber-100 text-amber-600" : "bg-green-100 text-green-600"
-                            )}>
-                              {c.status === 'pending' ? '상담 대기 중' : '상담 완료'}
-                            </span>
-                            <h3 className="text-lg font-bold text-slate-900 mt-2">무료 학습 상담</h3>
-                          </div>
-                          <p className="text-xs text-slate-400">
-                            {c.createdAt?.toDate ? c.createdAt.toDate().toLocaleDateString() : ''}
-                          </p>
-                        </div>
-                        <div className="space-y-2 text-sm text-slate-600">
-                          <p><strong>연락수단:</strong> {c.contactType} ({c.contactValue})</p>
-                          <p><strong>희망시간:</strong> {c.availableTime}</p>
-                          <p className="line-clamp-2"><strong>학습목표:</strong> {c.motivation}</p>
-                        </div>
-                      </Card>
-                    ))
+                  {activeTab === 'consultations' && (
+                    <div className="space-y-4">
+                      {consultations.length === 0 ? (
+                        <Card className="p-12 text-center text-slate-500 border-dashed">
+                          상담 신청 내역이 없습니다.
+                        </Card>
+                      ) : (
+                        consultations.map((c) => (
+                          <Card key={c.id} className="p-6">
+                            <div className="flex items-start justify-between mb-4">
+                              <div>
+                                <span className={cn(
+                                  "text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-md",
+                                  c.status === 'pending' ? "bg-amber-100 text-amber-600" : "bg-green-100 text-green-600"
+                                )}>
+                                  {c.status === 'pending' ? '상담 대기 중' : '상담 완료'}
+                                </span>
+                                <h3 className="text-lg font-bold text-slate-900 mt-2">무료 학습 상담</h3>
+                              </div>
+                              <p className="text-xs text-slate-400">
+                                {c.createdAt?.toDate ? c.createdAt.toDate().toLocaleDateString() : ''}
+                              </p>
+                            </div>
+                            <div className="space-y-2 text-sm text-slate-600">
+                              <p><strong>연락수단:</strong> {c.contactType} ({c.contactValue})</p>
+                              <p><strong>희망시간:</strong> {c.availableTime}</p>
+                              <p className="line-clamp-2"><strong>학습목표:</strong> {c.motivation}</p>
+                            </div>
+                          </Card>
+                        ))
+                      )}
+                    </div>
                   )}
-                </div>
+                </>
               )}
             </div>
+          </section>
+
+          {/* Live Wishlist Section */}
+          <section className="pt-4">
+            <h2 className="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
+              <Heart size={20} className="text-red-500 fill-current" /> 찜한 강사
+            </h2>
+            {wishlistedTutors.length === 0 ? (
+              <Card className="p-8 text-center text-slate-500 border-dashed">
+                마음에 드는 튜터를 하트로 표시해 보세요.
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                {wishlistedTutors.map(tutor => (
+                  <Card key={tutor.id} className="flex items-center gap-4 p-4 hover:shadow-md transition-shadow">
+                    <img src={tutor.avatar} alt={tutor.name} className="h-12 w-12 rounded-xl object-cover" referrerPolicy="no-referrer" />
+                    <div className="flex-1">
+                      <h3 className="font-bold text-slate-900 text-sm">{tutor.name}</h3>
+                      <p className="text-[10px] text-slate-500 line-clamp-1 uppercase tracking-tight font-bold">{tutor.specialties.slice(0, 2).join(' · ')}</p>
+                    </div>
+                    <ChevronRight size={18} className="text-slate-300" />
+                  </Card>
+                ))}
+              </div>
+            )}
           </section>
         </div>
 
@@ -276,12 +321,12 @@ export default function Dashboard() {
               <span className="text-slate-400 mb-1">P</span>
             </div>
             <div className="grid grid-cols-2 gap-2 mt-6">
-              <Button className="bg-blue-600 hover:bg-blue-500 border-none text-xs py-5 px-0">
+              <Button className="bg-blue-600 hover:bg-blue-500 border-none text-xs py-5 px-0 font-bold">
                 포인트 충전
               </Button>
               <Button 
                 variant="outline" 
-                className="border-slate-700 text-slate-300 hover:bg-slate-800 text-xs py-5 px-0 gap-1"
+                className="border-slate-700 text-slate-300 hover:bg-slate-800 text-xs py-5 px-0 gap-1 font-bold"
                 onClick={() => setIsTransferModalOpen(true)}
               >
                 <Gift size={14} /> 선물하기
@@ -290,7 +335,7 @@ export default function Dashboard() {
           </Card>
 
           {/* Referral Card */}
-          <Card className="bg-gradient-to-br from-blue-600 to-indigo-700 text-white border-none shadow-2xl relative overflow-hidden group">
+          <Card className="bg-gradient-to-br from-blue-600 to-indigo-700 text-white border-none shadow-2xl relative overflow-hidden group p-6 rounded-3xl">
             <div className="relative z-10">
               <h3 className="font-bold text-lg mb-2 flex items-center gap-2">
                 <Gift size={20} /> 친구 초대하고 2만점 받기
@@ -302,7 +347,7 @@ export default function Dashboard() {
                 <div className="bg-white/10 rounded-2xl p-4 border border-white/20">
                   <p className="text-[10px] font-black uppercase tracking-widest text-blue-200 mb-2">내 추천 코드</p>
                   <div className="flex items-center justify-between">
-                    <code className="text-xl font-black tracking-widest">{user?.referralCode}</code>
+                    <code className="text-xl font-black tracking-widest">{user?.referralCode || '------'}</code>
                     <button onClick={handleCopyCode} className="hover:text-blue-200 transition-colors">
                       {copied ? <Check size={20} /> : <Copy size={20} />}
                     </button>
@@ -312,7 +357,7 @@ export default function Dashboard() {
                   onClick={handleKakaoShare}
                   className="w-full bg-[#FEE500] hover:bg-[#FADA0A] text-[#3C1E1E] font-black border-none gap-2 py-6 rounded-2xl shadow-lg"
                 >
-                  <Share2 size={18} /> 카카오톡으로 초대 보내기
+                  <Share2 size={18} /> 카카오톡 초대 보내기
                 </Button>
               </div>
             </div>
