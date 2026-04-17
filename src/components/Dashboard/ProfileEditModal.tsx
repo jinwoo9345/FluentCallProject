@@ -108,22 +108,20 @@ export function ProfileEditModal({ isOpen, onClose, user }: ProfileEditModalProp
                 </div>
 
                 {/* 읽기 전용 정보 */}
-                <div className="pt-2 border-t border-slate-100 space-y-2 text-xs text-slate-500">
-                  <div className="flex justify-between">
-                    <span className="font-bold text-slate-600">추천 코드</span>
-                    <span className="font-mono font-bold text-slate-900">{user.referralCode || '-'}</span>
+                <div className="pt-2 border-t border-slate-100 space-y-2 text-sm text-slate-500">
+                  <div className="flex justify-between items-center">
+                    <span className="font-bold text-slate-600">내 추천 코드</span>
+                    <span className="font-mono font-bold text-slate-900 text-base">{user.referralCode || '-'}</span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="font-bold text-slate-600">역할</span>
-                    <span className="uppercase font-bold">{user.role}</span>
+                  <div className="flex justify-between items-center">
+                    <span className="font-bold text-slate-600">회원 구분</span>
+                    <span className="font-bold text-slate-900">
+                      {user.role === 'tutor' ? '강사' : user.role === 'admin' ? '관리자' : '수강생'}
+                    </span>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex justify-between items-center">
                     <span className="font-bold text-slate-600">보유 크레딧</span>
                     <span className="font-bold text-slate-900">{(user.credits || 0).toLocaleString()} P</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-bold text-slate-600">UID</span>
-                    <span className="font-mono text-[10px] break-all">{user.uid}</span>
                   </div>
                 </div>
 

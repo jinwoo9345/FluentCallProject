@@ -348,17 +348,19 @@ export default function Dashboard() {
                 <p className="text-xs text-slate-500 truncate max-w-[160px]">{user?.email || '이메일 미등록'}</p>
               </div>
             </div>
-            <div className="space-y-2 text-xs">
-              <div className="flex justify-between items-center p-2 rounded-lg bg-slate-50">
-                <span className="font-bold text-slate-500 uppercase tracking-wider">역할</span>
-                <span className="font-bold text-slate-800 uppercase">{user?.role}</span>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between items-center p-3 rounded-lg bg-slate-50">
+                <span className="font-bold text-slate-500">회원 구분</span>
+                <span className="font-bold text-slate-800">
+                  {user?.role === 'tutor' ? '강사' : user?.role === 'admin' ? '관리자' : '수강생'}
+                </span>
               </div>
-              <div className="flex justify-between items-center p-2 rounded-lg bg-slate-50">
-                <span className="font-bold text-slate-500 uppercase tracking-wider">추천 코드</span>
+              <div className="flex justify-between items-center p-3 rounded-lg bg-slate-50">
+                <span className="font-bold text-slate-500">내 추천 코드</span>
                 <span className="font-mono font-bold text-slate-900">{user?.referralCode || '-'}</span>
               </div>
-              <div className="flex justify-between items-center p-2 rounded-lg bg-slate-50">
-                <span className="font-bold text-slate-500 uppercase tracking-wider">상담 완료</span>
+              <div className="flex justify-between items-center p-3 rounded-lg bg-slate-50">
+                <span className="font-bold text-slate-500">상담 완료</span>
                 <span className="font-bold text-slate-800">{user?.hasCompletedConsultation ? '예' : '아니오'}</span>
               </div>
             </div>

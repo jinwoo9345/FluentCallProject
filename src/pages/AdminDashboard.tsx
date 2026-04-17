@@ -8,8 +8,22 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { useAuth } from '../contexts/AuthContext';
 import { db } from '../firebase';
-import { collection, query, getDocs, orderBy, where, doc, updateDoc, writeBatch, increment } from 'firebase/firestore';
+import { collection, query, getDocs, orderBy, where, doc, updateDoc, writeBatch, increment, addDoc, serverTimestamp } from 'firebase/firestore';
 import { cn } from '@/src/lib/utils';
+
+// 역할 한국어 라벨
+function roleLabel(role: string | undefined): string {
+  if (role === 'admin') return '관리자';
+  if (role === 'tutor') return '강사';
+  return '수강생';
+}
+
+// 가입 경로 추정 (UID prefix 기반, 민감 정보 노출 없음)
+function providerLabel(uid: string | undefined): string {
+  if (!uid) return '-';
+  if (uid.startsWith('kakao:')) return '카카오 로그인';
+  return '이메일/구글 로그인';
+}
 
 // Firestore Timestamp / Date / 문자열 어떤 형태든 안전하게 포맷
 function formatTS(ts: any, variant: 'date' | 'datetime' = 'date'): string {
@@ -38,6 +52,7 @@ export default function AdminDashboard() {
   const [detailConsult, setDetailConsult] = useState<any | null>(null);
   const [detailUser, setDetailUser] = useState<any | null>(null);
   const [editTutor, setEditTutor] = useState<any | null>(null);
+  const [isAddingTutor, setIsAddingTutor] = useState(false);
 
   const fetchAdminData = async () => {
     setLoading(true);
@@ -155,6 +170,26 @@ export default function AdminDashboard() {
       setEditTutor(null);
     } catch (err: any) {
       alert('저장 실패: ' + (err.message || '알 수 없는 오류'));
+    }
+  };
+
+  const handleCreateTutor = async (payload: any) => {
+    try {
+      const ref = await addDoc(collection(db, 'tutors'), {
+        ...payload,
+        rating: payload.rating || 0,
+        reviewCount: 0,
+        availability: [],
+        hidden: false,
+        createdAt: serverTimestamp(),
+      });
+      setTutors(prev => [
+        { id: ref.id, ...payload, rating: 0, reviewCount: 0, availability: [], hidden: false },
+        ...prev,
+      ]);
+      setIsAddingTutor(false);
+    } catch (err: any) {
+      alert('강사 등록 실패: ' + (err.message || '알 수 없는 오류'));
     }
   };
 
@@ -425,8 +460,8 @@ export default function AdminDashboard() {
                   <table className="w-full text-left border-collapse">
                     <thead className="bg-slate-50 text-xs text-slate-500 uppercase">
                       <tr>
-                        <th className="px-6 py-4 font-bold">결제 ID</th>
-                        <th className="px-6 py-4 font-bold">결제자 (UID)</th>
+                        <th className="px-6 py-4 font-bold">주문번호</th>
+                        <th className="px-6 py-4 font-bold">결제자</th>
                         <th className="px-6 py-4 font-bold">상품명</th>
                         <th className="px-6 py-4 font-bold">최종 결제 금액</th>
                         <th className="px-6 py-4 font-bold">포인트 사용</th>
@@ -435,12 +470,16 @@ export default function AdminDashboard() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {payments.map(p => (
+                      {payments.map(p => {
+                        const payer = usersList.find(u => u.id === p.userId || u.uid === p.userId);
+                        return (
                         <tr key={p.id} className="hover:bg-slate-50/50 transition-colors">
-                          <td className="px-6 py-4 text-xs font-mono text-slate-500">{p.id.substring(0, 12)}...</td>
-                          <td className="px-6 py-4 text-sm text-slate-600">
-                            {usersList.find(u => u.uid === p.userId)?.name || '알 수 없음'}
-                            <p className="text-[10px] text-slate-400">{p.userId?.substring(0, 8)}...</p>
+                          <td className="px-6 py-4 text-xs font-mono text-slate-500">
+                            {(p.orderId || p.id).split('_')[1] || (p.orderId || p.id).substring(0, 10)}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-slate-700">
+                            <p className="font-bold">{payer?.name || '알 수 없음'}</p>
+                            {payer?.email && <p className="text-[11px] text-slate-500">{payer.email}</p>}
                           </td>
                           <td className="px-6 py-4 font-bold text-slate-900">{p.productName}</td>
                           <td className="px-6 py-4 font-black text-slate-900">{p.amount?.toLocaleString()}원</td>
@@ -456,7 +495,8 @@ export default function AdminDashboard() {
                             </span>
                           </td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -498,8 +538,7 @@ export default function AdminDashboard() {
                           <tr key={u.id} className="hover:bg-slate-50/50 transition-colors">
                             <td className="px-4 py-3">
                               <p className="font-bold text-slate-900">{u.name || '—'}</p>
-                              <p className="text-[11px] text-slate-500">{u.email || '-'}</p>
-                              <p className="text-[10px] text-slate-400 font-mono">{u.id.substring(0, 10)}…</p>
+                              <p className="text-[11px] text-slate-500">{u.email || '이메일 미등록'}</p>
                             </td>
                             <td className="px-4 py-3">
                               <span className={cn(
@@ -589,8 +628,10 @@ export default function AdminDashboard() {
           {activeTab === 'tutors' && (
             <motion.div key="tutors" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-slate-900">등록된 강사 목록</h2>
-                <Button className="gap-2"><UserPlus size={18} /> 강사 추가</Button>
+                <h2 className="text-xl font-bold text-slate-900">등록된 강사 목록 ({tutors.length}명)</h2>
+                <Button className="gap-2" onClick={() => setIsAddingTutor(true)}>
+                  <UserPlus size={18} /> 강사 추가
+                </Button>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {tutors.map(tutor => (
@@ -661,46 +702,41 @@ export default function AdminDashboard() {
                 initial={{ opacity: 0, scale: 0.95, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden"
+                className="w-full max-w-4xl bg-white rounded-3xl shadow-2xl overflow-hidden"
               >
-                <div className="bg-slate-900 text-white p-6 flex items-start justify-between">
+                <div className="bg-slate-900 text-white p-8 flex items-start justify-between">
                   <div>
-                    <p className="text-xs font-black uppercase tracking-widest text-blue-300">상담 신청 상세</p>
-                    <h2 className="mt-1 text-2xl font-bold">{detailConsult.name || '미입력'}</h2>
-                    <p className="mt-1 text-sm text-slate-300">
+                    <p className="text-sm font-black uppercase tracking-widest text-blue-300">상담 신청 상세</p>
+                    <h2 className="mt-2 text-3xl font-bold">{detailConsult.name || '미입력'}</h2>
+                    <p className="mt-2 text-base text-slate-300">
                       {detailConsult.contactType ? `${detailConsult.contactType} · ` : ''}
                       {detailConsult.contactValue || detailConsult.contact || '-'}
                     </p>
                   </div>
                   <button
                     onClick={() => setDetailConsult(null)}
-                    className="text-slate-400 hover:text-white transition-colors"
+                    className="text-slate-400 hover:text-white transition-colors text-3xl"
                   >
-                    <span className="text-2xl leading-none">×</span>
+                    ×
                   </button>
                 </div>
 
-                <div className="p-8 space-y-6 max-h-[70vh] overflow-y-auto">
+                <div className="p-10 space-y-8 max-h-[70vh] overflow-y-auto">
                   {/* 상태 / 신청일 */}
-                  <div className="flex flex-wrap gap-3 text-xs">
+                  <div className="flex flex-wrap gap-3 text-sm">
                     <span className={cn(
-                      'px-3 py-1 rounded-full font-black uppercase tracking-wider',
+                      'px-4 py-1.5 rounded-full font-black uppercase tracking-wider',
                       detailConsult.status === 'completed'
                         ? 'bg-green-100 text-green-700'
                         : 'bg-rose-100 text-rose-700'
                     )}>
                       {detailConsult.status === 'completed' ? '완료' : '대기 중'}
                     </span>
-                    <span className="px-3 py-1 rounded-full bg-slate-100 text-slate-600 font-bold">
+                    <span className="px-4 py-1.5 rounded-full bg-slate-100 text-slate-600 font-bold">
                       신청 시간: {formatTS(detailConsult.createdAt, 'datetime')}
                     </span>
                     {detailConsult.userId && (
-                      <span className="px-3 py-1 rounded-full bg-blue-100 text-blue-700 font-bold">회원 가입됨</span>
-                    )}
-                    {detailConsult.type && (
-                      <span className="px-3 py-1 rounded-full bg-purple-100 text-purple-700 font-bold">
-                        {detailConsult.type}
-                      </span>
+                      <span className="px-4 py-1.5 rounded-full bg-blue-100 text-blue-700 font-bold">회원 가입됨</span>
                     )}
                   </div>
 
@@ -720,16 +756,6 @@ export default function AdminDashboard() {
                   <DetailSection title="구체적 목표" value={detailConsult.specificGoals} />
                   <DetailSection title="학습 동기 / 메모" value={detailConsult.motivation} />
                   <DetailSection title="기타 메모" value={detailConsult.notes} />
-
-                  {/* 원본 데이터 (접을 수 있는 디버그) */}
-                  <details className="mt-2">
-                    <summary className="cursor-pointer text-xs font-bold text-slate-400 hover:text-slate-600">
-                      원본 데이터 보기
-                    </summary>
-                    <pre className="mt-2 bg-slate-50 p-3 rounded-xl text-[11px] text-slate-600 overflow-x-auto">
-                      {JSON.stringify(detailConsult, null, 2)}
-                    </pre>
-                  </details>
                 </div>
 
                 <div className="p-6 border-t border-slate-100 flex gap-3 justify-end bg-slate-50/50">
@@ -759,58 +785,59 @@ export default function AdminDashboard() {
                 initial={{ opacity: 0, scale: 0.95, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                className="w-full max-w-xl bg-white rounded-3xl shadow-2xl overflow-hidden"
+                className="w-full max-w-3xl bg-white rounded-3xl shadow-2xl overflow-hidden"
               >
-                <div className="bg-slate-900 text-white p-6 flex items-start justify-between gap-4">
-                  <div className="flex items-center gap-4">
+                <div className="bg-slate-900 text-white p-8 flex items-start justify-between gap-4">
+                  <div className="flex items-center gap-5">
                     <img
                       src={detailUser.avatar || `https://picsum.photos/seed/${detailUser.id}/200/200`}
                       alt={detailUser.name || 'user'}
-                      className="w-16 h-16 rounded-2xl object-cover border border-white/20"
+                      className="w-20 h-20 rounded-2xl object-cover border border-white/20"
                       referrerPolicy="no-referrer"
                     />
                     <div>
-                      <p className="text-xs font-black uppercase tracking-widest text-blue-300">User Detail</p>
-                      <h2 className="mt-1 text-2xl font-bold">{detailUser.name || '—'}</h2>
-                      <p className="text-sm text-slate-300">{detailUser.email || '이메일 없음'}</p>
+                      <p className="text-sm font-black uppercase tracking-widest text-blue-300">회원 상세</p>
+                      <h2 className="mt-2 text-3xl font-bold">{detailUser.name || '—'}</h2>
+                      <p className="text-base text-slate-300">{detailUser.email || '이메일 미등록'}</p>
                     </div>
                   </div>
-                  <button onClick={() => setDetailUser(null)} className="text-slate-400 hover:text-white">
-                    <span className="text-2xl leading-none">×</span>
+                  <button
+                    onClick={() => setDetailUser(null)}
+                    className="text-slate-400 hover:text-white transition-colors text-3xl"
+                  >
+                    ×
                   </button>
                 </div>
 
-                <div className="p-8 space-y-5 max-h-[70vh] overflow-y-auto">
-                  <div className="grid grid-cols-2 gap-4">
-                    <FieldBlock label="역할" value={detailUser.role || 'student'} badge />
-                    <FieldBlock
-                      label="보유 크레딧"
-                      value={`${(detailUser.credits || 0).toLocaleString()} P`}
-                      highlight
-                    />
-                    <FieldBlock label="추천 코드" value={detailUser.referralCode || '-'} mono />
-                    <FieldBlock label="추천받은 코드" value={detailUser.referredBy || '-'} mono />
-                    <FieldBlock label="상담 완료" value={detailUser.hasCompletedConsultation ? '예' : '아니오'} />
-                    <FieldBlock label="가입일" value={formatTS(detailUser.createdAt, 'date')} />
-                  </div>
-
-                  <DetailSection title="찜한 강사 ID" value={detailUser.wishlist} />
-                  <DetailSection title="학생 가용 시간" value={detailUser.studentAvailability} />
-                  <DetailSection title="튜터 가용 시간" value={detailUser.availability} />
-
+                <div className="p-10 space-y-8 max-h-[70vh] overflow-y-auto">
+                  {/* 기본 정보 */}
                   <div>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">UID (Firestore 문서 ID)</p>
-                    <p className="text-xs font-mono text-slate-600 bg-slate-50 p-3 rounded-lg break-all">{detailUser.id}</p>
+                    <p className="text-sm font-black uppercase tracking-widest text-slate-400 mb-4">기본 정보</p>
+                    <div className="grid grid-cols-2 gap-5">
+                      <FieldBlock label="역할" value={roleLabel(detailUser.role)} badge />
+                      <FieldBlock label="가입일" value={formatTS(detailUser.createdAt, 'date')} />
+                      <FieldBlock label="상담 완료" value={detailUser.hasCompletedConsultation ? '예' : '아니오'} />
+                      <FieldBlock label="가입 경로" value={providerLabel(detailUser.id)} />
+                    </div>
                   </div>
 
-                  <details className="mt-2">
-                    <summary className="cursor-pointer text-xs font-bold text-slate-400 hover:text-slate-600">
-                      원본 데이터 보기
-                    </summary>
-                    <pre className="mt-2 bg-slate-50 p-3 rounded-xl text-[11px] text-slate-600 overflow-x-auto">
-                      {JSON.stringify(detailUser, null, 2)}
-                    </pre>
-                  </details>
+                  {/* 크레딧·추천 */}
+                  <div>
+                    <p className="text-sm font-black uppercase tracking-widest text-slate-400 mb-4">크레딧 · 추천</p>
+                    <div className="grid grid-cols-2 gap-5">
+                      <FieldBlock
+                        label="보유 크레딧"
+                        value={`${(detailUser.credits || 0).toLocaleString()} P`}
+                        highlight
+                      />
+                      <FieldBlock label="내 추천 코드" value={detailUser.referralCode || '-'} mono />
+                      <FieldBlock
+                        label="추천받은 코드"
+                        value={detailUser.referredBy || '없음'}
+                        mono={!!detailUser.referredBy}
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 <div className="p-6 border-t border-slate-100 flex gap-3 justify-end bg-slate-50/50">
@@ -826,9 +853,22 @@ export default function AdminDashboard() {
       <AnimatePresence>
         {editTutor && (
           <TutorEditModal
+            mode="edit"
             tutor={editTutor}
             onClose={() => setEditTutor(null)}
             onSave={handleSaveTutor}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* 강사 추가 모달 */}
+      <AnimatePresence>
+        {isAddingTutor && (
+          <TutorEditModal
+            mode="create"
+            tutor={{}}
+            onClose={() => setIsAddingTutor(false)}
+            onSave={handleCreateTutor}
           />
         )}
       </AnimatePresence>
@@ -842,17 +882,17 @@ function FieldBlock({
   label: string; value: any; mono?: boolean; badge?: boolean; highlight?: boolean;
 }) {
   return (
-    <div>
-      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-1">{label}</p>
+    <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100">
+      <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-2">{label}</p>
       {badge ? (
-        <span className="inline-block text-xs font-black uppercase px-2 py-0.5 rounded-md bg-blue-50 text-blue-700">
+        <span className="inline-block text-sm font-black uppercase px-3 py-1 rounded-md bg-blue-100 text-blue-700">
           {value}
         </span>
       ) : (
         <p className={cn(
-          'text-sm text-slate-800',
+          'text-base font-bold text-slate-800',
           mono && 'font-mono',
-          highlight && 'text-xl font-black text-slate-900'
+          highlight && 'text-2xl font-black text-slate-900'
         )}>
           {value}
         </p>
@@ -862,8 +902,12 @@ function FieldBlock({
 }
 
 function TutorEditModal({
-  tutor, onClose, onSave,
+  mode = 'edit',
+  tutor,
+  onClose,
+  onSave,
 }: {
+  mode?: 'edit' | 'create';
   tutor: any;
   onClose: () => void;
   onSave: (payload: any) => void;
@@ -879,9 +923,15 @@ function TutorEditModal({
     specialtiesText: (tutor.specialties || []).join(', '),
     languagesText: (tutor.languages || []).join(', '),
   });
+  const [error, setError] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!form.name.trim()) {
+      setError('강사 이름은 필수 입력 항목입니다.');
+      return;
+    }
+    setError('');
     onSave({
       name: form.name.trim(),
       location: form.location.trim(),
@@ -889,7 +939,7 @@ function TutorEditModal({
       tier: form.tier.trim(),
       bio: form.bio.trim(),
       longBio: form.longBio.trim(),
-      avatar: form.avatar.trim(),
+      avatar: form.avatar.trim() || `https://picsum.photos/seed/tutor_${Date.now()}/200/200`,
       specialties: form.specialtiesText.split(',').map(s => s.trim()).filter(Boolean),
       languages: form.languagesText.split(',').map(s => s.trim()).filter(Boolean),
     });
@@ -902,30 +952,39 @@ function TutorEditModal({
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          className="w-full max-w-xl bg-white rounded-3xl shadow-2xl overflow-hidden"
+          className="w-full max-w-3xl bg-white rounded-3xl shadow-2xl overflow-hidden"
         >
-          <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-            <h2 className="text-xl font-bold text-slate-900">튜터 정보 수정</h2>
-            <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
-              <span className="text-2xl leading-none">×</span>
+          <div className="p-8 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+            <h2 className="text-2xl font-bold text-slate-900">
+              {mode === 'create' ? '강사 새로 등록' : '강사 정보 수정'}
+            </h2>
+            <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-3xl">
+              ×
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
-            <EditField label="이름" value={form.name} onChange={v => setForm({ ...form, name: v })} />
-            <EditField label="지역" value={form.location} onChange={v => setForm({ ...form, location: v })} />
-            <EditField
-              label="회당 수강료 (원)"
-              type="number"
-              value={String(form.hourlyRate)}
-              onChange={v => setForm({ ...form, hourlyRate: Number(v) })}
-            />
-            <EditField label="티어/등급" value={form.tier} onChange={v => setForm({ ...form, tier: v })} placeholder="예: Premium" />
+          <form onSubmit={handleSubmit} className="p-8 space-y-5 max-h-[70vh] overflow-y-auto">
+            {error && (
+              <div className="p-4 rounded-xl bg-red-50 text-red-600 text-sm font-bold">{error}</div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <EditField label="이름 *" value={form.name} onChange={v => setForm({ ...form, name: v })} />
+              <EditField label="지역" value={form.location} onChange={v => setForm({ ...form, location: v })} placeholder="예: 미국 서부" />
+              <EditField
+                label="회당 수강료 (원)"
+                type="number"
+                value={String(form.hourlyRate)}
+                onChange={v => setForm({ ...form, hourlyRate: Number(v) })}
+              />
+              <EditField label="티어 / 등급" value={form.tier} onChange={v => setForm({ ...form, tier: v })} placeholder="예: Premium" />
+            </div>
+
             <EditField
               label="전공 분야 (쉼표로 구분)"
               value={form.specialtiesText}
               onChange={v => setForm({ ...form, specialtiesText: v })}
-              placeholder="예: 비즈니스 영어, IELTS"
+              placeholder="예: 비즈니스 영어, IELTS, 프리토킹"
             />
             <EditField
               label="언어 (쉼표로 구분)"
@@ -933,22 +992,27 @@ function TutorEditModal({
               onChange={v => setForm({ ...form, languagesText: v })}
               placeholder="예: English, Korean"
             />
-            <EditField label="아바타 이미지 URL" value={form.avatar} onChange={v => setForm({ ...form, avatar: v })} />
+            <EditField
+              label="아바타 이미지 URL (선택)"
+              value={form.avatar}
+              onChange={v => setForm({ ...form, avatar: v })}
+              placeholder="비워두면 기본 이미지가 사용됩니다"
+            />
 
             <div>
-              <label className="block text-sm font-bold text-slate-700 mb-1">한 줄 소개</label>
+              <label className="block text-base font-bold text-slate-700 mb-2">한 줄 소개</label>
               <textarea
                 rows={2}
-                className="w-full rounded-xl border border-slate-200 px-4 py-2 text-sm outline-none focus:border-blue-500 resize-none"
+                className="w-full rounded-xl border border-slate-200 px-4 py-3 text-base outline-none focus:border-blue-500 resize-none"
                 value={form.bio}
                 onChange={e => setForm({ ...form, bio: e.target.value })}
               />
             </div>
             <div>
-              <label className="block text-sm font-bold text-slate-700 mb-1">상세 소개</label>
+              <label className="block text-base font-bold text-slate-700 mb-2">상세 소개</label>
               <textarea
                 rows={5}
-                className="w-full rounded-xl border border-slate-200 px-4 py-2 text-sm outline-none focus:border-blue-500 resize-none"
+                className="w-full rounded-xl border border-slate-200 px-4 py-3 text-base outline-none focus:border-blue-500 resize-none"
                 value={form.longBio}
                 onChange={e => setForm({ ...form, longBio: e.target.value })}
               />
@@ -956,7 +1020,7 @@ function TutorEditModal({
 
             <div className="flex gap-3 justify-end pt-4 border-t border-slate-100">
               <Button type="button" variant="outline" onClick={onClose}>취소</Button>
-              <Button type="submit">저장</Button>
+              <Button type="submit">{mode === 'create' ? '등록' : '저장'}</Button>
             </div>
           </form>
         </motion.div>
@@ -976,13 +1040,13 @@ function EditField({
 }) {
   return (
     <div>
-      <label className="block text-sm font-bold text-slate-700 mb-1">{label}</label>
+      <label className="block text-base font-bold text-slate-700 mb-2">{label}</label>
       <input
         type={type}
         value={value}
         placeholder={placeholder}
         onChange={e => onChange(e.target.value)}
-        className="w-full rounded-xl border border-slate-200 px-4 py-2 text-sm outline-none focus:border-blue-500"
+        className="w-full rounded-xl border border-slate-200 px-4 py-3 text-base outline-none focus:border-blue-500"
       />
     </div>
   );
@@ -997,20 +1061,22 @@ function DetailSection({ title, value }: { title: string; value: any }) {
 
   return (
     <div>
-      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">{title}</p>
+      <p className="text-sm font-black uppercase tracking-widest text-slate-500 mb-3">{title}</p>
       {Array.isArray(value) ? (
         <div className="flex flex-wrap gap-2">
           {value.map((v: any, i: number) => (
             <span
               key={i}
-              className="inline-flex items-center bg-blue-50 text-blue-700 text-sm font-bold px-3 py-1.5 rounded-full border border-blue-100"
+              className="inline-flex items-center bg-blue-50 text-blue-700 text-base font-bold px-4 py-2 rounded-full border border-blue-100"
             >
               {String(v)}
             </span>
           ))}
         </div>
       ) : (
-        <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-wrap">{String(value)}</p>
+        <p className="text-base text-slate-800 leading-relaxed whitespace-pre-wrap bg-slate-50 p-4 rounded-2xl border border-slate-100">
+          {String(value)}
+        </p>
       )}
     </div>
   );
