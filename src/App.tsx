@@ -14,6 +14,7 @@ import PaymentFail from './pages/PaymentFail';
 import ReferralProgram from './pages/ReferralProgram';
 import Placeholder from './pages/Placeholder';
 import ConsultationRequest from './pages/ConsultationRequest';
+import About from './pages/About';
 import { useEffect, useRef } from 'react';
 import { db, auth } from './firebase';
 import { doc, getDoc, setDoc, updateDoc, serverTimestamp, collection, query, where, getDocs } from 'firebase/firestore';
@@ -164,10 +165,7 @@ function AppContent() {
           <Route path="/payment/fail" element={<PaymentFail />} />
           <Route path="/referral" element={<ReferralProgram />} />
           <Route path="/consultation" element={<ConsultationRequest />} />
-          <Route
-            path="/about"
-            element={<Placeholder title="프로그램 소개" />}
-          />
+          <Route path="/about" element={<About />} />
           <Route
             path="/faq"
             element={<Placeholder title="자주 묻는 질문 (FAQ)" description="메인 페이지 FAQ 섹션에서 먼저 확인해보세요. 전용 페이지는 곧 추가될 예정입니다." />}
