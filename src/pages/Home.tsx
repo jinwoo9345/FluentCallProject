@@ -16,16 +16,20 @@ export default function Home() {
 
   const faqs = [
     {
-      q: "환불이 가능한가요?",
-      a: "네, 수업 시작 전에는 100% 환불이 가능하며, 수업이 진행된 이후에는 잔여 횟수에 대해 공정하게 환불해 드립니다."
+      q: "친구 추천 할인 혜택은 어떻게 되나요?",
+      a: "수강생이 친구를 추천하고 해당 친구가 결제를 완료하면, 추천인에게 다음 달 사용 가능한 20,000포인트가 지급됩니다. 이 포인트를 사용하면 다음 달 수강료가 159,000원으로 자동 할인됩니다. 포인트는 수강을 유지하는 경우에만 사용 가능합니다."
     },
     {
-      q: "수업 시간 변경이 가능한가요?",
-      a: "네, 튜터와 상의하여 자유롭게 시간을 조정할 수 있습니다. 최소 24시간 전에 말씀해 주시면 원활한 변경이 가능합니다."
+      q: "추천받은 친구도 할인을 받나요?",
+      a: "추천받은 친구는 정상가(179,000원)로 결제하게 됩니다. 하지만 추천인과 친구 간 협의하여 지급된 포인트를 나누어 사용하는 것은 가능합니다. 친구와 함께 시작하여 비용 절감 혜택을 챙겨보세요!"
     },
     {
-      q: "강사 변경이 가능한가요?",
-      a: "네, 수업 진행 중 본인과 더 잘 맞는 스타일의 강사로 변경을 원하실 경우 언제든 고객센터를 통해 요청하실 수 있습니다."
+      q: "상담 신청 절차가 어떻게 되나요?",
+      a: "EnglishBites는 모든 수강생의 학습 효과 극대화를 위해 '상담 필수제'를 운영합니다. '지금 시작하기'를 통해 간단한 설문을 마치시면 전문 매니저가 24시간 이내에 연락드려 최적의 튜터를 매칭해 드립니다."
+    },
+    {
+      q: "환불 규정이 궁금합니다.",
+      a: "수업 시작 전에는 100% 환불 가능합니다. 수업 진행 후에는 (결제 금액 ÷ 총 제공 횟수) × 남은 횟수 공식에 따라 환불됩니다. 단, 전체 수업의 3/8 이상 진행 시 서비스 이용료(49,000원)는 환불되지 않습니다."
     }
   ];
 
@@ -92,19 +96,7 @@ export default function Home() {
                 </Button>
                 <div className="flex items-center gap-2 text-slate-500 font-medium">
                   <CheckCircle2 size={20} className="text-green-500" />
-                  <span>첫 상담 무료 진행</span>
-                </div>
-              </div>
-              
-              <div className="mt-12 flex items-center gap-8 border-t border-slate-100 pt-8">
-                <div>
-                  <p className="text-2xl font-bold text-slate-900">100%</p>
-                  <p className="text-sm text-slate-500">원어민 강사진</p>
-                </div>
-                <div className="w-px h-10 bg-slate-100" />
-                <div>
-                  <p className="text-2xl font-bold text-slate-900">25-30m</p>
-                  <p className="text-sm text-slate-500">수업 시간</p>
+                  <span>학습 상담 후 매칭 진행</span>
                 </div>
               </div>
             </motion.div>
@@ -123,67 +115,8 @@ export default function Home() {
                   referrerPolicy="no-referrer"
                 />
               </div>
-              
-              {/* Floating elements */}
-              <motion.div 
-                animate={{ y: [0, -15, 0] }}
-                transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
-                className="absolute -top-10 -right-10 z-20 bg-white p-6 rounded-3xl shadow-2xl border border-slate-50 max-w-[200px]"
-              >
-                <div className="flex items-center gap-3 mb-2">
-                  <div className="w-3 h-3 rounded-full bg-blue-500 animate-pulse" />
-                  <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">EnglishBites</span>
-                </div>
-                <p className="text-sm font-bold text-slate-800 leading-snug">
-                  "머릿속에 맴도는 단어들, 이제 바로 내뱉으세요!"
-                </p>
-              </motion.div>
-
-              {/* Background Glow */}
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] bg-blue-400/10 blur-[120px] -z-10 rounded-full" />
             </motion.div>
-          </div>
-        </div>
-      </section>
-
-      {/* Differentiation Section */}
-      <section className="py-32 bg-slate-50">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-3xl mx-auto mb-20">
-            <h2 className="text-4xl font-black text-slate-900 mb-6 font-display">왜 EnglishBites 인가요?</h2>
-            <p className="text-lg text-slate-600">기존의 비싸고 딱딱한 원어민 수업과는 차원이 다른 경험을 제공합니다.</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              {
-                icon: <Globe className="text-blue-600" size={32} />,
-                title: "미국/유럽 원어민 강사",
-                desc: "검증된 발음과 문화를 가진 북미 및 유럽 출신 튜터들로만 구성되어 있습니다."
-              },
-              {
-                icon: <MessageCircle className="text-indigo-600" size={32} />,
-                title: "실제 회화 중심 수업",
-                desc: "교재에 갇힌 영어가 아닌, 오늘 바로 쓸 수 있는 생생한 일상 대화를 나눕니다."
-              },
-              {
-                icon: <Calendar className="text-purple-600" size={32} />,
-                title: "자유로운 시간 조정",
-                desc: "고정된 시간이 아닌, 튜터와 상의하여 매주 유연하게 수업 시간을 정할 수 있습니다."
-              }
-            ].map((item, idx) => (
-              <motion.div 
-                key={idx}
-                whileHover={{ y: -10 }}
-                className="bg-white p-10 rounded-[2.5rem] shadow-sm border border-slate-100 hover:shadow-xl transition-all"
-              >
-                <div className="w-16 h-16 rounded-2xl bg-slate-50 flex items-center justify-center mb-8">
-                  {item.icon}
-                </div>
-                <h3 className="text-2xl font-bold text-slate-900 mb-4">{item.title}</h3>
-                <p className="text-slate-600 leading-relaxed">{item.desc}</p>
-              </motion.div>
-            ))}
           </div>
         </div>
       </section>
@@ -192,8 +125,8 @@ export default function Home() {
       <section className="py-32 bg-white relative overflow-hidden">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="text-center max-w-3xl mx-auto mb-20">
-            <h2 className="text-4xl font-black text-slate-900 mb-6 font-display">거품 없는 합리적인 가격</h2>
-            <p className="text-lg text-slate-600">"원어민 수업은 비싸다"는 편견을 깼습니다. <br />부담 없는 가격으로 꾸준히 영어를 즐기세요.</p>
+            <h2 className="text-4xl font-black text-slate-900 mb-6 font-display">합리적인 정가제 시스템</h2>
+            <p className="text-lg text-slate-600">모든 수강생에게 동일한 품질의 교육을 <br />투명한 가격으로 제공합니다.</p>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-stretch">
@@ -201,7 +134,7 @@ export default function Home() {
             <div className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-xl relative flex flex-col">
               <div className="mb-8">
                 <h3 className="text-xl font-bold text-slate-900 mb-2">8회 베이직</h3>
-                <p className="text-slate-500 text-sm">주 2회, 한 달 완성 표준 플랜</p>
+                <p className="text-slate-500 text-sm">주 2회 표준 플랜</p>
               </div>
               <div className="mb-8">
                 <div className="flex items-baseline gap-1">
@@ -219,148 +152,81 @@ export default function Home() {
                   <Check size={18} className="text-blue-600" />
                   <span>자유로운 주제 & 시간 선정</span>
                 </li>
-                <li className="flex items-center gap-3 text-slate-600 text-sm">
-                  <Check size={18} className="text-blue-600" />
-                  <span>매 수업 후 피드백 제공</span>
-                </li>
               </ul>
-              <Button variant="outline" className="w-full py-6 rounded-2xl font-bold" onClick={() => setIsTutorFinderOpen(true)}>선택하기</Button>
+              <Button variant="outline" className="w-full py-6 rounded-2xl font-bold" onClick={() => setIsTutorFinderOpen(true)}>상담 신청하기</Button>
             </div>
 
-            {/* Referral / Credit Info (Center Highlight) */}
-            <div className="bg-slate-900 p-10 rounded-[3rem] shadow-2xl relative z-20 text-white border-4 border-blue-500 flex flex-col">
+            {/* Referral Benefit Card */}
+            <div className="bg-slate-900 p-10 rounded-[3rem] shadow-2xl relative z-20 text-white border-4 border-blue-500 flex flex-col scale-105">
               <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-blue-500 text-white px-6 py-2 rounded-full text-sm font-black uppercase tracking-widest">
-                Referral Benefit
+                Referral Reward
               </div>
               <div className="mb-8">
-                <h3 className="text-xl font-bold mb-2">친구 초대 리워드</h3>
-                <p className="text-slate-400 text-sm">함께하면 더 커지는 할인 혜택</p>
+                <h3 className="text-xl font-bold mb-2">친구 추천 할인</h3>
+                <p className="text-slate-400 text-sm">함께하면 수강료가 159,000원!</p>
               </div>
               <div className="mb-8 bg-white/10 p-6 rounded-2xl border border-white/10">
-                <p className="text-sm text-blue-400 font-bold mb-2">무제한 할인 가능</p>
+                <p className="text-sm text-blue-400 font-bold mb-2">추천 시 2만점 지급</p>
                 <p className="text-lg font-bold leading-tight">
-                  친구 한 명 초대할 때마다 <br />
-                  <span className="text-2xl text-white font-black">10,000원 상당</span>의 <br />
-                  크레딧을 즉시 지급해 드립니다.
+                  초대한 친구 결제 시 <br />
+                  <span className="text-2xl text-white font-black">20,000원 할인</span> <br />
+                  포인트를 즉시 지급해 드립니다.
                 </p>
               </div>
               <ul className="space-y-4 mb-10 flex-1">
                 <li className="flex items-center gap-3 text-slate-300 text-sm">
                   <Check size={18} className="text-blue-400" />
-                  <span>초대받은 친구도 60크레딧 시작</span>
+                  <span>포인트 적용 시 159,000원</span>
                 </li>
                 <li className="flex items-center gap-3 text-slate-300 text-sm">
                   <Check size={18} className="text-blue-400" />
-                  <span>보유 크레딧만큼 결제 시 차감 할인</span>
+                  <span>추천인-친구 포인트 쉐어 가능</span>
                 </li>
                 <li className="flex items-center gap-3 text-slate-300 text-sm">
                   <Check size={18} className="text-blue-400" />
-                  <span>초대 인원 제한 없는 무제한 혜택</span>
+                  <span>수강 유지 시 무제한 혜택</span>
                 </li>
               </ul>
               <Link to="/tutors" className="w-full">
-                <Button className="w-full py-7 rounded-2xl font-black text-lg bg-blue-600 hover:bg-blue-700">지금 가입하고 크레딧 받기</Button>
+                <Button className="w-full py-7 rounded-2xl font-black text-lg bg-blue-600 hover:bg-blue-700">지금 친구 초대하기</Button>
               </Link>
             </div>
 
             {/* Bulk Plan */}
             <div className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-xl relative flex flex-col">
               <div className="mb-8">
-                <h3 className="text-xl font-bold text-slate-900 mb-2">장기 수강 혜택</h3>
-                <p className="text-slate-500 text-sm">꾸준한 성장을 응원하는 보너스</p>
+                <h3 className="text-xl font-bold text-slate-900 mb-2">장기 패키지</h3>
+                <p className="text-slate-500 text-sm">꾸준한 성장을 위한 보너스</p>
               </div>
               <div className="space-y-6 mb-10 flex-1">
-                <div className="p-6 rounded-3xl bg-blue-50 border border-blue-100 relative group overflow-hidden">
-                  <p className="text-sm font-bold text-blue-600 mb-1">16회 집중 패키지</p>
-                  <p className="text-xl font-black text-slate-900">+ 1회 무료 수업 추가</p>
-                  <Sparkles className="absolute -right-4 -bottom-4 text-blue-100 group-hover:scale-125 transition-transform" size={80} />
+                <div className="p-6 rounded-3xl bg-blue-50 border border-blue-100">
+                  <p className="text-sm font-bold text-blue-600 mb-1">16회 패키지</p>
+                  <p className="text-xl font-black text-slate-900">+ 1회 무료 수업</p>
                 </div>
-                <div className="p-6 rounded-3xl bg-indigo-50 border border-indigo-100 relative group overflow-hidden">
-                  <p className="text-sm font-bold text-indigo-600 mb-1">24회 마스터 패키지</p>
-                  <p className="text-xl font-black text-slate-900">+ 2회 무료 수업 추가</p>
-                  <Sparkles className="absolute -right-4 -bottom-4 text-indigo-100 group-hover:scale-125 transition-transform" size={80} />
+                <div className="p-6 rounded-3xl bg-indigo-50 border border-indigo-100">
+                  <p className="text-sm font-bold text-indigo-600 mb-1">24회 패키지</p>
+                  <p className="text-xl font-black text-slate-900">+ 2회 무료 수업</p>
                 </div>
               </div>
-              <Button variant="outline" className="w-full py-6 rounded-2xl font-bold" onClick={() => setIsTutorFinderOpen(true)}>패키지 문의하기</Button>
+              <Button variant="outline" className="w-full py-6 rounded-2xl font-bold" onClick={() => setIsTutorFinderOpen(true)}>문의하기</Button>
             </div>
-          </div>
-
-          <div className="mt-20 p-8 rounded-[2rem] bg-slate-50 border border-slate-100 flex flex-col md:flex-row items-center justify-between gap-8">
-            <div className="flex items-center gap-6">
-              <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center text-blue-600">
-                <Users size={32} />
-              </div>
-              <div>
-                <h4 className="text-xl font-bold text-slate-900">친구 초대 시스템</h4>
-                <p className="text-slate-600">초대한 친구가 등록을 유지하는 동안 매달 할인이 적용됩니다.</p>
-              </div>
-            </div>
-            <Link to="/tutors" className="text-blue-600 font-bold flex items-center gap-2 hover:underline">
-              자세히 알아보기 <ArrowRight size={18} />
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* Tutor Section */}
-      <section className="py-32 bg-slate-50">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row items-end justify-between mb-16 gap-8">
-            <div className="max-w-2xl">
-              <h2 className="text-4xl font-black text-slate-900 mb-6 font-display">검증된 원어민 튜터</h2>
-              <p className="text-lg text-slate-600">당신의 관심사와 목표에 딱 맞는 튜터를 만나보세요. <br />모든 튜터는 북미/유럽 출신의 실력자들입니다.</p>
-            </div>
-            <Link to="/tutors">
-              <Button variant="outline" className="rounded-xl px-8">전체 강사 보기</Button>
-            </Link>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {MOCK_TUTORS.slice(0, 4).map((tutor) => (
-              <motion.div 
-                key={tutor.id}
-                whileHover={{ y: -5 }}
-                className="bg-white rounded-3xl overflow-hidden shadow-sm border border-slate-100 group"
-              >
-                <div className="aspect-square overflow-hidden relative">
-                  <img src={tutor.avatar} alt={tutor.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" referrerPolicy="no-referrer" />
-                  <div className="absolute top-4 right-4 bg-white/90 backdrop-blur px-3 py-1 rounded-full flex items-center gap-1 shadow-sm">
-                    <Star size={14} className="fill-yellow-400 text-yellow-400" />
-                    <span className="text-xs font-bold text-slate-900">{tutor.rating}</span>
-                  </div>
-                </div>
-                <div className="p-6">
-                  <h4 className="text-lg font-bold text-slate-900 mb-1">{tutor.name}</h4>
-                  <p className="text-xs text-blue-600 font-bold mb-4 uppercase tracking-wider">{tutor.location}</p>
-                  <p className="text-sm text-slate-500 line-clamp-2 mb-4 leading-relaxed">
-                    {tutor.bio}
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {tutor.specialties.slice(0, 2).map((s, i) => (
-                      <span key={i} className="text-[10px] font-bold bg-slate-50 text-slate-400 px-2 py-1 rounded-md">#{s}</span>
-                    ))}
-                  </div>
-                </div>
-              </motion.div>
-            ))}
           </div>
         </div>
       </section>
 
       {/* FAQ Section */}
-      <section className="py-32 bg-white">
+      <section className="py-32 bg-slate-50">
         <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-black text-slate-900 mb-6 font-display">자주 묻는 질문</h2>
-            <p className="text-lg text-slate-600">궁금하신 점을 확인해 보세요.</p>
+            <h2 className="text-4xl font-black text-slate-900 mb-6 font-display">궁금한 점이 있으신가요?</h2>
           </div>
 
           <div className="space-y-4">
             {faqs.map((faq, idx) => (
-              <div key={idx} className="border border-slate-100 rounded-2xl overflow-hidden">
+              <div key={idx} className="border border-slate-100 rounded-2xl overflow-hidden bg-white">
                 <button 
                   onClick={() => setOpenFaq(openFaq === idx ? null : idx)}
-                  className="w-full flex items-center justify-between p-6 text-left bg-white hover:bg-slate-50 transition-colors"
+                  className="w-full flex items-center justify-between p-6 text-left hover:bg-slate-50 transition-colors"
                 >
                   <span className="text-lg font-bold text-slate-900">{faq.q}</span>
                   <ChevronDown className={`text-slate-400 transition-transform ${openFaq === idx ? 'rotate-180' : ''}`} />
@@ -384,36 +250,8 @@ export default function Home() {
           </div>
         </div>
       </section>
-
-      {/* Final CTA */}
-      <section className="py-32 bg-blue-600 relative overflow-hidden">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 text-center relative z-10">
-          <h2 className="text-4xl sm:text-5xl font-black text-white mb-8 font-display">
-            지금 바로 당신의 첫 번째 <br />
-            EnglishBite를 시작하세요.
-          </h2>
-          <Button 
-            size="lg" 
-            variant="secondary" 
-            className="px-12 py-8 text-xl rounded-2xl font-black shadow-2xl hover:scale-105 active:scale-95 transition-all"
-            onClick={() => setIsTutorFinderOpen(true)}
-          >
-            무료 상담 신청하기
-          </Button>
-        </div>
-        
-        {/* Decorative elements */}
-        <div className="absolute top-0 left-0 w-full h-full opacity-10">
-          <div className="absolute top-10 left-10 w-64 h-64 rounded-full border-8 border-white" />
-          <div className="absolute bottom-10 right-10 w-96 h-96 rounded-full border-8 border-white" />
-        </div>
-      </section>
-
-      <TutorFinderModal 
-        isOpen={isTutorFinderOpen} 
-        onClose={() => setIsTutorFinderOpen(false)} 
-      />
+      
+      <TutorFinderModal isOpen={isTutorFinderOpen} onClose={() => setIsTutorFinderOpen(false)} />
     </div>
   );
 }
-

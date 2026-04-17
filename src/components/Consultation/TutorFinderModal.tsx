@@ -217,17 +217,21 @@ export function TutorFinderModal({ isOpen, onClose }: TutorFinderModalProps) {
       case 8:
         return (
           <div className="space-y-4">
-            <h3 className="text-xl font-bold text-slate-900">8. 바로 시작하시겠어요?</h3>
-            <div className="grid grid-cols-1 gap-3">
-              {[{ label: '바로 시작할게요', val: '바로 시작' }, { label: '상담 먼저 받고 싶어요', val: '상담 희망' }].map(opt => (
-                <button key={opt.val} onClick={() => updateFields({ consultationPref: opt.val })} className={`p-4 rounded-2xl border-2 text-left transition-all ${formData.consultationPref === opt.val ? 'border-blue-600 bg-blue-50 text-blue-700' : 'border-slate-100 hover:border-slate-200 text-slate-600'}`}>
-                  {opt.label}
-                </button>
-              ))}
+            <h3 className="text-xl font-bold text-slate-900">8. 신청을 완료할까요?</h3>
+            <div className="bg-blue-50 p-6 rounded-2xl border border-blue-100">
+              <p className="text-sm text-blue-700 leading-relaxed">
+                전송해주신 정보를 바탕으로 <strong>24시간 이내</strong>에 전문 매니저가 <br />
+                연락드려 최적의 튜터 매칭을 도와드립니다.
+              </p>
             </div>
-            <Button className="w-full py-4 mt-6 gap-2" onClick={handleSubmit} disabled={loading || !formData.consultationPref}>
-              {loading ? '전송 중...' : <><Send size={18} /> 정보 전송하고 튜터 추천받기</>}
+            <Button 
+              className="w-full py-6 mt-6 gap-2 text-lg shadow-blue-200 shadow-xl" 
+              onClick={handleSubmit} 
+              disabled={loading}
+            >
+              {loading ? '전송 중...' : <><Send size={20} /> 분석 완료하고 상담 신청하기</>}
             </Button>
+            <p className="text-center text-xs text-slate-400">정보는 매칭 목적으로만 사용됩니다.</p>
           </div>
         );
       default: return null;

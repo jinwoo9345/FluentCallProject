@@ -312,10 +312,10 @@ export default function Dashboard() {
           <Card className="bg-gradient-to-br from-blue-600 to-indigo-700 text-white border-none shadow-2xl relative overflow-hidden group">
             <div className="relative z-10">
               <h3 className="font-bold text-lg mb-2 flex items-center gap-2">
-                <Sparkles size={20} /> 친구 초대하고 할인받기
+                <Sparkles size={20} /> 친구 초대하고 2만점 받기
               </h3>
               <p className="text-sm text-blue-100 mb-6 leading-relaxed">
-                친구 한 명당 <span className="font-black text-white">10,000원</span> 크레딧 지급! 초대 제한은 없습니다.
+                친구가 결제하면 다음 달 수강료가 <span className="font-black text-white">159,000원</span>으로 자동 할인됩니다! (20,000포인트 지급)
               </p>
               
               <div className="space-y-4">
