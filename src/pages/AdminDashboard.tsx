@@ -8,7 +8,7 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { useAuth } from '../contexts/AuthContext';
 import { db } from '../firebase';
-import { collection, query, getDocs, orderBy, where, doc, updateDoc, writeBatch, increment, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, query, getDocs, orderBy, where, doc, updateDoc, writeBatch, increment, addDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { cn } from '@/src/lib/utils';
 
 // 역할 한국어 라벨
@@ -170,6 +170,20 @@ export default function AdminDashboard() {
       setEditTutor(null);
     } catch (err: any) {
       alert('저장 실패: ' + (err.message || '알 수 없는 오류'));
+    }
+  };
+
+  const handleDeleteTutor = async (t: any) => {
+    const confirmed = window.confirm(
+      `강사 "${t.name || '(이름 없음)'}" 을(를) 영구 삭제합니다.\n\n` +
+      `이 작업은 되돌릴 수 없습니다. 진행하시겠습니까?`
+    );
+    if (!confirmed) return;
+    try {
+      await deleteDoc(doc(db, 'tutors', t.id));
+      setTutors(prev => prev.filter(x => x.id !== t.id));
+    } catch (err: any) {
+      alert('삭제 실패: ' + (err.message || '알 수 없는 오류'));
     }
   };
 
@@ -664,25 +678,34 @@ export default function AdminDashboard() {
                         ))}
                       </div>
                     </div>
-                    <div className="mt-6 flex gap-2">
+                    <div className="mt-6 space-y-2">
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          className="w-full text-xs"
+                          onClick={() => setEditTutor(tutor)}
+                        >
+                          정보 수정
+                        </Button>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            'w-full text-xs',
+                            tutor.hidden
+                              ? 'text-green-600 hover:text-green-700 hover:bg-green-50'
+                              : 'text-amber-600 hover:text-amber-700 hover:bg-amber-50'
+                          )}
+                          onClick={() => handleToggleTutorHidden(tutor)}
+                        >
+                          {tutor.hidden ? '숨김 해제' : '숨기기'}
+                        </Button>
+                      </div>
                       <Button
                         variant="outline"
-                        className="w-full text-xs"
-                        onClick={() => setEditTutor(tutor)}
+                        className="w-full text-xs text-red-600 border-red-200 hover:text-red-700 hover:bg-red-50"
+                        onClick={() => handleDeleteTutor(tutor)}
                       >
-                        정보 수정
-                      </Button>
-                      <Button
-                        variant="outline"
-                        className={cn(
-                          'w-full text-xs',
-                          tutor.hidden
-                            ? 'text-green-600 hover:text-green-700 hover:bg-green-50'
-                            : 'text-red-600 hover:text-red-700 hover:bg-red-50'
-                        )}
-                        onClick={() => handleToggleTutorHidden(tutor)}
-                      >
-                        {tutor.hidden ? '숨김 해제' : '숨기기'}
+                        영구 삭제
                       </Button>
                     </div>
                   </Card>
