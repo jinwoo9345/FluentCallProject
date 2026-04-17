@@ -71,18 +71,19 @@ export const Navbar = () => {
         </div>
 
         {/* 중앙: 데스크톱 메뉴 */}
-        <div className="hidden md:flex md:items-center md:justify-center md:gap-2 justify-self-center">
-          {/* 드롭다운 메뉴 그룹 — 그룹 전체에 hover 걸어 모든 드롭다운이 동시에 열림 */}
+        <div className="hidden md:flex md:items-center md:justify-center md:gap-4 justify-self-center">
+          {/* 드롭다운 메뉴 그룹 — 하나의 통합 패널(메가 메뉴)로 표시 */}
           <div
-            className="flex items-center gap-1 relative"
+            className="relative"
             onMouseEnter={() => setIsDropdownHovered(true)}
             onMouseLeave={() => setIsDropdownHovered(false)}
           >
-            {menus.map((menu) => (
-              <div key={menu.name} className="relative">
+            <div className="flex items-center gap-6">
+              {menus.map((menu) => (
                 <button
+                  key={menu.name}
                   className={cn(
-                    'flex items-center gap-1 px-4 py-2 text-sm font-bold transition-colors rounded-lg hover:text-blue-600',
+                    'flex items-center gap-1.5 px-3 py-2 text-sm font-bold transition-colors rounded-lg hover:text-blue-600',
                     isActiveDropdown(menu) ? 'text-blue-600' : 'text-slate-600'
                   )}
                 >
@@ -93,28 +94,42 @@ export const Navbar = () => {
                     className={cn('transition-transform', isDropdownHovered && 'rotate-180')}
                   />
                 </button>
-                {isDropdownHovered && (
-                  <div className="absolute left-1/2 -translate-x-1/2 top-full pt-2 min-w-56 z-50">
-                    <div className="rounded-2xl border border-slate-100 bg-white shadow-xl p-2">
-                      {menu.items.map((sub) => (
-                        <Link
-                          key={sub.path}
-                          to={sub.path}
-                          className={cn(
-                            'block px-4 py-2.5 text-sm font-medium rounded-xl transition-colors whitespace-nowrap',
-                            isActive(sub.path)
-                              ? 'bg-blue-50 text-blue-600 font-bold'
-                              : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                          )}
-                        >
-                          {sub.name}
-                        </Link>
-                      ))}
+              ))}
+            </div>
+
+            {/* 통합 드롭다운 패널 — 3개 섹션을 한 패널에 나란히 */}
+            {isDropdownHovered && (
+              <div className="absolute left-1/2 -translate-x-1/2 top-full pt-3 z-50">
+                <div className="rounded-2xl border border-slate-100 bg-white shadow-2xl p-6 flex gap-10">
+                  {menus.map((menu) => (
+                    <div key={menu.name} className="min-w-[180px]">
+                      <div className="flex items-center gap-2 pb-2 mb-2 border-b border-slate-100">
+                        <menu.icon size={14} className="text-blue-600" />
+                        <p className="text-xs font-black uppercase tracking-widest text-slate-500">
+                          {menu.name}
+                        </p>
+                      </div>
+                      <div className="flex flex-col gap-0.5">
+                        {menu.items.map((sub) => (
+                          <Link
+                            key={sub.path}
+                            to={sub.path}
+                            className={cn(
+                              'block px-3 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap',
+                              isActive(sub.path)
+                                ? 'bg-blue-50 text-blue-600 font-bold'
+                                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                            )}
+                          >
+                            {sub.name}
+                          </Link>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  ))}
+                </div>
               </div>
-            ))}
+            )}
           </div>
 
           {/* 내 강의실 — 로그인 시에만 */}
@@ -122,7 +137,7 @@ export const Navbar = () => {
             <Link
               to="/dashboard"
               className={cn(
-                'flex items-center gap-2 px-4 py-2 text-sm font-bold transition-colors rounded-lg hover:text-blue-600',
+                'flex items-center gap-1.5 px-3 py-2 text-sm font-bold transition-colors rounded-lg hover:text-blue-600',
                 isActive('/dashboard') ? 'text-blue-600' : 'text-slate-600'
               )}
             >
@@ -135,7 +150,7 @@ export const Navbar = () => {
             <Link
               to="/admin"
               className={cn(
-                'flex items-center gap-2 px-4 py-2 text-sm font-bold transition-colors rounded-lg hover:text-blue-600',
+                'flex items-center gap-1.5 px-3 py-2 text-sm font-bold transition-colors rounded-lg hover:text-blue-600',
                 isActive('/admin') ? 'text-blue-600' : 'text-slate-600'
               )}
             >
