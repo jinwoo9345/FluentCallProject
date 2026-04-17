@@ -40,16 +40,15 @@ export default function ReferralProgram() {
       {/* 본문 */}
       <section className="pb-24">
         <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 space-y-8">
-          {/* 기본 수강료 */}
+          {/* 수강료 안내 — 튜터별 맞춤 금액 */}
           <Card className="p-10 border-l-4 border-l-blue-600 shadow-sm">
-            <p className="text-xs font-black uppercase tracking-widest text-blue-600 mb-2">기본 수강료</p>
+            <p className="text-xs font-black uppercase tracking-widest text-blue-600 mb-2">수강료</p>
             <div className="flex items-baseline gap-2">
-              <span className="text-5xl font-black text-slate-900">179,000</span>
-              <span className="text-2xl text-slate-500 font-bold">원</span>
-              <span className="ml-2 text-sm text-slate-400">/ 월</span>
+              <span className="text-4xl font-black text-slate-900">튜터별 맞춤 금액</span>
             </div>
-            <p className="mt-3 text-sm text-slate-500">
-              주 2회, 회당 25~30분, 1:1 원어민 수업 기준 월 8회
+            <p className="mt-3 text-sm text-slate-500 leading-relaxed">
+              각 튜터가 자신의 경력·전공에 따라 <strong className="text-slate-700">회당 가격</strong>을 직접 설정합니다.
+              최종 결제 금액은 선택한 튜터의 수강료와 수강권(8/16/24회)에 따라 달라집니다.
             </p>
           </Card>
 
@@ -74,14 +73,14 @@ export default function ReferralProgram() {
                 <div className="flex items-start gap-3">
                   <div className="mt-1 h-2 w-2 rounded-full bg-white flex-shrink-0" />
                   <p className="text-sm text-blue-50">
-                    지급된 포인트는 <strong className="text-white">다음 달 결제 시 자동 적용</strong>됩니다.
+                    <strong className="text-white">1 포인트 = 1,000원</strong>으로 사용 가능합니다.
                   </p>
                 </div>
                 <div className="flex items-start gap-3">
                   <div className="mt-1 h-2 w-2 rounded-full bg-white flex-shrink-0" />
                   <p className="text-sm text-blue-50">
-                    포인트 적용 시 다음 달 결제 금액은
-                    <strong className="text-white"> 159,000원</strong>으로 할인됩니다.
+                    지급된 포인트는 다음 결제 시 자동 차감되어
+                    <strong className="text-white"> 최대 20,000원까지 할인</strong>됩니다.
                   </p>
                 </div>
               </div>
@@ -108,7 +107,7 @@ export default function ReferralProgram() {
                 <div className="h-2 w-2 rounded-full bg-amber-400 mt-2 flex-shrink-0" />
                 <p className="leading-relaxed">
                   추천받은 친구는 별도의 할인 없이
-                  <strong className="text-slate-900"> 정상가(179,000원)</strong>로 결제됩니다.
+                  <strong className="text-slate-900"> 선택한 튜터가 설정한 정상 수강료</strong>로 결제됩니다.
                 </p>
               </li>
               <li className="flex gap-4">

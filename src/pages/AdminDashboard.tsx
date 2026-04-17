@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Users, UserPlus, CreditCard, MessageSquare, TrendingUp,
-  Clock, Shield, Star, School, Settings
+  Clock, Shield, Star, School, Settings, Loader2
 } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -46,7 +46,7 @@ function formatTS(ts: any, variant: 'date' | 'datetime' = 'date'): string {
 }
 
 export default function AdminDashboard() {
-  const { user } = useAuth();
+  const { user, firebaseUser, isAuthReady } = useAuth();
   const [activeTab, setActiveTab] = useState<'overview' | 'consultations' | 'tutors' | 'tutor_apps' | 'payments' | 'users' | 'settings'>('overview');
   const [userSearch, setUserSearch] = useState('');
   const [creditDelta, setCreditDelta] = useState<Record<string, string>>({});
@@ -163,10 +163,14 @@ export default function AdminDashboard() {
   };
 
   useEffect(() => {
-    if (user?.role !== 'admin') return;
+    if (!isAuthReady) return;
+    if (user?.role !== 'admin') {
+      setLoading(false);
+      return;
+    }
     fetchAdminData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [user, isAuthReady]);
 
   const handleToggleConsultStatus = async (c: any) => {
     const nextStatus = c.status === 'completed' ? 'pending' : 'completed';
@@ -517,6 +521,26 @@ export default function AdminDashboard() {
       alert('회수 실패: ' + (err.message || '알 수 없는 오류'));
     }
   };
+
+  // 새로고침 직후 auth/user 프로필 로딩 중엔 로딩 화면 (빈 화면 방지)
+  if (!isAuthReady) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh]">
+        <Loader2 className="animate-spin text-blue-600 mb-4" size={40} />
+        <p className="text-slate-500 font-medium">관리자 인증 확인 중...</p>
+      </div>
+    );
+  }
+
+  if (!firebaseUser) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh]">
+        <Shield size={64} className="text-slate-200 mb-4" />
+        <h2 className="text-2xl font-bold text-slate-900">로그인이 필요합니다.</h2>
+        <p className="mt-2 text-slate-600">관리자 페이지는 로그인 후 이용 가능합니다.</p>
+      </div>
+    );
+  }
 
   if (user?.role !== 'admin') {
     return (

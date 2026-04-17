@@ -74,8 +74,9 @@ export function RefundPolicyContent({ compact = false }: PolicyContentProps) {
               : 'mt-4 p-4 text-sm bg-slate-50 rounded-xl'
           }
         >
-          <span className="font-bold">예시)</span> 179,000원 / 8회 수업 구매 후 4회 이용 시<br />
-          → 환불 금액: 179,000 ÷ 8 × 4 = 89,500원
+          <span className="font-bold">예시)</span> 튜터가 설정한 수강료로 240,000원(8회)을 결제한 뒤 4회 이용한 경우<br />
+          → 환불 금액: 240,000 ÷ 8 × 4 = 120,000원<br />
+          <span className="text-[10px] text-slate-400">※ 실제 결제 금액은 선택한 튜터가 설정한 수강료에 따라 달라집니다.</span>
         </div>
       </section>
 

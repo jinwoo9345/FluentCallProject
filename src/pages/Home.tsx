@@ -21,7 +21,7 @@ export default function Home() {
   const faqs: FaqItem[] = [
     {
       q: '친구 추천 할인 혜택은 어떻게 되나요?',
-      a: '추천한 친구가 결제하면, 추천인에게 20,000포인트가 지급되어 다음 결제 시 159,000원으로 할인됩니다.',
+      a: '추천한 친구가 결제하면, 추천인에게 20,000포인트가 즉시 지급됩니다. 1포인트 = 1,000원으로 다음 결제 시 최대 20,000원까지 자동 할인됩니다.',
       details: (
         <div className="space-y-3">
           <p><strong>지급 조건</strong> — 내 추천 코드를 친구가 결제 화면에 입력하고 결제를 완료해야 지급됩니다.</p>
@@ -35,7 +35,7 @@ export default function Home() {
     },
     {
       q: '추천받은 친구도 할인을 받나요?',
-      a: '친구 본인은 정상가(179,000원)로 결제합니다. 단, 추천인이 받은 포인트를 친구와 나눠 쓸 수 있습니다.',
+      a: '친구 본인은 선택한 튜터가 설정한 정상 수강료로 결제합니다. 단, 추천인이 받은 포인트를 친구와 나눠 쓸 수 있습니다.',
       details: (
         <div className="space-y-3">
           <p>
@@ -92,7 +92,7 @@ export default function Home() {
             </span>
           </p>
           <p>
-            <strong>예시</strong> — 179,000원 / 8회 구매 후 4회 이용 시 → 환불 금액 89,500원
+            <strong>예시</strong> — 튜터가 설정한 수강료로 240,000원(8회)을 결제한 뒤 4회 이용 시 → 환불 금액 120,000원 (실제 결제 금액은 선택한 튜터에 따라 다릅니다)
           </p>
           <p className="text-red-600 font-medium">
             단, 전체 수업의 3/8 이상 진행 시 서비스 이용료(49,000원)는 환불되지 않습니다.
@@ -205,13 +205,13 @@ export default function Home() {
             <div className="bg-slate-900 p-10 rounded-[3rem] shadow-2xl relative z-20 text-white border-4 border-blue-500 flex flex-col scale-105">
               <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-blue-500 text-white px-6 py-2 rounded-full text-xs font-black uppercase tracking-widest">Referral Reward</div>
               <h3 className="text-xl font-bold mb-2">친구 추천 할인</h3>
-              <p className="text-slate-400 text-sm mb-8">함께하면 수강료가 159,000원!</p>
+              <p className="text-slate-400 text-sm mb-8">친구와 함께 시작하고 포인트로 할인 받으세요</p>
               <div className="mb-8 bg-white/10 p-6 rounded-3xl border border-white/10">
-                <p className="text-sm text-blue-400 font-bold mb-2">추천 시 2만점 지급</p>
-                <p className="text-lg font-bold leading-tight">초대한 친구 결제 시 <br/><span className="text-2xl text-white font-black">20,000원 할인</span> <br/>포인트를 즉시 지급해 드립니다.</p>
+                <p className="text-sm text-blue-400 font-bold mb-2">추천 시 2만 포인트 지급</p>
+                <p className="text-lg font-bold leading-tight">초대한 친구 결제 시 <br/><span className="text-2xl text-white font-black">20,000포인트</span>를 <br/>즉시 지급해 드립니다.</p>
               </div>
               <ul className="space-y-4 mb-8 flex-1">
-                <li className="flex items-center gap-3 text-slate-300 text-sm"><Check size={18} className="text-blue-400" /> <span>포인트 적용 시 159,000원</span></li>
+                <li className="flex items-center gap-3 text-slate-300 text-sm"><Check size={18} className="text-blue-400" /> <span>다음 결제 시 최대 20,000원 할인</span></li>
                 <li className="flex items-center gap-3 text-slate-300 text-sm"><Check size={18} className="text-blue-400" /> <span>초대 무제한 혜택</span></li>
               </ul>
               <div className="space-y-3">

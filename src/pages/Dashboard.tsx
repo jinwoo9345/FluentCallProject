@@ -686,7 +686,7 @@ export default function Dashboard() {
                 <Gift size={20} /> 친구 초대하고 2만점 받기
               </h3>
               <p className="text-sm text-blue-100 mb-6 leading-relaxed">
-                친구가 결제하면 다음 달 수강료가 <span className="font-black text-white">159,000원</span>으로 자동 할인됩니다!
+                친구가 결제하면 <span className="font-black text-white">20,000포인트</span>가 즉시 지급되어 다음 결제에서 자동으로 할인됩니다!
               </p>
               <div className="space-y-4">
                 <div className="bg-white/10 rounded-2xl p-4 border border-white/20">
