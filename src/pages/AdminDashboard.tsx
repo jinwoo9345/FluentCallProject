@@ -33,11 +33,20 @@ export default function AdminDashboard() {
         const userSnap = await getDocs(collection(db, 'users'));
         setUsersList(userSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
         
-        // 2. Fetch Consultations
+        // 2. Fetch Consultations (Combined from multiple sources if needed)
         const consultSnap = await getDocs(query(collection(db, 'consultations'), orderBy('createdAt', 'desc')));
         const allConsultations = consultSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        setConsultations(allConsultations);
-        const pendingCount = allConsultations.filter(c => c.status === 'pending').length;
+        
+        // Also fetch from 'tutor_requests' if any exist
+        const trSnap = await getDocs(query(collection(db, 'tutor_requests'), orderBy('createdAt', 'desc')));
+        const tutorRequests = trSnap.docs.map(doc => ({ id: doc.id, type: 'tutor_request', ...doc.data() }));
+
+        const combinedConsults = [...allConsultations, ...tutorRequests].sort((a: any, b: any) => 
+          (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0)
+        );
+
+        setConsultations(combinedConsults);
+        const pendingCount = combinedConsults.filter(c => c.status === 'pending' || !c.status).length;
 
         // 3. Fetch Payments
         const paymentSnap = await getDocs(query(collection(db, 'payments'), orderBy('createdAt', 'desc')));
@@ -157,22 +166,22 @@ export default function AdminDashboard() {
                     <Button variant="ghost" size="sm" onClick={() => setActiveTab('consultations')}>전체 보기</Button>
                   </div>
                   <div className="space-y-4">
-                    {consultations.filter(c => c.status === 'pending').slice(0, 5).length === 0 ? (
+                    {consultations.filter(c => c.status === 'pending' || !c.status).slice(0, 5).length === 0 ? (
                       <Card className="p-8 text-center text-slate-500 border-dashed">대기 중인 상담이 없습니다.</Card>
                     ) : (
-                      consultations.filter(c => c.status === 'pending').slice(0, 5).map((c) => (
+                      consultations.filter(c => c.status === 'pending' || !c.status).slice(0, 5).map((c) => (
                         <Card key={c.id} className="p-4 flex items-center justify-between hover:shadow-md transition-shadow">
                           <div className="flex gap-4">
                             <div className="bg-rose-50 p-3 rounded-xl h-fit">
                               <MessageSquare size={20} className="text-rose-600" />
                             </div>
                             <div>
-                              <p className="font-bold text-slate-900">{c.name || '미입력'} <span className="text-xs text-slate-500 font-normal ml-2">{c.contactType}: {c.contactValue}</span></p>
-                              <p className="text-xs text-slate-500 line-clamp-1 mt-1">{c.motivation || '상세 내용 없음'}</p>
+                              <p className="font-bold text-slate-900">{c.name || '미입력'} <span className="text-xs text-slate-500 font-normal ml-2">{c.contactType || '연락처'}: {c.contactValue || c.contact}</span></p>
+                              <p className="text-xs text-slate-500 line-clamp-1 mt-1">{c.motivation || c.purpose || '상세 내용 없음'}</p>
                             </div>
                           </div>
                           <div className="flex items-center gap-4">
-                            <span className="text-xs text-slate-400 font-bold">{c.createdAt?.toDate().toLocaleDateString()}</span>
+                            <span className="text-xs text-slate-400 font-bold">{c.createdAt?.toDate ? c.createdAt.toDate().toLocaleDateString() : '날짜 미상'}</span>
                           </div>
                         </Card>
                       ))
@@ -233,15 +242,15 @@ export default function AdminDashboard() {
                             <p className="font-bold text-slate-900">{c.name || '미입력'}</p>
                             {c.userId && <p className="text-[10px] text-blue-600 font-bold mt-0.5">회원 가입됨</p>}
                           </td>
-                          <td className="px-6 py-4 text-sm text-slate-600">{c.contactType}: {c.contactValue}</td>
-                          <td className="px-6 py-4 text-sm text-slate-500">{c.createdAt?.toDate().toLocaleString()}</td>
+                          <td className="px-6 py-4 text-sm text-slate-600">{c.contactType || '연락처'}: {c.contactValue || c.contact}</td>
+                          <td className="px-6 py-4 text-sm text-slate-500">{c.createdAt?.toDate ? c.createdAt.toDate().toLocaleString() : '미상'}</td>
                           <td className="px-6 py-4 text-sm text-slate-600">{c.availableTime || '-'}</td>
                           <td className="px-6 py-4">
                             <span className={cn(
                               "inline-flex items-center rounded-full px-2.5 py-1 text-xs font-black tracking-wider uppercase",
-                              c.status === 'pending' ? "bg-rose-100 text-rose-700" : "bg-green-100 text-green-700"
+                              (c.status === 'pending' || !c.status) ? "bg-rose-100 text-rose-700" : "bg-green-100 text-green-700"
                             )}>
-                              {c.status === 'pending' ? '대기 중' : '완료'}
+                              {(c.status === 'pending' || !c.status) ? '대기 중' : '완료'}
                             </span>
                           </td>
                           <td className="px-6 py-4 text-right">
@@ -284,7 +293,7 @@ export default function AdminDashboard() {
                           <td className="px-6 py-4 font-bold text-slate-900">{p.productName}</td>
                           <td className="px-6 py-4 font-black text-slate-900">{p.amount?.toLocaleString()}원</td>
                           <td className="px-6 py-4 text-sm text-amber-600 font-bold">{p.creditsUsed > 0 ? `-${(p.creditsUsed * 1000).toLocaleString()}원` : '-'}</td>
-                          <td className="px-6 py-4 text-sm text-slate-500">{p.createdAt?.toDate().toLocaleString()}</td>
+                          <td className="px-6 py-4 text-sm text-slate-500">{p.createdAt?.toDate ? p.createdAt.toDate().toLocaleString() : '미상'}</td>
                           <td className="px-6 py-4">
                             <span className={cn(
                               "inline-flex items-center rounded-full px-2.5 py-1 text-xs font-black tracking-wider uppercase",
