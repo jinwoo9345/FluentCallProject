@@ -1,17 +1,12 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  ArrowRight, Globe, Zap, ShieldCheck, CheckCircle, 
-  Clock, CreditCard, MessageCircle, Users, Calendar, 
-  Sparkles, HelpCircle, ChevronDown, Star, Check, Gift, X, Info
-} from 'lucide-react';
+import { ChevronDown, Check, ArrowRight } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Link } from 'react-router-dom';
 import { TutorFinderModal } from '../components/Consultation/TutorFinderModal';
 
 export default function Home() {
   const [isTutorFinderOpen, setIsTutorFinderOpen] = useState(false);
-  const [isReferralManualOpen, setIsReferralManualOpen] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   const faqs = [
@@ -125,7 +120,11 @@ export default function Home() {
                 <li className="flex items-center gap-3 text-slate-300 text-sm"><Check size={18} className="text-blue-400" /> <span>초대 무제한 혜택</span></li>
               </ul>
               <div className="space-y-3">
-                <Button className="w-full py-6 rounded-2xl font-black text-lg bg-blue-600 hover:bg-blue-700 shadow-xl shadow-blue-900/20" onClick={() => setIsReferralManualOpen(true)}>프로그램 자세히 보기</Button>
+                <Link to="/referral" className="block">
+                  <Button className="w-full py-6 rounded-2xl font-black text-lg bg-blue-600 hover:bg-blue-700 shadow-xl shadow-blue-900/20">
+                    프로그램 자세히 보기
+                  </Button>
+                </Link>
                 <p className="text-[10px] text-slate-500 text-center uppercase font-bold tracking-tighter">※ 자세히 보기를 클릭하여 규정을 확인하세요</p>
               </div>
             </div>
@@ -176,90 +175,6 @@ export default function Home() {
         </div>
       </section>
       
-      {/* Referral Manual Modal */}
-      <AnimatePresence>
-        {isReferralManualOpen && (
-          <div className="fixed inset-0 z-[250] overflow-y-auto bg-slate-900/70 backdrop-blur-md flex items-center justify-center p-4">
-            <motion.div initial={{ opacity: 0, scale: 0.9, y: 30 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.9, y: 30 }} className="bg-white rounded-[3rem] max-w-2xl w-full shadow-2xl overflow-hidden">
-              <div className="bg-blue-600 p-10 text-white relative">
-                <button onClick={() => setIsReferralManualOpen(false)} className="absolute right-8 top-8 hover:rotate-90 transition-transform"><X size={28} /></button>
-                <Gift size={56} className="mb-6 opacity-90" />
-                <h2 className="text-4xl font-black tracking-tight">친구 추천 혜택 매뉴얼</h2>
-                <p className="text-blue-100 mt-2 text-lg">함께 성장하는 즐거움, EnglishBites 리워드</p>
-              </div>
-              <div className="p-10 sm:p-14 space-y-12 max-h-[75vh] overflow-y-auto">
-                <section>
-                  <h3 className="text-2xl font-bold text-slate-900 mb-6 flex items-center gap-3">
-                    <CheckCircle size={24} className="text-blue-600" /> 친구 추천 혜택
-                  </h3>
-                  <div className="bg-blue-50/50 p-8 rounded-[2rem] border border-blue-100/50">
-                    <p className="text-slate-800 text-lg leading-relaxed font-medium">
-                      수강생이 친구를 추천하고, 해당 친구가 실제 결제를 완료할 경우<br />
-                      <span className="text-blue-700 font-black underline decoration-blue-200">추천인(초대한 사람)</span>에게
-                      <span className="text-blue-700 font-black"> 20,000 포인트</span>가 즉시 지급됩니다.
-                    </p>
-                    <ul className="mt-6 space-y-3 text-slate-600">
-                      <li>• 1 포인트 = 1,000원으로 사용 가능합니다.</li>
-                      <li>• 지급된 포인트는 <strong>다음 결제 시 자동 차감</strong>되며 전액 사용이 가능합니다.</li>
-                      <li>• 포인트 적용 시 다음 달 결제 금액은 <strong>159,000원</strong>으로 할인됩니다.</li>
-                      <li>• 추천 가능 친구 수에는 <strong>제한이 없습니다</strong>.</li>
-                    </ul>
-                  </div>
-                </section>
-
-                <section>
-                  <h3 className="text-2xl font-bold text-slate-900 mb-6 flex items-center gap-3">
-                    <Gift size={24} className="text-blue-600" /> 지급 및 사용 절차
-                  </h3>
-                  <ol className="space-y-3 text-slate-700 list-decimal list-inside">
-                    <li>내 대시보드에서 <strong>개인 추천 코드</strong>를 확인하고 친구에게 공유합니다.</li>
-                    <li>초대받은 친구가 회원가입 후 <strong>결제 화면에서 추천 코드를 입력</strong>합니다.</li>
-                    <li>친구의 결제가 완료되는 즉시 <strong>추천인의 포인트가 20,000점 증가</strong>합니다.</li>
-                    <li>포인트는 내 대시보드 &gt; 결제 화면에서 전액 사용 가능합니다.</li>
-                  </ol>
-                </section>
-
-                <section>
-                  <h3 className="text-2xl font-bold text-slate-900 mb-6 flex items-center gap-3">
-                    <Info size={24} className="text-amber-500" /> 유의사항
-                  </h3>
-                  <ul className="space-y-4 text-slate-600">
-                    <li className="flex gap-4">
-                      <div className="h-2 w-2 rounded-full bg-slate-300 mt-2 flex-shrink-0" />
-                      <p>포인트는 <strong>수강을 유지하는 경우에만</strong> 사용 가능합니다. (환불 시 포인트 차감)</p>
-                    </li>
-                    <li className="flex gap-4">
-                      <div className="h-2 w-2 rounded-full bg-slate-300 mt-2 flex-shrink-0" />
-                      <p>추천받은 친구는 <strong>별도의 할인 없이 정상가(179,000원)</strong>로 결제합니다.</p>
-                    </li>
-                    <li className="flex gap-4">
-                      <div className="h-2 w-2 rounded-full bg-slate-300 mt-2 flex-shrink-0" />
-                      <p>단, 추천인은 "포인트 선물하기" 기능으로 친구에게 일부 포인트를 나눠줄 수 있습니다.</p>
-                    </li>
-                    <li className="flex gap-4">
-                      <div className="h-2 w-2 rounded-full bg-slate-300 mt-2 flex-shrink-0" />
-                      <p>본인이 본인의 추천 코드를 사용한 경우 포인트는 <strong>지급되지 않습니다</strong>.</p>
-                    </li>
-                    <li className="flex gap-4">
-                      <div className="h-2 w-2 rounded-full bg-slate-300 mt-2 flex-shrink-0" />
-                      <p>부정 사용 또는 자동화된 추천 시도로 판단되는 경우, 당사는 <strong>사전 고지 없이 포인트를 회수</strong>할 수 있습니다.</p>
-                    </li>
-                    <li className="flex gap-4">
-                      <div className="h-2 w-2 rounded-full bg-slate-300 mt-2 flex-shrink-0" />
-                      <p>이벤트 정책은 운영상 사정에 따라 <strong>변경 또는 종료</strong>될 수 있습니다.</p>
-                    </li>
-                  </ul>
-                </section>
-
-                <div className="pt-6">
-                  <Button onClick={() => setIsReferralManualOpen(false)} className="w-full py-7 text-xl font-black rounded-2xl shadow-xl hover:scale-[1.02] transition-transform">확인했습니다</Button>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
       <TutorFinderModal isOpen={isTutorFinderOpen} onClose={() => setIsTutorFinderOpen(false)} />
     </div>
   );
