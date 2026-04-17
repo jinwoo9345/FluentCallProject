@@ -10,5 +10,6 @@ firebase-applet-config.json
 firebase-blueprint.json
 
 # 작업용 로컬 노트 (깃에 올리지 않음)
+GEMINI.md
 prompt.txt
 referral.txt
