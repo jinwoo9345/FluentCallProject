@@ -522,6 +522,50 @@ export default function AdminDashboard() {
     }
   };
 
+  // ────────────────────────────────────────────────
+  // Hook 규칙 준수: 모든 useState/useEffect/커스텀 훅 호출은 early return 위에서!
+  // ────────────────────────────────────────────────
+  const filteredUsers = usersList
+    .slice()
+    .sort((a: any, b: any) => (b.credits || 0) - (a.credits || 0))
+    .filter((u: any) => {
+      if (!userSearch.trim()) return true;
+      const q = userSearch.toLowerCase();
+      return (
+        (u.name || '').toLowerCase().includes(q) ||
+        (u.email || '').toLowerCase().includes(q) ||
+        (u.referralCode || '').toLowerCase().includes(q)
+      );
+    });
+
+  const filteredConsultations = consultations.filter(c => {
+    if (consultFilter === 'all') return true;
+    if (consultFilter === 'pending') return c.status === 'pending' || !c.status;
+    return c.status === 'completed';
+  });
+
+  const completedCount = consultations.filter(c => c.status === 'completed').length;
+  const pendingCount = consultations.filter(c => c.status === 'pending' || !c.status).length;
+  const pendingTutorAppsCount = tutorApps.filter(a => a.status === 'pending').length;
+
+  // usePaginated는 내부에서 useState/useEffect/useMemo를 호출하는 커스텀 훅이므로
+  // 반드시 최상단에서 early return 이전에 호출되어야 한다.
+  const usersPage = usePaginated(filteredUsers, PAGE_SIZES.users);
+  const consultPage = usePaginated(filteredConsultations, PAGE_SIZES.consultations);
+  const paymentsPage = usePaginated(payments, PAGE_SIZES.payments);
+  const tutorsPage = usePaginated(tutors, PAGE_SIZES.tutors);
+
+  // 여기부터는 일반 값 계산 + 조건부 early return 허용
+  const navItems = [
+    { id: 'overview', label: '현황판', icon: TrendingUp },
+    { id: 'consultations', label: '상담 내역', icon: MessageSquare, count: stats.pendingConsults },
+    { id: 'payments', label: '결제 관리', icon: CreditCard },
+    { id: 'users', label: '유저 관리', icon: Users },
+    { id: 'tutor_apps', label: '강사 신청', icon: School, count: pendingTutorAppsCount },
+    { id: 'tutors', label: '강사 관리', icon: UserPlus },
+    { id: 'settings', label: '설정', icon: Settings },
+  ];
+
   // 새로고침 직후 auth/user 프로필 로딩 중엔 로딩 화면 (빈 화면 방지)
   if (!isAuthReady) {
     return (
@@ -551,45 +595,6 @@ export default function AdminDashboard() {
       </div>
     );
   }
-
-  const pendingTutorAppsCount = tutorApps.filter(a => a.status === 'pending').length;
-
-  const navItems = [
-    { id: 'overview', label: '현황판', icon: TrendingUp },
-    { id: 'consultations', label: '상담 내역', icon: MessageSquare, count: stats.pendingConsults },
-    { id: 'payments', label: '결제 관리', icon: CreditCard },
-    { id: 'users', label: '유저 관리', icon: Users },
-    { id: 'tutor_apps', label: '강사 신청', icon: School, count: pendingTutorAppsCount },
-    { id: 'tutors', label: '강사 관리', icon: UserPlus },
-    { id: 'settings', label: '설정', icon: Settings },
-  ];
-
-  const filteredUsers = usersList
-    .slice()
-    .sort((a: any, b: any) => (b.credits || 0) - (a.credits || 0))
-    .filter((u: any) => {
-      if (!userSearch.trim()) return true;
-      const q = userSearch.toLowerCase();
-      return (
-        (u.name || '').toLowerCase().includes(q) ||
-        (u.email || '').toLowerCase().includes(q) ||
-        (u.referralCode || '').toLowerCase().includes(q)
-      );
-    });
-
-  const filteredConsultations = consultations.filter(c => {
-    if (consultFilter === 'all') return true;
-    if (consultFilter === 'pending') return c.status === 'pending' || !c.status;
-    return c.status === 'completed';
-  });
-
-  const completedCount = consultations.filter(c => c.status === 'completed').length;
-  const pendingCount = consultations.filter(c => c.status === 'pending' || !c.status).length;
-
-  const usersPage = usePaginated(filteredUsers, PAGE_SIZES.users);
-  const consultPage = usePaginated(filteredConsultations, PAGE_SIZES.consultations);
-  const paymentsPage = usePaginated(payments, PAGE_SIZES.payments);
-  const tutorsPage = usePaginated(tutors, PAGE_SIZES.tutors);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">

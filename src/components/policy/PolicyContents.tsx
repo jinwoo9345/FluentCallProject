@@ -86,7 +86,7 @@ export function RefundPolicyContent({ compact = false }: PolicyContentProps) {
           <li>본 서비스에는 강사 매칭, 일정 조율, 운영 및 관리 비용(이하 "서비스 이용료")이 포함되어 있습니다.</li>
           <li>전체 수업의 3/8 이상이 진행된 이후에는 서비스가 실질적으로 제공된 것으로 간주됩니다.</li>
           <li>
-            이에 따라, <span className="text-red-600 font-bold">3/8 이상 수업 진행 후 환불 요청 시 서비스 이용료(49,000원)는 환불되지 않습니다.</span>
+            이에 따라, <span className="text-red-600 font-bold">3/8 이상 수업 진행 후 환불 요청 시 플랫폼 서비스 이용료는 환불되지 않습니다.</span>
           </li>
         </ul>
       </section>

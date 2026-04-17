@@ -95,7 +95,7 @@ export default function Home() {
             <strong>예시</strong> — 튜터가 설정한 수강료로 240,000원(8회)을 결제한 뒤 4회 이용 시 → 환불 금액 120,000원 (실제 결제 금액은 선택한 튜터에 따라 다릅니다)
           </p>
           <p className="text-red-600 font-medium">
-            단, 전체 수업의 3/8 이상 진행 시 서비스 이용료(49,000원)는 환불되지 않습니다.
+            단, 전체 수업의 3/8 이상 진행 시 <strong>플랫폼 서비스 이용료는 환불되지 않습니다.</strong>
           </p>
           <p className="text-slate-500 text-sm">환불은 접수일 기준 영업일 3~7일 이내 처리됩니다.</p>
         </div>
