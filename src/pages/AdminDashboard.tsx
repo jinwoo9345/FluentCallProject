@@ -233,6 +233,31 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleDeleteTutorApp = async (app: any) => {
+    const confirmed = window.confirm(
+      `"${app.name || '(이름 없음)'}" 님의 강사 신청을 영구 삭제합니다.\n\n` +
+      `신청 기록이 완전히 제거되며 되돌릴 수 없습니다. 진행하시겠습니까?`
+    );
+    if (!confirmed) return;
+    try {
+      await deleteDoc(doc(db, 'tutor_applications', app.id));
+      // 신청자 유저 문서의 상태도 정리 (존재 시)
+      try {
+        await updateDoc(doc(db, 'users', app.userId), {
+          tutorApplicationStatus: null,
+          tutorApplicationId: null,
+        });
+      } catch {
+        // 유저 문서 정리 실패는 치명적이지 않음
+      }
+      setTutorApps(prev => prev.filter(a => a.id !== app.id));
+      setDetailTutorApp(null);
+      setRejectionReason('');
+    } catch (err: any) {
+      alert('삭제 실패: ' + (err.message || '알 수 없는 오류'));
+    }
+  };
+
   const handleRejectTutorApp = async (app: any, reason: string) => {
     if (!reason.trim()) {
       alert('거절 사유를 입력해주세요.');
@@ -930,6 +955,14 @@ export default function AdminDashboard() {
                         <Button variant="outline" size="sm" className="text-xs" onClick={() => setDetailTutorApp(app)}>
                           상세보기
                         </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-xs text-red-600 border-red-200 hover:text-red-700 hover:bg-red-50"
+                          onClick={() => handleDeleteTutorApp(app)}
+                        >
+                          삭제
+                        </Button>
                       </div>
                     </Card>
                   ))}
@@ -1375,28 +1408,37 @@ export default function AdminDashboard() {
                   )}
                 </div>
 
-                <div className="p-6 border-t border-slate-100 flex gap-3 justify-end bg-slate-50/50">
-                  {detailTutorApp.status === 'pending' ? (
-                    <>
+                <div className="p-6 border-t border-slate-100 flex flex-wrap gap-3 justify-between bg-slate-50/50">
+                  <Button
+                    variant="outline"
+                    className="text-red-600 border-red-200 hover:text-red-700 hover:bg-red-50"
+                    onClick={() => handleDeleteTutorApp(detailTutorApp)}
+                  >
+                    신청 삭제
+                  </Button>
+                  <div className="flex gap-3">
+                    {detailTutorApp.status === 'pending' ? (
+                      <>
+                        <Button
+                          variant="outline"
+                          className="text-amber-600 border-amber-200 hover:text-amber-700 hover:bg-amber-50"
+                          onClick={() => handleRejectTutorApp(detailTutorApp, rejectionReason)}
+                        >
+                          거절
+                        </Button>
+                        <Button onClick={() => handleApproveTutorApp(detailTutorApp)}>승인</Button>
+                      </>
+                    ) : (
                       <Button
-                        variant="outline"
-                        className="text-red-600 border-red-200 hover:text-red-700 hover:bg-red-50"
-                        onClick={() => handleRejectTutorApp(detailTutorApp, rejectionReason)}
+                        onClick={() => {
+                          setDetailTutorApp(null);
+                          setRejectionReason('');
+                        }}
                       >
-                        거절
+                        닫기
                       </Button>
-                      <Button onClick={() => handleApproveTutorApp(detailTutorApp)}>승인</Button>
-                    </>
-                  ) : (
-                    <Button
-                      onClick={() => {
-                        setDetailTutorApp(null);
-                        setRejectionReason('');
-                      }}
-                    >
-                      닫기
-                    </Button>
-                  )}
+                    )}
+                  </div>
                 </div>
               </motion.div>
             </div>

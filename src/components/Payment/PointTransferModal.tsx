@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Send, Search, AlertCircle, CheckCircle2, User as UserIcon } from 'lucide-react';
+import { X, Send, AlertCircle, CheckCircle2, User as UserIcon, Lock } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { db, auth } from '../../firebase';
 import {
   collection, query, where, getDocs, runTransaction, doc,
-  serverTimestamp
+  serverTimestamp,
 } from 'firebase/firestore';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -16,60 +16,43 @@ interface PointTransferModalProps {
 
 export function PointTransferModal({ isOpen, onClose }: PointTransferModalProps) {
   const { user } = useAuth();
-  const [searchInput, setSearchInput] = useState('');
   const [amount, setAmount] = useState<number>(0);
   const [recipient, setRecipient] = useState<any>(null);
+  const [lookupLoading, setLookupLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
 
-  // Find recipient by email OR referral code
-  const handleSearchRecipient = async () => {
-    const input = searchInput.trim();
-    if (!input) {
-      setError('상대방 이메일 또는 추천 코드를 입력해주세요.');
-      return;
-    }
-
-    const isEmail = input.includes('@');
-    const normalized = isEmail ? input.toLowerCase() : input.toUpperCase();
-
-    if (isEmail && normalized === (user?.email || '').toLowerCase()) {
-      setError('본인 이메일은 사용할 수 없습니다.');
-      return;
-    }
-    if (!isEmail && normalized === (user?.referralCode || '').toUpperCase()) {
-      setError('본인의 추천 코드는 사용할 수 없습니다.');
-      return;
-    }
-
-    setLoading(true);
+  // 모달이 열리면 내 referredBy 코드의 유저 정보를 자동 조회
+  useEffect(() => {
+    if (!isOpen) return;
+    setRecipient(null);
     setError('');
-    try {
-      const q = isEmail
-        ? query(collection(db, 'users'), where('email', '==', normalized))
-        : query(collection(db, 'users'), where('referralCode', '==', normalized));
-      const snapshot = await getDocs(q);
+    setSuccess(false);
+    setAmount(0);
 
-      if (snapshot.empty) {
-        setError(
-          isEmail
-            ? '해당 이메일을 사용하는 회원을 찾을 수 없습니다.'
-            : '해당 추천 코드의 회원을 찾을 수 없습니다.'
-        );
-        setRecipient(null);
-      } else {
-        const docSnap = snapshot.docs[0];
-        setRecipient({ id: docSnap.id, ...docSnap.data() });
+    const code = (user?.referredBy || '').trim().toUpperCase();
+    if (!code) return;
+
+    setLookupLoading(true);
+    (async () => {
+      try {
+        const q = query(collection(db, 'users'), where('referralCode', '==', code));
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+          const docSnap = snap.docs[0];
+          setRecipient({ id: docSnap.id, ...docSnap.data() });
+        } else {
+          setError('등록된 추천인 계정을 찾을 수 없습니다. 관리자에게 문의해주세요.');
+        }
+      } catch (err) {
+        setError('추천인 정보를 불러오는 중 오류가 발생했습니다.');
+      } finally {
+        setLookupLoading(false);
       }
-    } catch (err) {
-      setError('회원 조회 중 오류가 발생했습니다.');
-    } finally {
-      setLoading(false);
-    }
-  };
+    })();
+  }, [isOpen, user?.referredBy]);
 
-  // Execute point transfer
   const handleTransfer = async () => {
     const currentUid = auth.currentUser?.uid;
     if (!recipient || amount <= 0 || !user || !currentUid) return;
@@ -113,6 +96,7 @@ export function PointTransferModal({ isOpen, onClose }: PointTransferModalProps)
           toId: recipient.id,
           toName: recipient.name,
           amount,
+          referralLocked: true,
           createdAt: serverTimestamp(),
         });
       });
@@ -127,13 +111,14 @@ export function PointTransferModal({ isOpen, onClose }: PointTransferModalProps)
   };
 
   const resetAndClose = () => {
-    setSearchInput('');
     setAmount(0);
     setRecipient(null);
     setError('');
     setSuccess(false);
     onClose();
   };
+
+  const hasReferrer = !!(user?.referredBy);
 
   return (
     <AnimatePresence>
@@ -148,7 +133,7 @@ export function PointTransferModal({ isOpen, onClose }: PointTransferModalProps)
             >
               <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
                 <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                  <Send className="text-blue-600" size={24} /> 포인트 선물하기
+                  <Send className="text-blue-600" size={24} /> 추천인에게 포인트 선물
                 </h2>
                 <button onClick={resetAndClose} className="text-slate-400 hover:text-slate-600">
                   <X size={24} />
@@ -162,59 +147,71 @@ export function PointTransferModal({ isOpen, onClose }: PointTransferModalProps)
                     <div>
                       <h3 className="text-2xl font-bold text-slate-900">전달 완료!</h3>
                       <p className="mt-2 text-slate-600">
-                        {recipient.name}님에게 {amount.toLocaleString()}포인트가 <br />
+                        {recipient?.name}님에게 {amount.toLocaleString()}포인트가 <br />
                         성공적으로 전달되었습니다.
                       </p>
                     </div>
                     <Button onClick={resetAndClose} className="w-full py-4 rounded-2xl">닫기</Button>
                   </div>
+                ) : !hasReferrer ? (
+                  // 추천인 미등록 상태
+                  <div className="text-center space-y-6 py-4">
+                    <div className="mx-auto w-16 h-16 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center">
+                      <Lock size={28} />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-slate-900">선물할 대상이 없어요</h3>
+                      <p className="mt-2 text-sm text-slate-600 leading-relaxed">
+                        포인트 선물은 <strong>가입 시 등록한 추천인에게만</strong> 보낼 수 있습니다.<br />
+                        추천인 코드는 가입 시점에만 설정 가능하며, 이후 변경할 수 없습니다.
+                      </p>
+                    </div>
+                    <Button variant="outline" onClick={resetAndClose} className="w-full py-4 rounded-2xl">
+                      닫기
+                    </Button>
+                  </div>
                 ) : (
                   <div className="space-y-6">
-                    {/* Search Recipient */}
-                    <div className="space-y-2">
-                      <label className="text-sm font-bold text-slate-700">받는 분 이메일 또는 추천 코드</label>
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          placeholder="example@email.com 또는 A1B2C3"
-                          className="flex-1 rounded-xl border border-slate-200 px-4 py-3 text-sm focus:border-blue-500 outline-none"
-                          value={searchInput}
-                          onChange={(e) => setSearchInput(e.target.value)}
-                        />
-                        <Button variant="outline" onClick={handleSearchRecipient} disabled={loading}>
-                          <Search size={18} />
-                        </Button>
-                      </div>
-                      <p className="text-[11px] text-slate-500">
-                        카카오 로그인 유저는 <strong>추천 코드</strong>로만 찾을 수 있습니다.
-                        내 추천 코드는 대시보드 사이드바에서 확인하세요.
+                    {/* 고정 수신자 정보 */}
+                    <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-blue-600 mb-2">
+                        내 추천인 (선물 수신자)
+                      </p>
+                      {lookupLoading ? (
+                        <p className="text-sm text-slate-500 animate-pulse">불러오는 중...</p>
+                      ) : recipient ? (
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 bg-white rounded-full flex items-center justify-center text-blue-600 border border-blue-100">
+                            <UserIcon size={20} />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-bold text-slate-900 truncate">
+                              {recipient.name}
+                            </p>
+                            <p className="text-[11px] text-slate-500 truncate">
+                              추천 코드 <code className="font-mono">{user?.referredBy}</code>
+                              {recipient.email ? ` · ${recipient.email}` : ''}
+                            </p>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-xs text-slate-500">추천인 정보를 불러올 수 없습니다.</p>
+                      )}
+                      <p className="mt-3 text-[11px] text-slate-500 leading-relaxed">
+                        포인트는 <strong>가입 시 등록한 추천인에게만</strong> 전송됩니다.
                       </p>
                     </div>
 
+                    {/* 금액 입력 */}
                     {recipient && (
-                      <motion.div 
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="bg-blue-50 p-4 rounded-2xl border border-blue-100 flex items-center gap-3"
-                      >
-                        <div className="h-10 w-10 bg-white rounded-full flex items-center justify-center text-blue-600 border border-blue-100">
-                          <UserIcon size={20} />
-                        </div>
-                        <div>
-                          <p className="text-xs text-blue-600 font-bold uppercase">받는 분 확인</p>
-                          <p className="text-sm font-bold text-slate-900">{recipient.name} ({recipient.email})</p>
-                        </div>
-                      </motion.div>
-                    )}
-
-                    {/* Amount Input */}
-                    {recipient && (
-                      <motion.div 
+                      <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         className="space-y-2"
                       >
-                        <label className="text-sm font-bold text-slate-700">선물할 포인트 (보유: {user?.credits || 0})</label>
+                        <label className="text-sm font-bold text-slate-700">
+                          선물할 포인트 (보유: {(user?.credits || 0).toLocaleString()})
+                        </label>
                         <div className="relative">
                           <input
                             type="number"
@@ -234,7 +231,7 @@ export function PointTransferModal({ isOpen, onClose }: PointTransferModalProps)
                       </div>
                     )}
 
-                    <Button 
+                    <Button
                       className="w-full py-6 rounded-2xl text-lg font-black gap-2 shadow-lg"
                       disabled={loading || !recipient || amount <= 0 || amount > (user?.credits || 0)}
                       onClick={handleTransfer}

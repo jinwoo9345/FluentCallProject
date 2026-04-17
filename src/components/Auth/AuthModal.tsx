@@ -10,7 +10,7 @@ import {
   browserSessionPersistence,
   signInWithPopup,
 } from 'firebase/auth';
-import { doc, setDoc, serverTimestamp, getDoc, addDoc, collection, updateDoc } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp, getDoc, addDoc, collection, updateDoc, query, where, getDocs } from 'firebase/firestore';
 import { Button } from '../ui/Button';
 
 interface AuthModalProps {
@@ -27,6 +27,9 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
   const [passwordConfirm, setPasswordConfirm] = useState('');
   const [name, setName] = useState('');
   const [nickname, setNickname] = useState('');
+  const [referralInput, setReferralInput] = useState(
+    typeof window !== 'undefined' ? (localStorage.getItem('pendingReferralCode') || '') : ''
+  );
   // 강사 신청 전용 필드
   const [tutorContact, setTutorContact] = useState('');
   const [tutorExperience, setTutorExperience] = useState('');
@@ -43,16 +46,40 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
     setTutorExperience('');
     setTutorQualifications('');
     setTutorIntroduction('');
+    setReferralInput('');
     setError('');
+  };
+
+  // 입력된 추천인 코드가 유효한지 검증하고 정규화된 코드 반환
+  const validateReferral = async (raw: string): Promise<string> => {
+    const code = (raw || '').trim().toUpperCase();
+    if (!code) return '';
+    const q = query(collection(db, 'users'), where('referralCode', '==', code));
+    const snap = await getDocs(q);
+    if (snap.empty) {
+      throw new Error('존재하지 않는 추천인 코드입니다. 비워두거나 올바른 코드를 입력해주세요.');
+    }
+    return code;
   };
 
   const handleSocialLogin = async (provider: any) => {
     setError('');
     setLoading(true);
     try {
+      // 신규 가입 시에만 사용될 추천인 코드를 미리 검증
+      let validatedReferral = '';
+      if (mode === 'signup' && referralInput.trim()) {
+        try {
+          validatedReferral = await validateReferral(referralInput);
+        } catch (err: any) {
+          setError(err.message);
+          setLoading(false);
+          return;
+        }
+      }
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
-      await ensureUserDocument(user);
+      await ensureUserDocument(user, validatedReferral);
       onClose();
     } catch (err: any) {
       console.error(err);
@@ -91,7 +118,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
     }
   };
 
-  const ensureUserDocument = async (user: any) => {
+  const ensureUserDocument = async (user: any, validatedReferral: string = '') => {
     const userRef = doc(db, 'users', user.uid);
     const userSnap = await getDoc(userRef);
 
@@ -100,17 +127,18 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
       const displayName = user.displayName || '회원';
       await setDoc(userRef, {
         uid: user.uid,
-        name: displayName,       // 초기 표시명 = 실명 (닉네임 설정 전)
-        realName: displayName,   // 실명은 별도 보관
+        name: displayName,
+        realName: displayName,
         email: user.email || '',
         role: 'student',
         credits: 0,
         referralCode,
-        referredBy: '',
+        referredBy: validatedReferral,
         discountBalance: 0,
         createdAt: serverTimestamp(),
         avatar: `https://picsum.photos/seed/${user.uid}/200/200`,
       });
+      if (validatedReferral) localStorage.removeItem('pendingReferralCode');
     }
   };
 
@@ -144,6 +172,16 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
       await setPersistence(auth, browserSessionPersistence);
 
       if (mode === 'signup') {
+        // 추천인 코드 사전 검증 (입력 시에만)
+        let validatedReferral = '';
+        try {
+          validatedReferral = await validateReferral(referralInput);
+        } catch (err: any) {
+          setError(err.message);
+          setLoading(false);
+          return;
+        }
+
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
 
@@ -161,7 +199,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
           role: 'student',
           credits: 0,
           referralCode,
-          referredBy: '',
+          referredBy: validatedReferral,
           discountBalance: 0,
           createdAt: serverTimestamp(),
           avatar: `https://picsum.photos/seed/${user.uid}/200/200`,
@@ -187,6 +225,8 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
           });
           await updateDoc(doc(db, 'users', user.uid), { tutorApplicationId: appRef.id });
         }
+
+        if (validatedReferral) localStorage.removeItem('pendingReferralCode');
       } else {
         await signInWithEmailAndPassword(auth, email, password);
       }
@@ -247,9 +287,30 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
                 </div>
 
                 {mode === 'signup' && (
-                  <p className="text-[11px] text-slate-500 -mt-2 text-center leading-relaxed">
-                    소셜 가입 후에는 <strong>마이페이지에서 닉네임</strong>을 자유롭게 변경할 수 있습니다.
-                  </p>
+                  <>
+                    <p className="text-[11px] text-slate-500 -mt-2 text-center leading-relaxed">
+                      소셜 가입 후에는 <strong>마이페이지에서 닉네임</strong>을 자유롭게 변경할 수 있습니다.
+                    </p>
+
+                    {/* 추천인 코드 입력 (이메일·소셜 공통) */}
+                    <div className="p-4 rounded-2xl bg-blue-50/50 border border-blue-100">
+                      <label className="block text-xs font-bold text-blue-700 mb-1.5">
+                        추천인 코드 (선택)
+                      </label>
+                      <input
+                        type="text"
+                        value={referralInput}
+                        onChange={(e) => setReferralInput(e.target.value.toUpperCase())}
+                        placeholder="예: A1B2C3"
+                        maxLength={10}
+                        className="w-full rounded-xl border border-blue-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-blue-500 uppercase tracking-widest"
+                      />
+                      <p className="text-[10px] text-slate-500 mt-1.5 leading-relaxed">
+                        가입 시 한 번만 입력 가능하며 <strong>이후 변경할 수 없습니다</strong>.
+                        입력한 추천인은 결제 완료 시 <strong>20 포인트</strong>를 받고, 회원님은 이 추천인에게만 <strong>포인트를 선물</strong>할 수 있습니다.
+                      </p>
+                    </div>
+                  </>
                 )}
 
                 <div className="relative flex items-center py-2">

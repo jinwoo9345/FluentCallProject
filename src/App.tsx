@@ -16,7 +16,7 @@ import Placeholder from './pages/Placeholder';
 import ConsultationRequest from './pages/ConsultationRequest';
 import { useEffect, useRef } from 'react';
 import { db, auth } from './firebase';
-import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, serverTimestamp, collection, query, where, getDocs } from 'firebase/firestore';
 import { signInWithCustomToken } from 'firebase/auth';
 
 function AppContent() {
@@ -70,20 +70,37 @@ function AppContent() {
             const referralCode = Math.random().toString(36).substring(2, 8).toUpperCase();
             const fallbackName = `카카오회원${user.uid.slice(-4)}`;
             const kakaoName = data.userName || user.displayName || fallbackName;
+
+            // 추천인 코드 검증 (localStorage에 pendingReferralCode가 있을 때만)
+            let validatedReferral = '';
+            if (pendingReferral) {
+              try {
+                const refQuery = query(
+                  collection(db, 'users'),
+                  where('referralCode', '==', pendingReferral.toUpperCase())
+                );
+                const refSnap = await getDocs(refQuery);
+                if (!refSnap.empty) validatedReferral = pendingReferral.toUpperCase();
+              } catch (err) {
+                console.warn('추천인 코드 검증 실패:', err);
+              }
+            }
+
             await setDoc(userRef, {
               uid: user.uid,
-              name: kakaoName,           // 표시명 (닉네임이 없으면 실명 사용)
-              realName: kakaoName,       // 실명 (마이페이지에서 참조용)
+              name: kakaoName,
+              realName: kakaoName,
               email: user.email || '',
               role: 'student',
               credits: 0,
               referralCode,
-              referredBy: '',
+              referredBy: validatedReferral,
               discountBalance: 0,
               createdAt: serverTimestamp(),
               avatar: `https://picsum.photos/seed/${user.uid}/200/200`,
-              hasCompletedConsultation: !!pendingConsultationId // If consultation was done before login
+              hasCompletedConsultation: !!pendingConsultationId
             });
+            if (validatedReferral) localStorage.removeItem('pendingReferralCode');
           } else {
             // Update existing user profile — realName 없으면 보정, 표시명(name)은 사용자 설정값 유지
             const existing = userSnap.data() as any;

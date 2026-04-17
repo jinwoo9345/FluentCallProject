@@ -5,7 +5,7 @@ import { Button } from '../ui/Button';
 import { Link } from 'react-router-dom';
 import { loadTossPayments } from '@tosspayments/payment-sdk';
 import { db, auth } from '../../firebase';
-import { doc, setDoc, serverTimestamp, collection, query, where, getDocs } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useAuth } from '../../contexts/AuthContext';
 import { RefundPolicyContent, TermsContent } from '../policy/PolicyContents';
 import { cn } from '@/src/lib/utils';
@@ -41,10 +41,6 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
   const [error, setError] = useState('');
   const [serverConfig, setServerConfig] = useState<any>(null);
   const [useCredits, setUseCredits] = useState(false);
-  const [referrerCode, setReferrerCode] = useState('');
-  const [referrerName, setReferrerName] = useState<string | null>(null);
-  const [checkingReferrer, setCheckingReferrer] = useState(false);
-  const [referrerError, setReferrerError] = useState('');
   const [packageKey, setPackageKey] = useState<PackageKey>('8');
 
   const selectedPackage = PACKAGES.find(p => p.key === packageKey)!;
@@ -77,38 +73,6 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
     loadConfig();
   }, []);
 
-  const validateReferrer = async (code: string): Promise<string | null> => {
-    const trimmed = (code || '').trim().toUpperCase();
-    if (!trimmed) return null;
-
-    if (trimmed === user?.referralCode) {
-      setReferrerError('본인의 추천 코드는 사용할 수 없습니다.');
-      setReferrerName(null);
-      return null;
-    }
-
-    setCheckingReferrer(true);
-    setReferrerError('');
-    try {
-      const q = query(collection(db, 'users'), where('referralCode', '==', trimmed));
-      const snap = await getDocs(q);
-      if (snap.empty) {
-        setReferrerError('존재하지 않는 추천 코드입니다.');
-        setReferrerName(null);
-        return null;
-      }
-      const name = (snap.docs[0].data() as any).name || '회원';
-      setReferrerName(name);
-      return trimmed;
-    } catch (err) {
-      setReferrerError('추천 코드 확인 중 오류가 발생했습니다.');
-      setReferrerName(null);
-      return null;
-    } finally {
-      setCheckingReferrer(false);
-    }
-  };
-
   const handlePayment = async () => {
     if (!termsAgreed) return;
     if (!clientKey) {
@@ -116,15 +80,8 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
       return;
     }
 
-    // 추천 코드가 입력됐다면 유효한 코드인지 최종 확인
-    let validatedReferrer: string | null = null;
-    if (referrerCode.trim()) {
-      validatedReferrer = await validateReferrer(referrerCode);
-      if (!validatedReferrer) {
-        setError('추천인 코드를 다시 확인해주세요.');
-        return;
-      }
-    }
+    // 가입 시 고정된 추천인 코드를 자동으로 사용 (결제 시 수정 불가)
+    const validatedReferrer = (user?.referredBy || '').trim().toUpperCase();
 
     setLoading(true);
     setError('');
@@ -298,43 +255,21 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
                   </div>
                 )}
 
-                {/* Referrer Code */}
-                <div className="bg-blue-50 rounded-2xl p-6 border border-blue-100">
-                  <div className="flex items-center gap-2 mb-3">
+                {/* 추천인 안내 (가입 시 고정된 값) */}
+                <div className="bg-blue-50 rounded-2xl p-5 border border-blue-100">
+                  <div className="flex items-center gap-2 mb-2">
                     <Gift className="text-blue-600" size={20} />
-                    <span className="font-bold text-slate-900">추천인 코드 (선택)</span>
+                    <span className="font-bold text-slate-900">등록된 추천인</span>
                   </div>
-                  <p className="text-xs text-slate-500 mb-3">
-                    친구에게 받은 추천 코드를 입력하면 결제 완료 시 <strong>해당 친구에게 20,000포인트</strong>가 지급됩니다.
-                  </p>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      placeholder="예: A1B2C3"
-                      className="flex-1 rounded-xl border border-blue-200 px-4 py-3 text-sm focus:border-blue-500 outline-none uppercase tracking-widest"
-                      value={referrerCode}
-                      onChange={(e) => {
-                        setReferrerCode(e.target.value.toUpperCase());
-                        setReferrerName(null);
-                        setReferrerError('');
-                      }}
-                      maxLength={10}
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="px-4"
-                      onClick={() => validateReferrer(referrerCode)}
-                      disabled={checkingReferrer || !referrerCode.trim()}
-                    >
-                      {checkingReferrer ? '확인 중…' : '확인'}
-                    </Button>
-                  </div>
-                  {referrerName && (
-                    <p className="text-xs text-blue-700 font-bold mt-2">✓ 추천인 확인: {referrerName}님</p>
-                  )}
-                  {referrerError && (
-                    <p className="text-xs text-red-600 font-bold mt-2">{referrerError}</p>
+                  {user?.referredBy ? (
+                    <p className="text-sm text-slate-700 leading-relaxed">
+                      회원가입 시 등록한 추천인 코드 <code className="mx-1 px-2 py-0.5 rounded-md bg-white text-blue-700 font-mono font-bold">{user.referredBy}</code>{' '}
+                      이(가) 자동으로 적용됩니다. 결제가 완료되면 해당 회원에게 <strong>20 포인트</strong>가 즉시 지급됩니다.
+                    </p>
+                  ) : (
+                    <p className="text-xs text-slate-500 leading-relaxed">
+                      가입 시 추천인 코드를 입력하지 않으셨습니다. 추천 보상은 가입 시점에만 설정 가능하며 이후 변경할 수 없습니다.
+                    </p>
                   )}
                 </div>
 
