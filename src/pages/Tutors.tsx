@@ -234,6 +234,8 @@ export default function Tutors() {
             productName={`${selectedTutor.name} - 베이직 플랜`}
             price={`${selectedTutor.hourlyRate.toLocaleString()}원`}
             amount={selectedTutor.hourlyRate}
+            tutorId={selectedTutor.id}
+            tutorName={selectedTutor.name}
           />
         </>
       )}

@@ -21,6 +21,8 @@ interface PaymentModalProps {
   productName: string;
   price: string;
   amount: number; // 8회 기준 가격 (다른 패키지는 이 가격을 기준으로 배수 계산)
+  tutorId?: string;
+  tutorName?: string;
 }
 
 type PackageKey = '8' | '16' | '24';
@@ -45,7 +47,7 @@ const DEFAULT_BANK = {
   accountHolder: '(예금주 미설정)',
 };
 
-export function PaymentModal({ isOpen, onClose, productId, productName, price, amount }: PaymentModalProps) {
+export function PaymentModal({ isOpen, onClose, productId, productName, price, amount, tutorId, tutorName }: PaymentModalProps) {
   const { user } = useAuth();
   const [termsAgreed, setTermsAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -155,6 +157,8 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
       await setDoc(doc(db, 'payments', orderId), {
         orderId,
         userId: auth.currentUser.uid,
+        tutorId: tutorId || null,                // 매칭된 튜터 uid (알림 수신용)
+        tutorName: tutorName || null,
         amount: finalAmount,
         originalAmount: packageAmount,
         creditsUsed: useCredits ? Math.floor(creditDiscount / CREDIT_VALUE) : 0,

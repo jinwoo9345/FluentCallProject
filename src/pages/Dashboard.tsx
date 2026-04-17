@@ -1,13 +1,13 @@
 import {
   Calendar, Clock, ChevronRight, Award, BookOpen,
-  User as UserIcon, Settings, School,
+  User as UserIcon, Settings, School, Sparkles, Bell,
   Heart, CreditCard, Share2, Copy, Check, Gift, Loader2
 } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { cn } from '@/src/lib/utils';
 import { useAuth } from '../contexts/AuthContext';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSessions } from '../hooks/useSessions';
 import { useTutors } from '../hooks/useTutors';
 import { ScheduleManager } from '../components/Dashboard/ScheduleManager';
@@ -16,7 +16,7 @@ import { ProfileEditModal } from '../components/Dashboard/ProfileEditModal';
 import { ConsultationForm } from '../components/Consultation/ConsultationForm';
 import { Pagination, usePaginated } from '../components/ui/Pagination';
 import { db } from '../firebase';
-import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, onSnapshot } from 'firebase/firestore';
 import { shareReferralCode } from '../lib/kakao';
 
 const USER_PAGE_SIZE = 10;
@@ -36,6 +36,13 @@ export default function Dashboard() {
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [isProfileEditOpen, setIsProfileEditOpen] = useState(false);
   const [tutorApp, setTutorApp] = useState<any | null>(null);
+
+  // 매칭/결제 완료 실시간 알림 (학생·튜터 공통)
+  const [matchAlert, setMatchAlert] = useState<null | {
+    role: 'student' | 'tutor';
+    payment: any;
+  }>(null);
+  const seenCompletedIds = useRef<Set<string>>(new Set());
 
   // Safety: Ensure user and wishlist exist before filtering
   const wishlistedTutors = tutors.filter(t => user?.wishlist?.includes(t.id) || false);
@@ -81,6 +88,57 @@ export default function Dashboard() {
 
     fetchHistory();
   }, [firebaseUser, isAuthReady]);
+
+  // 결제 상태 실시간 구독 — 학생: 내 결제 / 튜터: 나에게 매칭된 결제
+  useEffect(() => {
+    if (!firebaseUser || !isAuthReady) return;
+
+    const isTutor = user?.role === 'tutor';
+    const field = isTutor ? 'tutorId' : 'userId';
+    const q = query(
+      collection(db, 'payments'),
+      where(field, '==', firebaseUser.uid),
+      orderBy('createdAt', 'desc')
+    );
+
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        const all = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+        const visible = all.filter(p =>
+          p.status === 'completed' || p.status === 'pending' || !p.status
+        );
+
+        // 첫 로드 시 현재 completed IDs를 '이미 본 것'으로 초기화 (알림 폭탄 방지)
+        if (seenCompletedIds.current.size === 0) {
+          all.forEach(p => {
+            if (p.status === 'completed') seenCompletedIds.current.add(p.id);
+          });
+        } else {
+          // 새롭게 completed가 된 결제를 감지 → 알림
+          const newlyCompleted = all.find(
+            (p) => p.status === 'completed' && !seenCompletedIds.current.has(p.id)
+          );
+          if (newlyCompleted) {
+            seenCompletedIds.current.add(newlyCompleted.id);
+            setMatchAlert({
+              role: isTutor ? 'tutor' : 'student',
+              payment: newlyCompleted,
+            });
+            // 10초 뒤 자동 닫힘
+            setTimeout(() => setMatchAlert(null), 10000);
+          }
+        }
+
+        // 학생인 경우 결제 내역 상태도 실시간으로 갱신
+        if (!isTutor) setPayments(visible);
+      },
+      (err) => console.warn('payments subscription failed:', err)
+    );
+
+    return () => unsub();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [firebaseUser, isAuthReady, user?.role]);
 
   // 강사 신청 상태 조회
   useEffect(() => {
@@ -170,6 +228,44 @@ export default function Dashboard() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+      {/* 매칭 완료 실시간 알림 (결제 확정 직후) */}
+      {matchAlert && (
+        <div className="mb-6">
+          <Card className="p-6 bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-none shadow-2xl relative overflow-hidden">
+            <div className="absolute -top-8 -right-8 w-40 h-40 bg-white/10 rounded-full blur-2xl" />
+            <div className="relative z-10 flex items-start gap-4">
+              <div className="h-12 w-12 rounded-2xl bg-white/15 flex items-center justify-center flex-shrink-0">
+                {matchAlert.role === 'tutor' ? <Bell size={22} /> : <Sparkles size={22} />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-black uppercase tracking-widest text-blue-200 mb-1">
+                  {matchAlert.role === 'tutor' ? '새로운 학생 매칭' : '결제 확정 · 매칭 진행'}
+                </p>
+                {matchAlert.role === 'tutor' ? (
+                  <p className="text-base font-bold leading-relaxed">
+                    <strong>{matchAlert.payment.depositorName || '수강생'}</strong>님이
+                    <strong> {matchAlert.payment.productName}</strong>을(를) 결제 완료했습니다.
+                    곧 상담 매니저가 수업 일정을 전달드립니다.
+                  </p>
+                ) : (
+                  <p className="text-base font-bold leading-relaxed">
+                    입금이 확인되어 <strong>{matchAlert.payment.productName}</strong>이(가)
+                    활성화되었습니다. 튜터와의 수업 매칭이 곧 진행됩니다!
+                  </p>
+                )}
+              </div>
+              <button
+                onClick={() => setMatchAlert(null)}
+                className="text-white/60 hover:text-white text-lg"
+                aria-label="닫기"
+              >
+                ×
+              </button>
+            </div>
+          </Card>
+        </div>
+      )}
+
       <div className="flex flex-col gap-8 lg:flex-row">
         {/* Main Content */}
         <div className="flex-1 space-y-8">
