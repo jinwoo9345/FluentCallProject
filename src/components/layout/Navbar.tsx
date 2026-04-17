@@ -98,39 +98,47 @@ export const Navbar = () => {
               ))}
             </div>
 
-            {/* 드롭다운 — 3개 독립 카드가 각자 콘텐츠 높이만큼만 차지 (빈 여백 제거) */}
+            {/* 드롭다운 — 3개 섹션이 gap 없이 접해 하나의 패널처럼 합쳐 보이되, 각자 콘텐츠 높이 유지 */}
             {isDropdownHovered && (
               <div className="absolute left-1/2 -translate-x-1/2 top-full pt-2 z-50">
-                <div className="flex items-start gap-3">
-                  {menus.map((menu) => (
-                    <div
-                      key={menu.name}
-                      className="rounded-2xl border border-white/40 bg-white/80 backdrop-blur-xl shadow-2xl p-3 w-auto"
-                    >
-                      <div className="flex items-center gap-2 px-2 pt-1 pb-2 mb-1 border-b border-slate-200/60 whitespace-nowrap">
-                        <menu.icon size={14} className="text-blue-600" />
-                        <p className="text-xs font-black uppercase tracking-widest text-slate-500">
-                          {menu.name}
-                        </p>
+                <div className="flex items-start">
+                  {menus.map((menu, idx) => {
+                    const isFirst = idx === 0;
+                    const isLast = idx === menus.length - 1;
+                    return (
+                      <div
+                        key={menu.name}
+                        className={cn(
+                          'bg-white/85 backdrop-blur-xl shadow-2xl p-3 w-auto border-y border-white/40',
+                          isFirst ? 'rounded-l-2xl border-l border-white/40' : 'border-l border-slate-200/60',
+                          isLast && 'rounded-r-2xl border-r border-white/40'
+                        )}
+                      >
+                        <div className="flex items-center gap-2 px-2 pt-1 pb-2 mb-1 border-b border-slate-200/60 whitespace-nowrap">
+                          <menu.icon size={14} className="text-blue-600" />
+                          <p className="text-xs font-black uppercase tracking-widest text-slate-500">
+                            {menu.name}
+                          </p>
+                        </div>
+                        <div className="flex flex-col gap-0.5">
+                          {menu.items.map((sub) => (
+                            <Link
+                              key={sub.path}
+                              to={sub.path}
+                              className={cn(
+                                'block px-3 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap',
+                                isActive(sub.path)
+                                  ? 'bg-blue-100/70 text-blue-700 font-bold'
+                                  : 'text-slate-700 hover:bg-white/70 hover:text-slate-900'
+                              )}
+                            >
+                              {sub.name}
+                            </Link>
+                          ))}
+                        </div>
                       </div>
-                      <div className="flex flex-col gap-0.5">
-                        {menu.items.map((sub) => (
-                          <Link
-                            key={sub.path}
-                            to={sub.path}
-                            className={cn(
-                              'block px-3 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap',
-                              isActive(sub.path)
-                                ? 'bg-blue-100/70 text-blue-700 font-bold'
-                                : 'text-slate-700 hover:bg-white/70 hover:text-slate-900'
-                            )}
-                          >
-                            {sub.name}
-                          </Link>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
