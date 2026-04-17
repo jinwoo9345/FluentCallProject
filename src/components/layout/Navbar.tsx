@@ -98,13 +98,16 @@ export const Navbar = () => {
               ))}
             </div>
 
-            {/* 통합 드롭다운 패널 — 반투명 + 섹션별 콘텐츠 너비 autofit */}
+            {/* 드롭다운 — 3개 독립 카드가 각자 콘텐츠 높이만큼만 차지 (빈 여백 제거) */}
             {isDropdownHovered && (
               <div className="absolute left-1/2 -translate-x-1/2 top-full pt-2 z-50">
-                <div className="rounded-2xl border border-white/40 bg-white/80 backdrop-blur-xl shadow-2xl p-5 flex items-start gap-5">
+                <div className="flex items-start gap-3">
                   {menus.map((menu) => (
-                    <div key={menu.name} className="w-auto">
-                      <div className="flex items-center gap-2 pb-2 mb-2 border-b border-slate-200/60 whitespace-nowrap">
+                    <div
+                      key={menu.name}
+                      className="rounded-2xl border border-white/40 bg-white/80 backdrop-blur-xl shadow-2xl p-3 w-auto"
+                    >
+                      <div className="flex items-center gap-2 px-2 pt-1 pb-2 mb-1 border-b border-slate-200/60 whitespace-nowrap">
                         <menu.icon size={14} className="text-blue-600" />
                         <p className="text-xs font-black uppercase tracking-widest text-slate-500">
                           {menu.name}
