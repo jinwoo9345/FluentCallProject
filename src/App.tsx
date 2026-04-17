@@ -45,14 +45,15 @@ function AppContent() {
           const userCredential = await signInWithCustomToken(auth, data.customToken);
           const user = userCredential.user;
 
-          // Ensure user document exists
+          // Ensure user document exists or update existing info
           const userRef = doc(db, 'users', user.uid);
           const userSnap = await getDoc(userRef);
+          
           if (!userSnap.exists()) {
             const referralCode = Math.random().toString(36).substring(2, 8).toUpperCase();
             await setDoc(userRef, {
               uid: user.uid,
-              name: user.displayName || '카카오 회원',
+              name: data.userName || user.displayName || '카카오 회원',
               email: user.email || '',
               role: 'student',
               credits: 60,
@@ -60,8 +61,14 @@ function AppContent() {
               referredBy: '',
               discountBalance: 0,
               createdAt: serverTimestamp(),
-              avatar: user.photoURL || `https://picsum.photos/seed/${user.uid}/200/200`
+              avatar: data.userPhoto || user.photoURL || `https://picsum.photos/seed/${user.uid}/200/200`
             });
+          } else {
+            // Update existing user profile if name or photo is missing/different
+            await setDoc(userRef, {
+              name: data.userName || userSnap.data().name,
+              avatar: data.userPhoto || userSnap.data().avatar,
+            }, { merge: true });
           }
           
           // Clear query params
