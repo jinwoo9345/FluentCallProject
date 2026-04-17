@@ -19,9 +19,9 @@ service cloud.firestore {
       allow write: if request.auth != null;
     }
     
-    // 상담 신청: 본인 것만 저장 가능
+    // 상담 신청: 생성은 누구나 가능 (비로그인 상담 허용), 읽기는 본인만 가능
     match /consultations/{consultationId} {
-      allow create: if request.auth != null;
+      allow create: if true;
       allow read: if request.auth != null && resource.data.userId == request.auth.uid;
     }
     

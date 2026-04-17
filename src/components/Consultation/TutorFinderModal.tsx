@@ -220,8 +220,8 @@ export function TutorFinderModal({ isOpen, onClose }: TutorFinderModalProps) {
             <h3 className="text-xl font-bold text-slate-900">8. 신청을 완료할까요?</h3>
             <div className="bg-blue-50 p-6 rounded-2xl border border-blue-100">
               <p className="text-sm text-blue-700 leading-relaxed">
-                전송해주신 정보를 바탕으로 <strong>24시간 이내</strong>에 전문 매니저가 <br />
-                연락드려 최적의 튜터 매칭을 도와드립니다.
+                전송해주신 정보를 바탕으로 <strong>작성하신 상담 가능 시간대</strong>에 <br />
+                전문 매니저가 연락드려 최적의 튜터 매칭을 도와드립니다.
               </p>
             </div>
             <Button 
