@@ -84,6 +84,12 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
+    // 전역 앱 설정 (카카오 채널 URL 등 관리자가 수정하는 공개 설정)
+    match /app_settings/{docId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     // 결제 내역
     match /payments/{paymentId} {
       allow read: if isSignedIn() && (

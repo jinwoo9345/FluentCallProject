@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import {
   User, Calendar, Menu, X, LogOut, Shield, ChevronDown,
-  BookOpen, ClipboardList, Info, GraduationCap,
+  BookOpen, Info, GraduationCap,
 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '../ui/Button';
@@ -35,13 +35,6 @@ export const Navbar = () => {
       items: [
         { name: '수업 등록·신청', path: '/tutors' },
         { name: '상담 신청', path: '/consultation' },
-      ],
-    },
-    {
-      name: '레벨테스트',
-      icon: ClipboardList,
-      items: [
-        { name: '레벨테스트 안내', path: '/level-test' },
       ],
     },
     {
@@ -79,8 +72,8 @@ export const Navbar = () => {
         </div>
 
         {/* 중앙: 데스크톱 메뉴 */}
-        <div className="hidden md:flex md:items-center md:justify-center md:gap-4 justify-self-center">
-          {/* 드롭다운 메뉴 그룹 — 하나의 통합 패널(메가 메뉴)로 표시 */}
+        <div className="hidden md:flex md:items-center md:justify-center md:gap-6 justify-self-center">
+          {/* 드롭다운 메뉴 그룹 — 하나의 통합 패널(메가 메뉴) · 각 섹션은 콘텐츠 너비에 맞춤 */}
           <div
             className="relative"
             onMouseEnter={() => setIsDropdownHovered(true)}
@@ -105,13 +98,13 @@ export const Navbar = () => {
               ))}
             </div>
 
-            {/* 통합 드롭다운 패널 — 3개 섹션을 한 패널에 나란히 */}
+            {/* 통합 드롭다운 패널 — 반투명 + 섹션별 콘텐츠 너비 autofit */}
             {isDropdownHovered && (
-              <div className="absolute left-1/2 -translate-x-1/2 top-full pt-3 z-50">
-                <div className="rounded-2xl border border-slate-100 bg-white shadow-2xl p-6 flex gap-10">
+              <div className="absolute left-1/2 -translate-x-1/2 top-full pt-2 z-50">
+                <div className="rounded-2xl border border-white/40 bg-white/80 backdrop-blur-xl shadow-2xl p-5 flex items-start gap-5">
                   {menus.map((menu) => (
-                    <div key={menu.name} className="min-w-[180px]">
-                      <div className="flex items-center gap-2 pb-2 mb-2 border-b border-slate-100">
+                    <div key={menu.name} className="w-auto">
+                      <div className="flex items-center gap-2 pb-2 mb-2 border-b border-slate-200/60 whitespace-nowrap">
                         <menu.icon size={14} className="text-blue-600" />
                         <p className="text-xs font-black uppercase tracking-widest text-slate-500">
                           {menu.name}
@@ -125,8 +118,8 @@ export const Navbar = () => {
                             className={cn(
                               'block px-3 py-2 text-sm font-medium rounded-lg transition-colors whitespace-nowrap',
                               isActive(sub.path)
-                                ? 'bg-blue-50 text-blue-600 font-bold'
-                                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                                ? 'bg-blue-100/70 text-blue-700 font-bold'
+                                : 'text-slate-700 hover:bg-white/70 hover:text-slate-900'
                             )}
                           >
                             {sub.name}

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Users, UserPlus, CreditCard, MessageSquare, TrendingUp,
-  Clock, Shield, Star, School
+  Clock, Shield, Star, School, Settings
 } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -47,7 +47,7 @@ function formatTS(ts: any, variant: 'date' | 'datetime' = 'date'): string {
 
 export default function AdminDashboard() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'overview' | 'consultations' | 'tutors' | 'tutor_apps' | 'payments' | 'users'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'consultations' | 'tutors' | 'tutor_apps' | 'payments' | 'users' | 'settings'>('overview');
   const [userSearch, setUserSearch] = useState('');
   const [creditDelta, setCreditDelta] = useState<Record<string, string>>({});
   
@@ -65,6 +65,9 @@ export default function AdminDashboard() {
   const [tutorApps, setTutorApps] = useState<any[]>([]);
   const [detailTutorApp, setDetailTutorApp] = useState<any | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
+  // 앱 설정 (카카오 채널 URL 등)
+  const [kakaoChannelUrl, setKakaoChannelUrl] = useState('');
+  const [settingsSaving, setSettingsSaving] = useState(false);
 
   const fetchAdminData = async () => {
     setLoading(true);
@@ -127,6 +130,18 @@ export default function AdminDashboard() {
         console.warn('tutor_applications fetch failed:', err);
       }
       setTutorApps(appsList);
+
+      // 7. Fetch App Settings (kakao channel URL 등)
+      try {
+        const settingsSnap = await getDocs(query(collection(db, 'app_settings')));
+        const mainDoc = settingsSnap.docs.find(d => d.id === 'main');
+        if (mainDoc) {
+          const data = mainDoc.data() as any;
+          setKakaoChannelUrl(data.kakaoChannelUrl || '');
+        }
+      } catch (err) {
+        console.warn('app_settings fetch failed:', err);
+      }
 
       setStats({
         users: userSnap.size,
@@ -296,6 +311,25 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleSaveSettings = async () => {
+    setSettingsSaving(true);
+    try {
+      await setDoc(
+        doc(db, 'app_settings', 'main'),
+        {
+          kakaoChannelUrl: kakaoChannelUrl.trim(),
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+      alert('설정이 저장되었습니다.');
+    } catch (err: any) {
+      alert('저장 실패: ' + (err.message || '알 수 없는 오류'));
+    } finally {
+      setSettingsSaving(false);
+    }
+  };
+
   const handleUpdateDisabledMessage = async (t: any) => {
     const input = window.prompt('새 안내 문구를 입력해주세요.', t.disabledMessage || '현재 대기 중');
     if (input === null) return;
@@ -402,6 +436,7 @@ export default function AdminDashboard() {
     { id: 'users', label: '유저 관리', icon: Users },
     { id: 'tutor_apps', label: '강사 신청', icon: School, count: pendingTutorAppsCount },
     { id: 'tutors', label: '강사 관리', icon: UserPlus },
+    { id: 'settings', label: '설정', icon: Settings },
   ];
 
   const filteredUsers = usersList
@@ -1022,6 +1057,53 @@ export default function AdminDashboard() {
                 onPageChange={tutorsPage.setPage}
                 className="mt-6 rounded-2xl border border-slate-100"
               />
+            </motion.div>
+          )}
+
+          {activeTab === 'settings' && (
+            <motion.div key="settings" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+              <h2 className="text-xl font-bold text-slate-900">설정 관리</h2>
+
+              <Card className="p-8">
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="h-11 w-11 rounded-2xl bg-yellow-50 text-yellow-600 flex items-center justify-center">
+                    <MessageSquare size={22} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900">카카오톡 상담 채널 URL</h3>
+                    <p className="text-sm text-slate-500">
+                      `/consultation` 페이지의 "상담 채널 열기" 버튼이 이 URL로 연결됩니다.
+                    </p>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <input
+                    type="text"
+                    value={kakaoChannelUrl}
+                    onChange={(e) => setKakaoChannelUrl(e.target.value)}
+                    placeholder="예: https://pf.kakao.com/_englishbites/chat"
+                    className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-blue-500"
+                  />
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs text-slate-400">
+                      현재 저장된 값이 없으면 기본 URL이 사용됩니다.
+                    </p>
+                    <Button onClick={handleSaveSettings} disabled={settingsSaving}>
+                      {settingsSaving ? '저장 중...' : '저장'}
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+
+              <Card className="p-8 bg-slate-50 border border-slate-100">
+                <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-2">Firestore 경로</p>
+                <p className="text-sm text-slate-700 font-mono mb-4">app_settings/main</p>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  설정은 <code className="bg-white px-1 py-0.5 rounded">app_settings</code> 컬렉션의{' '}
+                  <code className="bg-white px-1 py-0.5 rounded">main</code> 문서에 저장되며,
+                  일반 사용자는 읽기만 가능하고 관리자만 수정할 수 있습니다.
+                </p>
+              </Card>
             </motion.div>
           )}
         </AnimatePresence>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Check, ExternalLink, CreditCard, ShieldCheck, AlertCircle, Ticket, Gift } from 'lucide-react';
+import { X, Check, ExternalLink, CreditCard, ShieldCheck, AlertCircle, Ticket, Gift, Award } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Link } from 'react-router-dom';
 import { loadTossPayments } from '@tosspayments/payment-sdk';
@@ -8,6 +8,7 @@ import { db, auth } from '../../firebase';
 import { doc, setDoc, serverTimestamp, collection, query, where, getDocs } from 'firebase/firestore';
 import { useAuth } from '../../contexts/AuthContext';
 import { RefundPolicyContent, TermsContent } from '../policy/PolicyContents';
+import { cn } from '@/src/lib/utils';
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -15,8 +16,23 @@ interface PaymentModalProps {
   productId: string;
   productName: string;
   price: string;
-  amount: number;
+  amount: number; // 8회 기준 가격 (다른 패키지는 이 가격을 기준으로 배수 계산)
 }
+
+type PackageKey = '8' | '16' | '24';
+
+const PACKAGES: {
+  key: PackageKey;
+  label: string;
+  sessions: number;
+  bonus: number;
+  multiplier: number;
+  tag?: string;
+}[] = [
+  { key: '8',  label: '베이직',   sessions: 8,  bonus: 0, multiplier: 1 },
+  { key: '16', label: '스탠다드', sessions: 16, bonus: 1, multiplier: 2, tag: '+1회 무료' },
+  { key: '24', label: '프리미엄', sessions: 24, bonus: 2, multiplier: 3, tag: '+2회 무료 · 가장 인기' },
+];
 
 export function PaymentModal({ isOpen, onClose, productId, productName, price, amount }: PaymentModalProps) {
   const { user } = useAuth();
@@ -29,12 +45,18 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
   const [referrerName, setReferrerName] = useState<string | null>(null);
   const [checkingReferrer, setCheckingReferrer] = useState(false);
   const [referrerError, setReferrerError] = useState('');
+  const [packageKey, setPackageKey] = useState<PackageKey>('8');
+
+  const selectedPackage = PACKAGES.find(p => p.key === packageKey)!;
+  const totalSessions = selectedPackage.sessions + selectedPackage.bonus;
+  const packageAmount = amount * selectedPackage.multiplier;
+  const perSessionRate = Math.round(packageAmount / totalSessions);
 
   // Credit discount logic: 1 credit = 1000 won
   const CREDIT_VALUE = 1000;
   const availableCredits = user?.credits || 0;
-  const creditDiscount = useCredits ? Math.min(availableCredits * CREDIT_VALUE, amount) : 0;
-  const finalAmount = amount - creditDiscount;
+  const creditDiscount = useCredits ? Math.min(availableCredits * CREDIT_VALUE, packageAmount) : 0;
+  const finalAmount = packageAmount - creditDiscount;
 
   const clientKey = serverConfig?.tossClientKey || ((import.meta as any).env.VITE_TOSS_CLIENT_KEY || '').trim();
 
@@ -111,16 +133,22 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
       const tossPayments = await loadTossPayments(clientKey);
       const orderId = `order_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
+      const fullProductName = `${productName} — ${selectedPackage.label} ${selectedPackage.sessions}회${selectedPackage.bonus > 0 ? ` +${selectedPackage.bonus}회` : ''}`;
+
       // Create a pending payment document
       if (auth.currentUser) {
         await setDoc(doc(db, 'payments', orderId), {
           orderId,
           userId: auth.currentUser.uid,
           amount: finalAmount,
-          originalAmount: amount,
+          originalAmount: packageAmount,
           creditsUsed: useCredits ? Math.floor(creditDiscount / CREDIT_VALUE) : 0,
-          productId: productId,
-          productName: productName,
+          productId,
+          productName: fullProductName,
+          packageKey: selectedPackage.key,
+          packageSessions: selectedPackage.sessions,
+          packageBonus: selectedPackage.bonus,
+          totalSessions,
           status: 'pending',
           referredBy: validatedReferrer || '',
           createdAt: serverTimestamp()
@@ -129,8 +157,8 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
 
       await tossPayments.requestPayment('카드', {
         amount: finalAmount,
-        orderId: orderId,
-        orderName: productName,
+        orderId,
+        orderName: fullProductName,
         customerName: user?.name || '회원',
         successUrl: `${window.location.origin}/payment/success`,
         failUrl: `${window.location.origin}/payment/fail`,
@@ -166,11 +194,76 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
               <div className="p-8 space-y-6">
                 {/* Product Info */}
                 <div className="bg-blue-50 rounded-2xl p-6 border border-blue-100">
-                  <p className="text-sm text-blue-600 font-bold mb-1">선택한 수강권</p>
-                  <div className="flex justify-between items-end">
-                    <h3 className="text-lg font-bold text-slate-900">{productName}</h3>
-                    <p className="text-xl font-bold text-blue-700">{price}</p>
+                  <p className="text-sm text-blue-600 font-bold mb-1">선택한 튜터</p>
+                  <h3 className="text-lg font-bold text-slate-900">{productName}</h3>
+                  <p className="text-xs text-slate-500 mt-1">8회 기준 {price}</p>
+                </div>
+
+                {/* Package Select */}
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Award className="text-blue-600" size={20} />
+                    <span className="font-bold text-slate-900">수강권 선택</span>
+                    <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest ml-auto">
+                      장기일수록 보너스 ↑
+                    </span>
                   </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {PACKAGES.map(pkg => {
+                      const pkgAmount = amount * pkg.multiplier;
+                      const total = pkg.sessions + pkg.bonus;
+                      const per = Math.round(pkgAmount / total);
+                      const isSelected = packageKey === pkg.key;
+                      return (
+                        <button
+                          key={pkg.key}
+                          type="button"
+                          onClick={() => setPackageKey(pkg.key)}
+                          className={cn(
+                            'relative p-4 rounded-2xl border-2 text-left transition-all',
+                            isSelected
+                              ? 'border-blue-600 bg-blue-50 shadow-md shadow-blue-100'
+                              : 'border-slate-100 bg-white hover:border-slate-200'
+                          )}
+                        >
+                          {pkg.bonus > 0 && (
+                            <span className="absolute -top-2 -right-2 text-[10px] font-black uppercase tracking-wider bg-amber-400 text-amber-950 px-2 py-0.5 rounded-full shadow">
+                              +{pkg.bonus}회 무료
+                            </span>
+                          )}
+                          <p className={cn(
+                            'text-xs font-black uppercase tracking-widest mb-1',
+                            isSelected ? 'text-blue-600' : 'text-slate-400'
+                          )}>
+                            {pkg.label}
+                          </p>
+                          <p className="text-2xl font-black text-slate-900">
+                            {pkg.sessions}회
+                            {pkg.bonus > 0 && (
+                              <span className="text-amber-600 ml-1 text-base font-bold">
+                                +{pkg.bonus}
+                              </span>
+                            )}
+                          </p>
+                          <p className="text-[10px] text-slate-500 mt-0.5">
+                            총 {total}회 수업
+                          </p>
+                          <div className="mt-3 pt-3 border-t border-slate-100 space-y-0.5">
+                            <p className="text-sm font-bold text-slate-900">
+                              {pkgAmount.toLocaleString()}원
+                            </p>
+                            <p className="text-[10px] text-slate-500">
+                              회당 약 {per.toLocaleString()}원
+                            </p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[11px] text-slate-500 mt-3 leading-relaxed">
+                    <strong className="text-amber-600">16회 패키지</strong>는 1회 무료(총 17회),
+                    <strong className="text-amber-600"> 24회 패키지</strong>는 2회 무료(총 26회)를 추가로 제공합니다.
+                  </p>
                 </div>
 
                 {/* Credits Discount */}

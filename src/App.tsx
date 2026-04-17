@@ -152,10 +152,6 @@ function AppContent() {
             element={<Placeholder title="프로그램 소개" />}
           />
           <Route
-            path="/level-test"
-            element={<Placeholder title="레벨테스트" description="영어 회화 레벨을 진단하는 테스트 페이지가 준비 중입니다." />}
-          />
-          <Route
             path="/faq"
             element={<Placeholder title="자주 묻는 질문 (FAQ)" description="메인 페이지 FAQ 섹션에서 먼저 확인해보세요. 전용 페이지는 곧 추가될 예정입니다." />}
           />

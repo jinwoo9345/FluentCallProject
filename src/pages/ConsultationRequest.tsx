@@ -1,16 +1,88 @@
+import { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import {
   ArrowLeft, MessageCircle, Clock, ShieldCheck, AlertCircle,
-  HelpCircle, ExternalLink, Sparkles,
+  HelpCircle, ExternalLink, Sparkles, Lock,
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
+import { db } from '../firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import { useAuth } from '../contexts/AuthContext';
 
-// TODO: 카카오 채널 개설 후 실제 채널 링크로 교체 필요
-const KAKAO_CHANNEL_URL = 'https://pf.kakao.com/_englishbites/chat';
+const DEFAULT_KAKAO_CHANNEL_URL = 'https://pf.kakao.com/_englishbites/chat';
 
 export default function ConsultationRequest() {
+  const { firebaseUser, isAuthReady, setIsAuthModalOpen, setAuthMode } = useAuth();
+  const [kakaoUrl, setKakaoUrl] = useState(DEFAULT_KAKAO_CHANNEL_URL);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const snap = await getDoc(doc(db, 'app_settings', 'main'));
+        if (snap.exists()) {
+          const data = snap.data() as any;
+          if (data.kakaoChannelUrl) setKakaoUrl(data.kakaoChannelUrl);
+        }
+      } catch (err) {
+        console.warn('app_settings fetch failed, using default URL:', err);
+      }
+    })();
+  }, []);
+
+  // 회원 전용 접근 제한
+  if (!isAuthReady) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <p className="text-slate-500 animate-pulse font-bold">불러오는 중...</p>
+      </div>
+    );
+  }
+
+  if (!firebaseUser) {
+    return (
+      <div className="mx-auto max-w-xl px-4 py-24 sm:px-6 lg:px-8 text-center">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white rounded-3xl border border-slate-100 p-12 shadow-sm"
+        >
+          <div className="mx-auto w-20 h-20 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center mb-6">
+            <Lock size={36} />
+          </div>
+          <h1 className="text-2xl font-bold text-slate-900 mb-3">회원 전용 상담 채널</h1>
+          <p className="text-slate-500 leading-relaxed mb-8">
+            카카오톡 상담 채널은 <strong>EnglishBites 회원만</strong> 이용할 수 있습니다.<br />
+            아직 가입하지 않으셨다면 가입 후 이용해주세요.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Button
+              onClick={() => {
+                setAuthMode('signin');
+                setIsAuthModalOpen(true);
+              }}
+            >
+              로그인
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setAuthMode('signup');
+                setIsAuthModalOpen(true);
+              }}
+            >
+              회원가입
+            </Button>
+          </div>
+          <Link to="/" className="block mt-8 text-xs text-slate-400 hover:text-slate-600">
+            홈으로 돌아가기
+          </Link>
+        </motion.div>
+      </div>
+    );
+  }
+
   return (
     <div className="bg-brand-cream min-h-screen pb-24">
       {/* Hero */}
@@ -67,7 +139,7 @@ export default function ConsultationRequest() {
               </div>
             </div>
             <a
-              href={KAKAO_CHANNEL_URL}
+              href={kakaoUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="flex-shrink-0 inline-flex items-center gap-2 bg-[#3C1E1E] hover:bg-black text-[#FEE500] font-black px-8 py-5 rounded-2xl text-lg shadow-xl transition-all hover:scale-[1.02]"
