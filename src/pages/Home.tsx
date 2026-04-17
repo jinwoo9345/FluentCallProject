@@ -175,8 +175,8 @@ export default function Home() {
           <div className="text-center max-w-3xl mx-auto mb-20">
             <h2 className="text-4xl font-black text-slate-900 mb-6 font-display">튜터별 맞춤 수강권</h2>
             <p className="text-lg text-slate-600">
-              각 튜터가 경력·전공에 따라 <strong>회당 가격</strong>을 직접 설정합니다.<br />
-              최종 결제 금액은 <strong>회당 가격 × 선택한 수업 수 + 플랫폼 서비스 이용료(69,000원)</strong>로 계산됩니다.
+              각 수강권은 <strong>1:1 매칭 서비스 금액</strong>과 <strong>플랫폼 서비스 이용료</strong>로 구성됩니다.<br />
+              실제 결제 금액은 선택한 튜터·패키지에 따라 달라지며, 결제 화면에서 확인하실 수 있습니다.
             </p>
           </div>
 
@@ -185,12 +185,19 @@ export default function Home() {
             <div className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-xl flex flex-col">
               <h3 className="text-xl font-bold text-slate-900 mb-2">8회 수강권</h3>
               <p className="text-slate-500 text-sm mb-8">가볍게 시작하기 좋은 기본 패키지</p>
-              <div className="mb-8">
-                <div className="flex items-baseline gap-1">
-                  <span className="text-4xl font-black text-slate-900">튜터별</span>
-                  <span className="text-slate-500 font-bold ml-2">가격 상이</span>
+              <div className="mb-8 space-y-2">
+                <div className="p-4 rounded-2xl bg-blue-50 border border-blue-100">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-blue-600 mb-1">수강권 구성</p>
+                  <p className="text-base font-bold text-slate-900 leading-tight">
+                    1:1 매칭 서비스 금액
+                  </p>
+                  <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1">
+                    <span className="text-blue-500 font-bold">+</span> 플랫폼 서비스 이용료
+                  </p>
                 </div>
-                <p className="text-blue-600 font-bold text-sm mt-2">각 튜터가 회당 단가를 직접 설정합니다</p>
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  최종 결제 금액은 선택한 튜터·수강권에 따라 달라지며 결제 화면에서 확인하실 수 있습니다.
+                </p>
               </div>
               <ul className="space-y-4 mb-10 flex-1">
                 <li className="flex items-center gap-3 text-slate-600 text-sm"><Check size={18} className="text-blue-600" /> <span>튜터가 정한 시간에 25~30분 1:1 수업</span></li>

@@ -474,26 +474,51 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
                       />
                       <InfoRow label="예금주" value={bankInfo.accountHolder} />
                       <div className="pt-3 border-t border-slate-100">
-                        <div className="space-y-0.5 text-xs text-slate-500 mb-2">
-                          <div className="flex justify-between">
-                            <span>수업료 ({selectedPackage.sessions}회 × {amount.toLocaleString()}원)</span>
-                            <span>{tutorFee.toLocaleString()}원</span>
+                        <div className="space-y-3 mb-3">
+                          {/* 1:1 매칭 수업료 */}
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <p className="text-sm font-bold text-slate-800">
+                                1:1 매칭 수업료 ({selectedPackage.sessions}회)
+                              </p>
+                            </div>
+                            <p className="text-sm font-bold text-slate-900">
+                              {tutorFee.toLocaleString()}원
+                            </p>
                           </div>
-                          <div className="flex justify-between">
-                            <span>플랫폼 서비스 이용료</span>
-                            <span>+ {SERVICE_FEE.toLocaleString()}원</span>
+
+                          {/* 플랫폼 서비스 + 세부 내역 */}
+                          <div>
+                            <div className="flex justify-between items-start">
+                              <p className="text-sm font-bold text-slate-800">플랫폼 서비스</p>
+                              <p className="text-sm font-bold text-slate-900">
+                                {SERVICE_FEE.toLocaleString()}원
+                              </p>
+                            </div>
+                            <ul className="mt-1 space-y-0.5 text-[10px] text-slate-500 pl-3 leading-relaxed">
+                              <li>· 원어민 튜터 맞춤 매칭</li>
+                              <li>· 수업별 피드백 제공</li>
+                              <li>· 학습 상담 및 커리큘럼 관리</li>
+                            </ul>
                           </div>
+
                           {creditDiscount > 0 && (
-                            <div className="flex justify-between text-amber-600 font-bold">
+                            <div className="flex justify-between text-amber-600 font-bold text-sm">
                               <span>크레딧 사용</span>
                               <span>− {creditDiscount.toLocaleString()}원</span>
                             </div>
                           )}
                         </div>
-                        <p className="text-xs text-slate-500 mb-1">최종 입금 금액</p>
-                        <p className="text-2xl font-black text-slate-900">
-                          {finalAmount.toLocaleString()}원
-                        </p>
+
+                        <div className="pt-3 border-t border-slate-100 flex items-end justify-between">
+                          <p className="text-xs text-slate-500">
+                            총 결제 금액
+                            <span className="ml-1 text-[10px] text-slate-400">(VAT 포함)</span>
+                          </p>
+                          <p className="text-2xl font-black text-slate-900">
+                            {finalAmount.toLocaleString()}원
+                          </p>
+                        </div>
                       </div>
                     </div>
 
@@ -572,7 +597,10 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
                     )}
 
                     <div className="flex justify-between items-center mb-4 px-2">
-                      <span className="text-sm text-slate-500">입금하실 금액</span>
+                      <span className="text-sm text-slate-500">
+                        입금하실 금액
+                        <span className="ml-1 text-[10px] text-slate-400">(VAT 포함)</span>
+                      </span>
                       <span className="text-2xl font-black text-slate-900">{finalAmount.toLocaleString()}원</span>
                     </div>
 
