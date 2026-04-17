@@ -13,6 +13,7 @@ import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { useAuth } from '../../contexts/AuthContext';
 import { RefundPolicyContent, TermsContent } from '../policy/PolicyContents';
 import { cn } from '@/src/lib/utils';
+import { SERVICE_FEE } from '../../constants';
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -20,24 +21,27 @@ interface PaymentModalProps {
   productId: string;
   productName: string;
   price: string;
-  amount: number; // 8회 기준 가격 (다른 패키지는 이 가격을 기준으로 배수 계산)
+  amount: number; // 회당 가격 (결제 시 hourlyRate × sessions + SERVICE_FEE로 합산)
   tutorId?: string;
   tutorName?: string;
 }
 
 type PackageKey = '8' | '16' | '24';
 
+/**
+ * 결제 금액 = 회당 가격(hourlyRate) × sessions + SERVICE_FEE(69,000원)
+ * 보너스 수업(+1, +2)은 무료 추가 제공.
+ */
 const PACKAGES: {
   key: PackageKey;
   label: string;
   sessions: number;
   bonus: number;
-  multiplier: number;
   tag?: string;
 }[] = [
-  { key: '8',  label: '베이직',   sessions: 8,  bonus: 0, multiplier: 1 },
-  { key: '16', label: '스탠다드', sessions: 16, bonus: 1, multiplier: 2, tag: '+1회 무료' },
-  { key: '24', label: '프리미엄', sessions: 24, bonus: 2, multiplier: 3, tag: '+2회 무료 · 가장 인기' },
+  { key: '8',  label: '베이직',   sessions: 8,  bonus: 0 },
+  { key: '16', label: '스탠다드', sessions: 16, bonus: 1, tag: '+1회 무료' },
+  { key: '24', label: '프리미엄', sessions: 24, bonus: 2, tag: '+2회 무료 · 가장 인기' },
 ];
 
 // 계좌 정보 기본값 (app_settings/main 에서 덮어씀)
@@ -63,7 +67,8 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
 
   const selectedPackage = PACKAGES.find(p => p.key === packageKey)!;
   const totalSessions = selectedPackage.sessions + selectedPackage.bonus;
-  const packageAmount = amount * selectedPackage.multiplier;
+  const tutorFee = amount * selectedPackage.sessions; // 회당 가격 × 기본 수업 수
+  const packageAmount = tutorFee + SERVICE_FEE;       // + 서비스 이용료
   const perSessionRate = Math.round(packageAmount / totalSessions);
 
   // Credit discount logic: 1 credit = 1000 won
@@ -339,7 +344,8 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       {PACKAGES.map(pkg => {
-                        const pkgAmount = amount * pkg.multiplier;
+                        const pkgTutorFee = amount * pkg.sessions;
+                        const pkgAmount = pkgTutorFee + SERVICE_FEE;
                         const total = pkg.sessions + pkg.bonus;
                         const per = Math.round(pkgAmount / total);
                         const isSelected = packageKey === pkg.key;
@@ -382,6 +388,9 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
                                 {pkgAmount.toLocaleString()}원
                               </p>
                               <p className="text-[10px] text-slate-500">
+                                수업료 {pkgTutorFee.toLocaleString()} + 이용료 {SERVICE_FEE.toLocaleString()}
+                              </p>
+                              <p className="text-[10px] text-slate-400">
                                 회당 약 {per.toLocaleString()}원
                               </p>
                             </div>
@@ -389,6 +398,10 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
                         );
                       })}
                     </div>
+                    <p className="text-[11px] text-slate-500 mt-3 leading-relaxed">
+                      모든 패키지에 <strong className="text-slate-700">플랫폼 서비스 이용료 {SERVICE_FEE.toLocaleString()}원</strong>이
+                      1회 가산됩니다. 보너스 수업은 추가 비용 없이 무료로 제공됩니다.
+                    </p>
                   </div>
 
                   {/* Credits Discount */}
@@ -461,6 +474,22 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
                       />
                       <InfoRow label="예금주" value={bankInfo.accountHolder} />
                       <div className="pt-3 border-t border-slate-100">
+                        <div className="space-y-0.5 text-xs text-slate-500 mb-2">
+                          <div className="flex justify-between">
+                            <span>수업료 ({selectedPackage.sessions}회 × {amount.toLocaleString()}원)</span>
+                            <span>{tutorFee.toLocaleString()}원</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>플랫폼 서비스 이용료</span>
+                            <span>+ {SERVICE_FEE.toLocaleString()}원</span>
+                          </div>
+                          {creditDiscount > 0 && (
+                            <div className="flex justify-between text-amber-600 font-bold">
+                              <span>크레딧 사용</span>
+                              <span>− {creditDiscount.toLocaleString()}원</span>
+                            </div>
+                          )}
+                        </div>
                         <p className="text-xs text-slate-500 mb-1">최종 입금 금액</p>
                         <p className="text-2xl font-black text-slate-900">
                           {finalAmount.toLocaleString()}원

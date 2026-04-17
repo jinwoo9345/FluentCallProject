@@ -1123,7 +1123,13 @@ export default function AdminDashboard() {
                       </div>
                     </div>
                     <div className="mt-4 pt-4 border-t border-slate-100">
-                      <p className="text-sm font-bold text-slate-900 mb-1">{tutor.hourlyRate?.toLocaleString()}원 / 회</p>
+                      <p className="text-sm font-bold text-slate-900">
+                        {tutor.hourlyRate?.toLocaleString() || 0}원 <span className="text-xs text-slate-500">/ 회</span>
+                      </p>
+                      <p className="text-[11px] text-slate-500">
+                        8회 기준 {((tutor.hourlyRate || 0) * 8 + 69000).toLocaleString()}원
+                        <span className="text-slate-400"> (서비스 이용료 +69,000원 포함)</span>
+                      </p>
                       <div className="flex flex-wrap gap-1 mt-2">
                         {tutor.specialties?.map((s: string, i: number) => (
                           <span key={i} className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md font-bold">{s}</span>
@@ -1702,11 +1708,21 @@ function TutorEditModal({
               <EditField label="이름 *" value={form.name} onChange={v => setForm({ ...form, name: v })} />
               <EditField label="지역" value={form.location} onChange={v => setForm({ ...form, location: v })} placeholder="예: 미국 서부" />
               <EditField
-                label="회당 수강료 (원)"
+                label="회당 수강료 (원) *"
                 type="number"
                 value={String(form.hourlyRate)}
                 onChange={v => setForm({ ...form, hourlyRate: Number(v) })}
+                placeholder="예: 15000"
               />
+              {form.hourlyRate > 0 && (
+                <p className="-mt-3 text-[11px] text-slate-500">
+                  8회 기준 결제 금액 예상:{' '}
+                  <strong className="text-slate-800">
+                    {(Number(form.hourlyRate) * 8 + 69000).toLocaleString()}원
+                  </strong>
+                  {' '}(회당 {Number(form.hourlyRate).toLocaleString()}원 × 8회 + 서비스 이용료 69,000원)
+                </p>
+              )}
               <EditField label="티어 / 등급" value={form.tier} onChange={v => setForm({ ...form, tier: v })} placeholder="예: Premium" />
             </div>
 

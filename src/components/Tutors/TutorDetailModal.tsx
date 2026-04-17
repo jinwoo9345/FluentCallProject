@@ -136,9 +136,14 @@ export function TutorDetailModal({ isOpen, onClose, tutor, onRegister }: TutorDe
             <div className="border-t border-slate-100 bg-slate-50 p-6 sm:px-10">
               <div className="flex items-center justify-between gap-4">
                 <div>
-                  <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">튜터가 설정한 8회 수강료</p>
-                  <p className="text-2xl font-black text-slate-900">{(tutor.hourlyRate || 0).toLocaleString()}원</p>
-                  <p className="text-[11px] text-slate-400 mt-1">16회 / 24회 패키지는 결제 화면에서 선택</p>
+                  <p className="text-xs text-slate-500 font-bold uppercase tracking-widest">8회 수강권</p>
+                  <p className="text-2xl font-black text-slate-900">
+                    {((tutor.hourlyRate || 0) * 8 + 69000).toLocaleString()}원
+                  </p>
+                  <p className="text-[11px] text-slate-500 mt-1">
+                    회당 {(tutor.hourlyRate || 0).toLocaleString()}원 × 8회 + 서비스 이용료 69,000원
+                  </p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">16회 · 24회 패키지는 결제 화면에서 선택</p>
                 </div>
                 {tutor.enrollDisabled ? (
                   <div className="px-6 py-4 rounded-2xl bg-amber-50 border border-amber-200 text-center">

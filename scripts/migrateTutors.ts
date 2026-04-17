@@ -12,7 +12,9 @@ const firebaseConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
 
 /**
  * 각 튜터가 경력·전문성에 따라 수강료를 자유롭게 설정하는 플랫폼(중개) 구조.
- * 금액은 "8회 기준 수강료" 이며, 16회·24회는 결제 화면에서 배수 + 보너스 적용.
+ * hourlyRate는 "회당 가격" 이며, 실제 결제 금액은
+ *   hourlyRate × 패키지 수업 수 + 서비스 이용료(69,000원)
+ * 로 계산됩니다.
  */
 const MOCK_TUTORS = [
   {
@@ -32,7 +34,7 @@ const MOCK_TUTORS = [
       '',
       '1:1 맞춤 커리큘럼으로 첫 5회 내에 업무 영어 자신감을 확실히 끌어올려 드립니다.',
     ].join('\n'),
-    hourlyRate: 239000,
+    hourlyRate: 30000, // 회당 가격 (8회 기준 240,000 + 서비스 이용료 69,000 = 309,000원)
     availability: ['월 09:00', '월 10:00', '수 15:00', '금 11:00', '금 20:00'],
     languages: ['English (Native)', 'Korean (Intermediate)'],
     tier: 'Premium',
@@ -57,7 +59,7 @@ const MOCK_TUTORS = [
       '',
       '제가 한국에 5년 거주하며 한국어도 꽤 하니, 막히는 부분은 한국어로도 설명해드립니다.',
     ].join('\n'),
-    hourlyRate: 179000,
+    hourlyRate: 22000, // 회당 가격 (8회 176,000 + 69,000 = 245,000원)
     availability: ['화 10:00', '목 14:00', '토 09:00', '토 10:00'],
     languages: ['English (Fluent, C2)', 'Hungarian (Native)', 'Korean (Basic)'],
     tier: 'Standard',
@@ -82,7 +84,7 @@ const MOCK_TUTORS = [
       '',
       '첫 수업에 전체 레벨 진단 및 6주 맞춤 로드맵을 무료로 제공합니다.',
     ].join('\n'),
-    hourlyRate: 269000,
+    hourlyRate: 34000, // 회당 가격 (8회 272,000 + 69,000 = 341,000원)
     availability: ['월 18:00', '수 18:00', '금 18:00', '토 10:00'],
     languages: ['English (Native, US)'],
     tier: 'Premium',
@@ -107,7 +109,7 @@ const MOCK_TUTORS = [
       '',
       '한국 드라마와 음식 이야기를 가장 좋아해요. 수업 중 잠깐 쉬어가고 싶을 땐 저한테 오세요!',
     ].join('\n'),
-    hourlyRate: 159000,
+    hourlyRate: 20000, // 회당 가격 (8회 160,000 + 69,000 = 229,000원)
     availability: ['목 09:00', '금 14:00', '일 20:00', '일 21:00'],
     languages: ['English (Native, Canada)', 'Spanish (Intermediate)'],
     tier: 'Standard',
@@ -132,7 +134,7 @@ const MOCK_TUTORS = [
       '',
       '필요 시 학부모님과 짧은 피드백 세션을 무료로 진행합니다.',
     ].join('\n'),
-    hourlyRate: 199000,
+    hourlyRate: 25000, // 회당 가격 (8회 200,000 + 69,000 = 269,000원)
     availability: ['월 16:00', '화 16:00', '수 16:00', '토 11:00'],
     languages: ['English (Native, UK)'],
     tier: 'Standard',
@@ -153,7 +155,7 @@ async function migrate() {
   for (const tutor of MOCK_TUTORS) {
     try {
       await setDoc(doc(db, 'tutors', tutor.id), tutor);
-      console.log(`Migrated tutor: ${tutor.name} (₩${tutor.hourlyRate.toLocaleString()})`);
+      console.log(`Migrated tutor: ${tutor.name} (회당 ₩${tutor.hourlyRate.toLocaleString()})`);
     } catch (error) {
       console.error(`Error migrating ${tutor.name}:`, error);
     }

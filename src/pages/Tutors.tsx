@@ -184,9 +184,14 @@ export default function Tutors() {
 
                     <div className="mt-6 flex items-center justify-between border-t border-slate-50 pt-4">
                       <div>
-                        <span className="text-xs text-slate-400 block">튜터가 설정한 8회 수강료</span>
+                        <span className="text-[10px] text-slate-400 block uppercase tracking-widest font-bold">
+                          8회 수강권
+                        </span>
                         <span className="text-lg font-black text-slate-900">
-                          {(tutor.hourlyRate || 0).toLocaleString()}원
+                          {((tutor.hourlyRate || 0) * 8 + 69000).toLocaleString()}원
+                        </span>
+                        <span className="text-[11px] text-slate-500 block">
+                          회당 {(tutor.hourlyRate || 0).toLocaleString()}원 + 서비스 이용료 69,000원
                         </span>
                       </div>
                       {(tutor as any).enrollDisabled ? (

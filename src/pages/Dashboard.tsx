@@ -1,6 +1,6 @@
 import {
   Calendar, Clock, ChevronRight, Award, BookOpen,
-  User as UserIcon, Settings, School, Sparkles, Bell,
+  User as UserIcon, Settings, School, Sparkles, Bell, DollarSign,
   Heart, CreditCard, Share2, Copy, Check, Gift, Loader2
 } from 'lucide-react';
 import { Card } from '../components/ui/Card';
@@ -16,8 +16,9 @@ import { ProfileEditModal } from '../components/Dashboard/ProfileEditModal';
 import { ConsultationForm } from '../components/Consultation/ConsultationForm';
 import { Pagination, usePaginated } from '../components/ui/Pagination';
 import { db } from '../firebase';
-import { collection, query, where, getDocs, orderBy, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, onSnapshot, doc, updateDoc, getDoc } from 'firebase/firestore';
 import { shareReferralCode } from '../lib/kakao';
+import { SERVICE_FEE } from '../constants';
 
 const USER_PAGE_SIZE = 10;
 
@@ -43,6 +44,11 @@ export default function Dashboard() {
     payment: any;
   }>(null);
   const seenCompletedIds = useRef<Set<string>>(new Set());
+
+  // 강사 본인 hourlyRate 편집용
+  const [myTutorDoc, setMyTutorDoc] = useState<any | null>(null);
+  const [rateInput, setRateInput] = useState('');
+  const [rateSaving, setRateSaving] = useState(false);
 
   // Safety: Ensure user and wishlist exist before filtering
   const wishlistedTutors = tutors.filter(t => user?.wishlist?.includes(t.id) || false);
@@ -139,6 +145,45 @@ export default function Dashboard() {
     return () => unsub();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [firebaseUser, isAuthReady, user?.role]);
+
+  // 튜터 본인 문서 조회 (수업료 편집용)
+  useEffect(() => {
+    if (!firebaseUser || user?.role !== 'tutor') {
+      setMyTutorDoc(null);
+      return;
+    }
+    (async () => {
+      try {
+        const snap = await getDoc(doc(db, 'tutors', firebaseUser.uid));
+        if (snap.exists()) {
+          const data = { id: snap.id, ...(snap.data() as any) };
+          setMyTutorDoc(data);
+          setRateInput(String(data.hourlyRate || ''));
+        }
+      } catch (err) {
+        console.warn('내 튜터 문서 조회 실패:', err);
+      }
+    })();
+  }, [firebaseUser, user?.role]);
+
+  const handleSaveMyRate = async () => {
+    if (!firebaseUser || !myTutorDoc) return;
+    const rate = Number(rateInput);
+    if (!Number.isFinite(rate) || rate <= 0) {
+      alert('올바른 회당 가격을 입력해주세요.');
+      return;
+    }
+    setRateSaving(true);
+    try {
+      await updateDoc(doc(db, 'tutors', firebaseUser.uid), { hourlyRate: rate });
+      setMyTutorDoc({ ...myTutorDoc, hourlyRate: rate });
+      alert('회당 가격이 저장되었습니다.');
+    } catch (err: any) {
+      alert('저장 실패: ' + (err.message || '알 수 없는 오류'));
+    } finally {
+      setRateSaving(false);
+    }
+  };
 
   // 강사 신청 상태 조회
   useEffect(() => {
@@ -533,6 +578,50 @@ export default function Dashboard() {
               </div>
             </div>
           </Card>
+
+          {/* 튜터 전용 — 내 수업료 카드 */}
+          {user?.role === 'tutor' && myTutorDoc && (
+            <Card className="p-5">
+              <h3 className="font-bold text-slate-900 mb-3 flex items-center gap-2">
+                <DollarSign size={18} className="text-green-600" /> 내 수업료
+              </h3>
+              <div className="space-y-2 mb-3">
+                <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-widest">
+                  회당 가격 (원)
+                </label>
+                <input
+                  type="number"
+                  value={rateInput}
+                  onChange={(e) => setRateInput(e.target.value)}
+                  placeholder="예: 15000"
+                  className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-blue-500"
+                />
+                {Number(rateInput) > 0 && (
+                  <p className="text-[11px] text-slate-600 leading-relaxed">
+                    8회 기준 수강자 결제 금액:{' '}
+                    <strong className="text-slate-900">
+                      {(Number(rateInput) * 8 + SERVICE_FEE).toLocaleString()}원
+                    </strong>
+                    <br />
+                    <span className="text-slate-400">
+                      수업료 {(Number(rateInput) * 8).toLocaleString()}원 + 서비스 이용료 {SERVICE_FEE.toLocaleString()}원
+                    </span>
+                  </p>
+                )}
+              </div>
+              <Button
+                size="sm"
+                className="w-full"
+                onClick={handleSaveMyRate}
+                disabled={rateSaving || Number(rateInput) === Number(myTutorDoc.hourlyRate || 0)}
+              >
+                {rateSaving ? '저장 중...' : '수업료 저장'}
+              </Button>
+              <p className="text-[10px] text-slate-400 mt-2 leading-relaxed">
+                서비스 이용료 {SERVICE_FEE.toLocaleString()}원은 플랫폼에서 자동 가산되며 결제 금액에 포함됩니다.
+              </p>
+            </Card>
+          )}
 
           {/* 강사 신청 상태 카드 */}
           {tutorApp && (

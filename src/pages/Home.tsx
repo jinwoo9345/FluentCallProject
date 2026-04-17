@@ -175,8 +175,8 @@ export default function Home() {
           <div className="text-center max-w-3xl mx-auto mb-20">
             <h2 className="text-4xl font-black text-slate-900 mb-6 font-display">튜터별 맞춤 수강권</h2>
             <p className="text-lg text-slate-600">
-              각 튜터가 경력·전공에 따라 수강료를 직접 설정합니다.<br />
-              원하는 튜터의 프로필에서 수강권 횟수(8/16/24회)를 선택해 결제하세요.
+              각 튜터가 경력·전공에 따라 <strong>회당 가격</strong>을 직접 설정합니다.<br />
+              최종 결제 금액은 <strong>회당 가격 × 선택한 수업 수 + 플랫폼 서비스 이용료(69,000원)</strong>로 계산됩니다.
             </p>
           </div>
 

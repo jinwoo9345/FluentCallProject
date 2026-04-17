@@ -45,7 +45,10 @@ service cloud.firestore {
     // 튜터 목록
     match /tutors/{tutorId} {
       allow read: if true;
-      allow write: if isAdmin();
+      allow create, delete: if isAdmin();
+      // admin은 전체 편집 가능, 승인된 강사 본인은 자신의 tutor 문서를 수정 가능
+      allow update: if isAdmin()
+        || (isSignedIn() && request.auth.uid == tutorId);
     }
 
     // 수업 세션

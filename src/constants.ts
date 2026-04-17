@@ -6,6 +6,24 @@ export const TUTOR_TIERS = {
   OG: 10000,
 };
 
+/** 플랫폼 서비스 이용료 (수강권 결제에 1회 가산) */
+export const SERVICE_FEE = 69000;
+
+/** 표준 패키지 단위 (회당 가격 × sessions + 서비스 이용료) */
+export const BASE_PACKAGE_SESSIONS = 8;
+
+/**
+ * 패키지 금액 계산 헬퍼.
+ *   total(sessions) = hourlyRate * sessions + SERVICE_FEE
+ *
+ * @param hourlyRate 튜터가 설정한 회당 가격
+ * @param sessions 패키지 기본 수업 수 (보너스 제외)
+ */
+export function calcPackageTotal(hourlyRate: number, sessions: number): number {
+  if (!hourlyRate || hourlyRate <= 0) return 0;
+  return hourlyRate * sessions + SERVICE_FEE;
+}
+
 export const MOCK_TUTORS: Tutor[] = [
   {
     id: 'tutor-kev',
