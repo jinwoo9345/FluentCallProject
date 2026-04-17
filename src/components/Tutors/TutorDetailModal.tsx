@@ -139,9 +139,20 @@ export function TutorDetailModal({ isOpen, onClose, tutor, onRegister }: TutorDe
                   <p className="text-sm font-bold text-blue-600">베이직 플랜 (8회)</p>
                   <p className="text-2xl font-black text-slate-900">179,000원</p>
                 </div>
-                <Button size="lg" className="px-10 py-6 text-lg font-bold rounded-2xl shadow-lg shadow-blue-200" onClick={onRegister}>
-                  등록하기
-                </Button>
+                {tutor.enrollDisabled ? (
+                  <div className="px-6 py-4 rounded-2xl bg-amber-50 border border-amber-200 text-center">
+                    <p className="text-[10px] font-black uppercase tracking-widest text-amber-700 mb-1">
+                      등록 대기
+                    </p>
+                    <p className="text-sm font-bold text-amber-800">
+                      {tutor.disabledMessage || '현재 대기 중'}
+                    </p>
+                  </div>
+                ) : (
+                  <Button size="lg" className="px-10 py-6 text-lg font-bold rounded-2xl shadow-lg shadow-blue-200" onClick={onRegister}>
+                    등록하기
+                  </Button>
+                )}
               </div>
             </div>
           </motion.div>

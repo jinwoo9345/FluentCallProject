@@ -21,6 +21,9 @@ export interface Tutor {
   languages: string[];
   tier?: string;
   location?: string;
+  hidden?: boolean;             // 공개 목록 숨김 여부 (관리자 전용)
+  enrollDisabled?: boolean;     // 등록하기 버튼 비활성화 (소개는 노출하되 등록 차단)
+  disabledMessage?: string;     // 비활성화 시 버튼 자리에 표시할 안내 문구 (예: "현재 대기 중")
 }
 
 export interface Session {

@@ -271,6 +271,43 @@ export default function AdminDashboard() {
     }
   };
 
+  const handleToggleEnrollDisabled = async (t: any) => {
+    const nextDisabled = !t.enrollDisabled;
+    // 비활성화 시 안내 문구 입력
+    let nextMessage = t.disabledMessage || '';
+    if (nextDisabled) {
+      const input = window.prompt(
+        '비활성화 시 "등록하기" 버튼 자리에 표시할 안내 문구를 입력해주세요.\n(예: 현재 대기 중 · 수업 준비 중)',
+        nextMessage || '현재 대기 중'
+      );
+      if (input === null) return; // 취소
+      nextMessage = input.trim() || '현재 대기 중';
+    }
+    try {
+      await updateDoc(doc(db, 'tutors', t.id), {
+        enrollDisabled: nextDisabled,
+        disabledMessage: nextMessage,
+      });
+      setTutors(prev =>
+        prev.map(x => (x.id === t.id ? { ...x, enrollDisabled: nextDisabled, disabledMessage: nextMessage } : x))
+      );
+    } catch (err: any) {
+      alert('처리 실패: ' + (err.message || '알 수 없는 오류'));
+    }
+  };
+
+  const handleUpdateDisabledMessage = async (t: any) => {
+    const input = window.prompt('새 안내 문구를 입력해주세요.', t.disabledMessage || '현재 대기 중');
+    if (input === null) return;
+    const nextMessage = input.trim() || '현재 대기 중';
+    try {
+      await updateDoc(doc(db, 'tutors', t.id), { disabledMessage: nextMessage });
+      setTutors(prev => prev.map(x => (x.id === t.id ? { ...x, disabledMessage: nextMessage } : x)));
+    } catch (err: any) {
+      alert('문구 저장 실패: ' + (err.message || '알 수 없는 오류'));
+    }
+  };
+
   const handleSaveTutor = async (payload: any) => {
     if (!editTutor) return;
     try {
@@ -883,11 +920,18 @@ export default function AdminDashboard() {
                       tutor.hidden && 'opacity-60 bg-slate-50'
                     )}
                   >
-                    {tutor.hidden && (
-                      <span className="absolute top-3 right-3 text-[10px] bg-slate-900 text-white px-2 py-0.5 rounded-full font-black uppercase tracking-widest">
-                        숨김
-                      </span>
-                    )}
+                    <div className="absolute top-3 right-3 flex gap-1">
+                      {tutor.hidden && (
+                        <span className="text-[10px] bg-slate-900 text-white px-2 py-0.5 rounded-full font-black uppercase tracking-widest">
+                          숨김
+                        </span>
+                      )}
+                      {tutor.enrollDisabled && (
+                        <span className="text-[10px] bg-amber-500 text-white px-2 py-0.5 rounded-full font-black uppercase tracking-widest">
+                          등록 차단
+                        </span>
+                      )}
+                    </div>
                     <div className="flex items-start gap-4">
                       <img src={tutor.avatar} alt={tutor.name} className="w-16 h-16 rounded-2xl object-cover shadow-sm" referrerPolicy="no-referrer" />
                       <div>
@@ -905,7 +949,26 @@ export default function AdminDashboard() {
                         ))}
                       </div>
                     </div>
-                    <div className="mt-6 space-y-2">
+
+                    {/* 등록 차단 시 안내 문구 + 수정 링크 */}
+                    {tutor.enrollDisabled && (
+                      <div className="mt-3 p-3 rounded-lg bg-amber-50 border border-amber-100 flex items-center justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[10px] font-black uppercase tracking-widest text-amber-700">안내 문구</p>
+                          <p className="text-xs font-bold text-amber-900 truncate">
+                            {tutor.disabledMessage || '현재 대기 중'}
+                          </p>
+                        </div>
+                        <button
+                          className="text-[10px] font-bold text-amber-700 hover:text-amber-900 underline whitespace-nowrap"
+                          onClick={() => handleUpdateDisabledMessage(tutor)}
+                        >
+                          수정
+                        </button>
+                      </div>
+                    )}
+
+                    <div className="mt-4 space-y-2">
                       <div className="flex gap-2">
                         <Button
                           variant="outline"
@@ -918,22 +981,36 @@ export default function AdminDashboard() {
                           variant="outline"
                           className={cn(
                             'w-full text-xs',
+                            tutor.enrollDisabled
+                              ? 'text-green-600 border-green-200 hover:text-green-700 hover:bg-green-50'
+                              : 'text-amber-600 border-amber-200 hover:text-amber-700 hover:bg-amber-50'
+                          )}
+                          onClick={() => handleToggleEnrollDisabled(tutor)}
+                        >
+                          {tutor.enrollDisabled ? '등록 활성화' : '등록 비활성화'}
+                        </Button>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            'w-full text-xs',
                             tutor.hidden
                               ? 'text-green-600 hover:text-green-700 hover:bg-green-50'
-                              : 'text-amber-600 hover:text-amber-700 hover:bg-amber-50'
+                              : 'text-slate-600 hover:text-slate-700 hover:bg-slate-50'
                           )}
                           onClick={() => handleToggleTutorHidden(tutor)}
                         >
                           {tutor.hidden ? '숨김 해제' : '숨기기'}
                         </Button>
+                        <Button
+                          variant="outline"
+                          className="w-full text-xs text-red-600 border-red-200 hover:text-red-700 hover:bg-red-50"
+                          onClick={() => handleDeleteTutor(tutor)}
+                        >
+                          영구 삭제
+                        </Button>
                       </div>
-                      <Button
-                        variant="outline"
-                        className="w-full text-xs text-red-600 border-red-200 hover:text-red-700 hover:bg-red-50"
-                        onClick={() => handleDeleteTutor(tutor)}
-                      >
-                        영구 삭제
-                      </Button>
                     </div>
                   </Card>
                 ))}

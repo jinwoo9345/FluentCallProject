@@ -187,10 +187,19 @@ export default function Tutors() {
                         <span className="text-sm font-bold text-blue-600">베이직 플랜</span>
                         <span className="text-xs text-slate-400 block">8회 수업 패키지</span>
                       </div>
-                      <Button size="sm" className="gap-2 px-6" onClick={(e) => handleRegisterClick(e, tutor)}>
-                        <CreditCard size={16} />
-                        등록하기
-                      </Button>
+                      {(tutor as any).enrollDisabled ? (
+                        <span
+                          onClick={(e) => e.stopPropagation()}
+                          className="inline-flex items-center gap-1 px-4 py-2 rounded-xl text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200 cursor-not-allowed"
+                        >
+                          {(tutor as any).disabledMessage || '현재 대기 중'}
+                        </span>
+                      ) : (
+                        <Button size="sm" className="gap-2 px-6" onClick={(e) => handleRegisterClick(e, tutor)}>
+                          <CreditCard size={16} />
+                          등록하기
+                        </Button>
+                      )}
                     </div>
                   </Card>
                 </motion.div>
