@@ -67,6 +67,9 @@ export default function AdminDashboard() {
   const [rejectionReason, setRejectionReason] = useState('');
   // 앱 설정 (카카오 채널 URL 등)
   const [kakaoChannelUrl, setKakaoChannelUrl] = useState('');
+  const [bankName, setBankName] = useState('');
+  const [accountNumber, setAccountNumber] = useState('');
+  const [accountHolder, setAccountHolder] = useState('');
   const [settingsSaving, setSettingsSaving] = useState(false);
 
   const fetchAdminData = async () => {
@@ -131,13 +134,16 @@ export default function AdminDashboard() {
       }
       setTutorApps(appsList);
 
-      // 7. Fetch App Settings (kakao channel URL 등)
+      // 7. Fetch App Settings (kakao channel URL, 계좌 정보 등)
       try {
         const settingsSnap = await getDocs(query(collection(db, 'app_settings')));
         const mainDoc = settingsSnap.docs.find(d => d.id === 'main');
         if (mainDoc) {
           const data = mainDoc.data() as any;
           setKakaoChannelUrl(data.kakaoChannelUrl || '');
+          setBankName(data.bankName || '');
+          setAccountNumber(data.accountNumber || '');
+          setAccountHolder(data.accountHolder || '');
         }
       } catch (err) {
         console.warn('app_settings fetch failed:', err);
@@ -343,6 +349,9 @@ export default function AdminDashboard() {
         doc(db, 'app_settings', 'main'),
         {
           kakaoChannelUrl: kakaoChannelUrl.trim(),
+          bankName: bankName.trim(),
+          accountNumber: accountNumber.trim(),
+          accountHolder: accountHolder.trim(),
           updatedAt: serverTimestamp(),
         },
         { merge: true }
@@ -352,6 +361,73 @@ export default function AdminDashboard() {
       alert('저장 실패: ' + (err.message || '알 수 없는 오류'));
     } finally {
       setSettingsSaving(false);
+    }
+  };
+
+  // 관리자 결제 승인 — pending → completed + 추천인 보상 지급
+  const handleApprovePayment = async (p: any) => {
+    if (p.status === 'completed') {
+      alert('이미 완료 처리된 결제입니다.');
+      return;
+    }
+    if (!window.confirm(`주문 "${p.orderId || p.id}" 입금을 확인하고 완료 처리하시겠습니까?`)) return;
+
+    try {
+      // 1. 결제 문서 상태 업데이트
+      await updateDoc(doc(db, 'payments', p.id), {
+        status: 'completed',
+        confirmedAt: serverTimestamp(),
+        confirmedBy: 'admin',
+      });
+
+      // 2. 추천인 보상 지급 (중복 지급 방지)
+      if (p.referredBy && !p.referralRewarded) {
+        try {
+          const referrerQuery = query(
+            collection(db, 'users'),
+            where('referralCode', '==', p.referredBy.toUpperCase())
+          );
+          const refSnap = await getDocs(referrerQuery);
+          if (!refSnap.empty) {
+            const referrerDoc = refSnap.docs[0];
+            const referrerId = referrerDoc.id;
+            if (referrerId !== p.userId) {
+              await updateDoc(doc(db, 'users', referrerId), {
+                credits: increment(20),
+              });
+              await updateDoc(doc(db, 'payments', p.id), {
+                referralRewarded: true,
+              });
+            }
+          }
+        } catch (err) {
+          console.warn('referral reward failed:', err);
+        }
+      }
+
+      setPayments(prev =>
+        prev.map(x => (x.id === p.id ? { ...x, status: 'completed', referralRewarded: true } : x))
+      );
+      alert('입금 확인 및 결제 완료 처리되었습니다.');
+    } catch (err: any) {
+      alert('승인 실패: ' + (err.message || '알 수 없는 오류'));
+    }
+  };
+
+  const handleFailPayment = async (p: any) => {
+    const reason = window.prompt('실패/취소 사유를 입력해주세요.', '입금 미확인');
+    if (reason === null) return;
+    try {
+      await updateDoc(doc(db, 'payments', p.id), {
+        status: 'cancelled',
+        failReason: reason.trim() || '관리자에 의한 취소',
+        cancelledAt: serverTimestamp(),
+      });
+      setPayments(prev =>
+        prev.map(x => (x.id === p.id ? { ...x, status: 'cancelled', failReason: reason } : x))
+      );
+    } catch (err: any) {
+      alert('처리 실패: ' + (err.message || '알 수 없는 오류'));
     }
   };
 
@@ -734,13 +810,14 @@ export default function AdminDashboard() {
                   <table className="w-full text-left border-collapse">
                     <thead className="bg-slate-50 text-xs text-slate-500 uppercase">
                       <tr>
-                        <th className="px-6 py-4 font-bold">주문번호</th>
-                        <th className="px-6 py-4 font-bold">결제자</th>
-                        <th className="px-6 py-4 font-bold">상품명</th>
-                        <th className="px-6 py-4 font-bold">최종 결제 금액</th>
-                        <th className="px-6 py-4 font-bold">포인트 사용</th>
-                        <th className="px-6 py-4 font-bold">결제 일시</th>
-                        <th className="px-6 py-4 font-bold">상태</th>
+                        <th className="px-4 py-4 font-bold">주문번호</th>
+                        <th className="px-4 py-4 font-bold">결제자</th>
+                        <th className="px-4 py-4 font-bold">상품명</th>
+                        <th className="px-4 py-4 font-bold">금액</th>
+                        <th className="px-4 py-4 font-bold">입금자명</th>
+                        <th className="px-4 py-4 font-bold">신청 시간</th>
+                        <th className="px-4 py-4 font-bold">상태</th>
+                        <th className="px-4 py-4 font-bold text-right">액션</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -748,25 +825,61 @@ export default function AdminDashboard() {
                         const payer = usersList.find(u => u.id === p.userId || u.uid === p.userId);
                         return (
                         <tr key={p.id} className="hover:bg-slate-50/50 transition-colors">
-                          <td className="px-6 py-4 text-xs font-mono text-slate-500">
+                          <td className="px-4 py-3 text-xs font-mono text-slate-500">
                             {(p.orderId || p.id).split('_')[1] || (p.orderId || p.id).substring(0, 10)}
                           </td>
-                          <td className="px-6 py-4 text-sm text-slate-700">
+                          <td className="px-4 py-3 text-sm text-slate-700">
                             <p className="font-bold">{payer?.name || '알 수 없음'}</p>
                             {payer?.email && <p className="text-[11px] text-slate-500">{payer.email}</p>}
                           </td>
-                          <td className="px-6 py-4 font-bold text-slate-900">{p.productName}</td>
-                          <td className="px-6 py-4 font-black text-slate-900">{p.amount?.toLocaleString()}원</td>
-                          <td className="px-6 py-4 text-sm text-amber-600 font-bold">{p.creditsUsed > 0 ? `-${(p.creditsUsed * 1000).toLocaleString()}원` : '-'}</td>
-                          <td className="px-6 py-4 text-sm text-slate-500">{formatTS(p.createdAt, 'datetime')}</td>
-                          <td className="px-6 py-4">
+                          <td className="px-4 py-3 text-sm font-bold text-slate-900">{p.productName}</td>
+                          <td className="px-4 py-3 font-black text-slate-900">{p.amount?.toLocaleString()}원</td>
+                          <td className="px-4 py-3 text-sm text-slate-700">{p.depositorName || '-'}</td>
+                          <td className="px-4 py-3 text-sm text-slate-500">{formatTS(p.createdAt, 'datetime')}</td>
+                          <td className="px-4 py-3">
                             <span className={cn(
-                              "inline-flex items-center rounded-full px-2.5 py-1 text-xs font-black tracking-wider uppercase",
-                              p.status === 'completed' ? "bg-blue-100 text-blue-700" : 
-                              p.status === 'failed' ? "bg-red-100 text-red-700" : "bg-slate-100 text-slate-700"
+                              'inline-flex items-center rounded-full px-2.5 py-1 text-xs font-black tracking-wider uppercase',
+                              p.status === 'completed' && 'bg-green-100 text-green-700',
+                              p.status === 'cancelled' && 'bg-red-100 text-red-700',
+                              p.status === 'failed' && 'bg-red-100 text-red-700',
+                              (p.status === 'pending' || !p.status) && 'bg-amber-100 text-amber-700'
                             )}>
-                              {p.status}
+                              {p.status === 'completed'
+                                ? '완료'
+                                : p.status === 'cancelled' || p.status === 'failed'
+                                ? '취소됨'
+                                : '입금 대기'}
                             </span>
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <div className="flex gap-1 justify-end flex-wrap">
+                              {(p.status === 'pending' || !p.status) && (
+                                <>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="text-xs text-green-700 border-green-200 hover:bg-green-50"
+                                    onClick={() => handleApprovePayment(p)}
+                                  >
+                                    입금 확인
+                                  </Button>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="text-xs text-red-600 border-red-200 hover:bg-red-50"
+                                    onClick={() => handleFailPayment(p)}
+                                  >
+                                    취소
+                                  </Button>
+                                </>
+                              )}
+                              {p.status === 'completed' && (
+                                <span className="text-[10px] text-slate-400">처리 완료</span>
+                              )}
+                              {(p.status === 'cancelled' || p.status === 'failed') && (
+                                <span className="text-[10px] text-slate-400">{p.failReason || '취소'}</span>
+                              )}
+                            </div>
                           </td>
                         </tr>
                         );
@@ -1109,24 +1222,68 @@ export default function AdminDashboard() {
                     </p>
                   </div>
                 </div>
-                <div className="space-y-3">
-                  <input
-                    type="text"
-                    value={kakaoChannelUrl}
-                    onChange={(e) => setKakaoChannelUrl(e.target.value)}
-                    placeholder="예: https://pf.kakao.com/_englishbites/chat"
-                    className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-blue-500"
-                  />
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs text-slate-400">
-                      현재 저장된 값이 없으면 기본 URL이 사용됩니다.
+                <input
+                  type="text"
+                  value={kakaoChannelUrl}
+                  onChange={(e) => setKakaoChannelUrl(e.target.value)}
+                  placeholder="예: https://pf.kakao.com/_englishbites/chat"
+                  className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-blue-500"
+                />
+              </Card>
+
+              {/* 무통장입금 계좌 정보 */}
+              <Card className="p-8">
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="h-11 w-11 rounded-2xl bg-green-50 text-green-600 flex items-center justify-center">
+                    <CreditCard size={22} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900">무통장입금 계좌 정보</h3>
+                    <p className="text-sm text-slate-500">
+                      결제 화면의 "입금 안내"에 노출됩니다. 실제 입금 계좌로 설정해주세요.
                     </p>
-                    <Button onClick={handleSaveSettings} disabled={settingsSaving}>
-                      {settingsSaving ? '저장 중...' : '저장'}
-                    </Button>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-1.5">은행명</label>
+                    <input
+                      type="text"
+                      value={bankName}
+                      onChange={(e) => setBankName(e.target.value)}
+                      placeholder="예: 국민은행"
+                      className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-blue-500"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-bold text-slate-600 mb-1.5">계좌번호</label>
+                    <input
+                      type="text"
+                      value={accountNumber}
+                      onChange={(e) => setAccountNumber(e.target.value)}
+                      placeholder="예: 123456-78-901234"
+                      className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-blue-500"
+                    />
+                  </div>
+                  <div className="md:col-span-3">
+                    <label className="block text-xs font-bold text-slate-600 mb-1.5">예금주</label>
+                    <input
+                      type="text"
+                      value={accountHolder}
+                      onChange={(e) => setAccountHolder(e.target.value)}
+                      placeholder="예: EnglishBites 또는 대표자명"
+                      className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-blue-500"
+                    />
                   </div>
                 </div>
               </Card>
+
+              <div className="flex items-center justify-end gap-3">
+                <p className="text-xs text-slate-400">저장 버튼을 누르면 모든 설정이 한 번에 반영됩니다.</p>
+                <Button onClick={handleSaveSettings} disabled={settingsSaving} className="px-8">
+                  {settingsSaving ? '저장 중...' : '설정 저장'}
+                </Button>
+              </div>
 
               <Card className="p-8 bg-slate-50 border border-slate-100">
                 <p className="text-xs font-black uppercase tracking-widest text-slate-500 mb-2">Firestore 경로</p>

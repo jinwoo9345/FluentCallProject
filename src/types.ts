@@ -26,6 +26,15 @@ export interface Tutor {
   disabledMessage?: string;     // 비활성화 시 버튼 자리에 표시할 안내 문구 (예: "현재 대기 중")
 }
 
+/** 전역 앱 설정 (app_settings/main) */
+export interface AppSettings {
+  kakaoChannelUrl?: string;
+  bankName?: string;
+  accountNumber?: string;
+  accountHolder?: string;
+  updatedAt?: any;
+}
+
 export interface Session {
   id: string;
   tutorId: string;

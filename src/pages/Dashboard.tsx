@@ -51,7 +51,7 @@ export default function Dashboard() {
     async function fetchHistory() {
       setLoadingHistory(true);
       try {
-        // Fetch Payments — 사용자에게는 완료된 결제만 노출
+        // Fetch Payments — 대기/완료 모두 노출 (취소·실패는 제외)
         const pQuery = query(
           collection(db, 'payments'),
           where('userId', '==', firebaseUser.uid),
@@ -61,7 +61,7 @@ export default function Dashboard() {
         setPayments(
           pSnap.docs
             .map(d => ({ id: d.id, ...(d.data() as any) }))
-            .filter(p => p.status === 'completed')
+            .filter(p => p.status === 'completed' || p.status === 'pending' || !p.status)
         );
 
         // Fetch Consultations
@@ -279,22 +279,37 @@ export default function Dashboard() {
                           결제 내역이 없습니다.
                         </Card>
                       ) : (
-                        paymentsPage.sliced.map((p) => (
-                          <Card key={p.id} className="flex items-center justify-between p-4">
-                            <div className="flex items-center gap-4">
-                              <div className="h-12 w-12 rounded-xl bg-green-50 flex items-center justify-center text-green-600">
-                                <CreditCard size={24} />
+                        paymentsPage.sliced.map((p) => {
+                          const isPending = p.status === 'pending' || !p.status;
+                          return (
+                            <Card key={p.id} className="flex items-center justify-between p-4">
+                              <div className="flex items-center gap-4">
+                                <div className={cn(
+                                  'h-12 w-12 rounded-xl flex items-center justify-center',
+                                  isPending ? 'bg-amber-50 text-amber-600' : 'bg-green-50 text-green-600'
+                                )}>
+                                  <CreditCard size={24} />
+                                </div>
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <h3 className="font-bold text-slate-900">{p.productName}</h3>
+                                    <span className={cn(
+                                      'text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full',
+                                      isPending ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'
+                                    )}>
+                                      {isPending ? '입금 대기' : '완료'}
+                                    </span>
+                                  </div>
+                                  <p className="text-sm text-slate-500">
+                                    {p.createdAt?.toDate ? p.createdAt.toDate().toLocaleDateString() : '날짜 미상'}
+                                    {isPending && p.depositorName && ` · 입금자: ${p.depositorName}`}
+                                  </p>
+                                </div>
                               </div>
-                              <div>
-                                <h3 className="font-bold text-slate-900">{p.productName}</h3>
-                                <p className="text-sm text-slate-500">
-                                  {p.createdAt?.toDate ? p.createdAt.toDate().toLocaleDateString() : '날짜 미상'} · {p.status === 'completed' ? '결제 완료' : '진행 중'}
-                                </p>
-                              </div>
-                            </div>
-                            <span className="text-lg font-black text-slate-900">{(p.amount || 0).toLocaleString()}원</span>
-                          </Card>
-                        ))
+                              <span className="text-lg font-black text-slate-900">{(p.amount || 0).toLocaleString()}원</span>
+                            </Card>
+                          );
+                        })
                       )}
                       <Pagination
                         currentPage={paymentsPage.page}
