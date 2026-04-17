@@ -37,7 +37,8 @@ export type UserRole = 'student' | 'tutor' | 'admin';
 
 export interface User {
   uid: string;
-  name: string;
+  name: string;          // 표시용 이름 (닉네임이 설정되어 있으면 닉네임, 아니면 실명)
+  realName?: string;     // 실제 이름 (마이페이지에서만 노출)
   email: string;
   avatar?: string;
   credits: number;
@@ -50,6 +51,24 @@ export interface User {
   studentAvailability?: string[];
   availability?: string[];
   createdAt?: any;
+  // 강사 신청 상태 (student 상태에서 강사 신청을 넣은 경우)
+  tutorApplicationStatus?: 'pending' | 'approved' | 'rejected';
+  tutorApplicationId?: string;
+}
+
+export interface TutorApplication {
+  id?: string;
+  userId: string;
+  name: string;           // 실명
+  email: string;
+  contactValue: string;   // 연락처
+  experience: string;     // 영어 교육/체류 경험
+  qualifications: string; // 자격증·학력
+  introduction: string;   // 자기 소개
+  status: 'pending' | 'approved' | 'rejected';
+  rejectionReason?: string;
+  createdAt?: any;
+  reviewedAt?: any;
 }
 
 export interface Consultation {

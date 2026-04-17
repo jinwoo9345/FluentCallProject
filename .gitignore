@@ -8,3 +8,7 @@ coverage/
 !.env.example
 firebase-applet-config.json
 firebase-blueprint.json
+
+# 작업용 로컬 노트 (깃에 올리지 않음)
+prompt.txt
+referral.txt

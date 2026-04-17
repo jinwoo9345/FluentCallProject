@@ -1,6 +1,6 @@
 import {
   Calendar, Clock, ChevronRight, Award, BookOpen,
-  User as UserIcon, Settings,
+  User as UserIcon, Settings, School,
   Heart, CreditCard, Share2, Copy, Check, Gift, Loader2
 } from 'lucide-react';
 import { Card } from '../components/ui/Card';
@@ -35,6 +35,7 @@ export default function Dashboard() {
   const [copied, setCopied] = useState(false);
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [isProfileEditOpen, setIsProfileEditOpen] = useState(false);
+  const [tutorApp, setTutorApp] = useState<any | null>(null);
 
   // Safety: Ensure user and wishlist exist before filtering
   const wishlistedTutors = tutors.filter(t => user?.wishlist?.includes(t.id) || false);
@@ -80,6 +81,30 @@ export default function Dashboard() {
 
     fetchHistory();
   }, [firebaseUser, isAuthReady]);
+
+  // 강사 신청 상태 조회
+  useEffect(() => {
+    if (!firebaseUser || !user?.tutorApplicationId) {
+      setTutorApp(null);
+      return;
+    }
+    (async () => {
+      try {
+        const snap = await getDocs(
+          query(collection(db, 'tutor_applications'), where('userId', '==', firebaseUser.uid))
+        );
+        if (!snap.empty) {
+          // 가장 최근 문서 하나 사용
+          const latest = snap.docs
+            .map(d => ({ id: d.id, ...(d.data() as any) }))
+            .sort((a, b) => (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0))[0];
+          setTutorApp(latest);
+        }
+      } catch (err) {
+        console.warn('강사 신청 조회 실패:', err);
+      }
+    })();
+  }, [firebaseUser, user?.tutorApplicationId]);
 
   const handleCopyCode = () => {
     if (user?.referralCode) {
@@ -378,6 +403,10 @@ export default function Dashboard() {
             </div>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between items-center p-3 rounded-lg bg-slate-50">
+                <span className="font-bold text-slate-500">실명</span>
+                <span className="font-bold text-slate-900">{user?.realName || user?.name || '-'}</span>
+              </div>
+              <div className="flex justify-between items-center p-3 rounded-lg bg-slate-50">
                 <span className="font-bold text-slate-500">회원 구분</span>
                 <span className="font-bold text-slate-800">
                   {user?.role === 'tutor' ? '강사' : user?.role === 'admin' ? '관리자' : '수강생'}
@@ -393,6 +422,41 @@ export default function Dashboard() {
               </div>
             </div>
           </Card>
+
+          {/* 강사 신청 상태 카드 */}
+          {tutorApp && (
+            <Card className="p-5">
+              <h3 className="font-bold text-slate-900 mb-3 flex items-center gap-2">
+                <School size={18} className="text-indigo-600" /> 강사 신청 현황
+              </h3>
+              <div className="flex items-center gap-2 mb-3">
+                <span
+                  className={cn(
+                    'inline-flex items-center text-[11px] font-black uppercase tracking-wider px-3 py-1 rounded-full',
+                    tutorApp.status === 'pending' && 'bg-amber-100 text-amber-700',
+                    tutorApp.status === 'approved' && 'bg-green-100 text-green-700',
+                    tutorApp.status === 'rejected' && 'bg-red-100 text-red-700'
+                  )}
+                >
+                  {tutorApp.status === 'pending' ? '대기 중' : tutorApp.status === 'approved' ? '승인됨' : '거절됨'}
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                {tutorApp.status === 'pending' &&
+                  '관리자 승인을 기다리고 있어요. 검토 완료 시 결과가 이곳에 표시됩니다.'}
+                {tutorApp.status === 'approved' &&
+                  '축하드려요! 강사 승인이 완료되어 역할이 업데이트되었습니다. 페이지를 새로고침 해주세요.'}
+                {tutorApp.status === 'rejected' && (
+                  <>
+                    <strong className="block text-red-600 mb-1">거절 사유</strong>
+                    <span className="block p-2 rounded-lg bg-red-50 text-red-700 whitespace-pre-wrap">
+                      {tutorApp.rejectionReason || '(사유 미입력)'}
+                    </span>
+                  </>
+                )}
+              </p>
+            </Card>
+          )}
 
           {/* Credits Card */}
           <Card className="bg-slate-900 text-white border-none shadow-xl">

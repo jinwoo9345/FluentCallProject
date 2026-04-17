@@ -72,6 +72,18 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // 강사 신청
+    match /tutor_applications/{appId} {
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid;
+      allow read: if isSignedIn() && (
+        resource.data.userId == request.auth.uid
+        || isAdmin()
+      );
+      allow list: if isAdmin();
+      allow update, delete: if isAdmin();
+    }
+
     // 결제 내역
     match /payments/{paymentId} {
       allow read: if isSignedIn() && (

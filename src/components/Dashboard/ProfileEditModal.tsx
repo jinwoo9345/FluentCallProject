@@ -13,7 +13,7 @@ interface ProfileEditModalProps {
 }
 
 export function ProfileEditModal({ isOpen, onClose, user }: ProfileEditModalProps) {
-  const [name, setName] = useState(user.name || '');
+  const [nickname, setNickname] = useState(user.name || '');
   const [email, setEmail] = useState(user.email || '');
   const [avatar, setAvatar] = useState(user.avatar || '');
   const [saving, setSaving] = useState(false);
@@ -21,15 +21,20 @@ export function ProfileEditModal({ isOpen, onClose, user }: ProfileEditModalProp
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) {
-      setError('이름은 비워둘 수 없습니다.');
+    const trimmedNickname = nickname.trim();
+    if (!trimmedNickname) {
+      setError('닉네임은 비워둘 수 없습니다.');
+      return;
+    }
+    if (trimmedNickname.length > 20) {
+      setError('닉네임은 20자 이하로 입력해주세요.');
       return;
     }
     setSaving(true);
     setError('');
     try {
       await updateDoc(doc(db, 'users', user.uid), {
-        name: name.trim(),
+        name: trimmedNickname,
         email: email.trim(),
         avatar: avatar.trim() || `https://picsum.photos/seed/${user.uid}/200/200`,
       });
@@ -83,14 +88,16 @@ export function ProfileEditModal({ isOpen, onClose, user }: ProfileEditModalProp
                 </div>
 
                 <div>
-                  <label className="block text-sm font-bold text-slate-700 mb-1">이름</label>
+                  <label className="block text-sm font-bold text-slate-700 mb-1">닉네임 (표시명)</label>
                   <input
                     type="text"
                     required
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
+                    value={nickname}
+                    onChange={(e) => setNickname(e.target.value)}
+                    maxLength={20}
                     className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-blue-500"
                   />
+                  <p className="text-[10px] text-slate-400 mt-1">서비스 전반에서 이 이름으로 표시됩니다. 언제든 변경 가능합니다.</p>
                 </div>
 
                 <div>
@@ -107,8 +114,12 @@ export function ProfileEditModal({ isOpen, onClose, user }: ProfileEditModalProp
                   </p>
                 </div>
 
-                {/* 읽기 전용 정보 */}
+                {/* 실명 (읽기 전용) */}
                 <div className="pt-2 border-t border-slate-100 space-y-2 text-sm text-slate-500">
+                  <div className="flex justify-between items-center">
+                    <span className="font-bold text-slate-600">실명</span>
+                    <span className="font-bold text-slate-900 text-base">{user.realName || '-'}</span>
+                  </div>
                   <div className="flex justify-between items-center">
                     <span className="font-bold text-slate-600">내 추천 코드</span>
                     <span className="font-mono font-bold text-slate-900 text-base">{user.referralCode || '-'}</span>

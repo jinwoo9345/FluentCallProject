@@ -2,13 +2,13 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Users, UserPlus, CreditCard, MessageSquare, TrendingUp,
-  Clock, Shield, Star
+  Clock, Shield, Star, School
 } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { useAuth } from '../contexts/AuthContext';
 import { db } from '../firebase';
-import { collection, query, getDocs, orderBy, where, doc, updateDoc, writeBatch, increment, addDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
+import { collection, query, getDocs, orderBy, where, doc, updateDoc, writeBatch, increment, addDoc, serverTimestamp, deleteDoc, setDoc } from 'firebase/firestore';
 import { cn } from '@/src/lib/utils';
 import { Pagination, usePaginated } from '../components/ui/Pagination';
 
@@ -47,7 +47,7 @@ function formatTS(ts: any, variant: 'date' | 'datetime' = 'date'): string {
 
 export default function AdminDashboard() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'overview' | 'consultations' | 'tutors' | 'payments' | 'users'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'consultations' | 'tutors' | 'tutor_apps' | 'payments' | 'users'>('overview');
   const [userSearch, setUserSearch] = useState('');
   const [creditDelta, setCreditDelta] = useState<Record<string, string>>({});
   
@@ -62,6 +62,9 @@ export default function AdminDashboard() {
   const [editTutor, setEditTutor] = useState<any | null>(null);
   const [isAddingTutor, setIsAddingTutor] = useState(false);
   const [consultFilter, setConsultFilter] = useState<'all' | 'pending' | 'completed'>('all');
+  const [tutorApps, setTutorApps] = useState<any[]>([]);
+  const [detailTutorApp, setDetailTutorApp] = useState<any | null>(null);
+  const [rejectionReason, setRejectionReason] = useState('');
 
   const fetchAdminData = async () => {
     setLoading(true);
@@ -115,6 +118,16 @@ export default function AdminDashboard() {
         console.warn('sessions fetch failed:', err);
       }
 
+      // 6. Fetch Tutor Applications
+      let appsList: any[] = [];
+      try {
+        const appsSnap = await getDocs(query(collection(db, 'tutor_applications'), orderBy('createdAt', 'desc')));
+        appsList = appsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      } catch (err) {
+        console.warn('tutor_applications fetch failed:', err);
+      }
+      setTutorApps(appsList);
+
       setStats({
         users: userSnap.size,
         revenue: totalRevenue,
@@ -158,6 +171,75 @@ export default function AdminDashboard() {
       setCreditDelta(prev => ({ ...prev, [u.id]: '' }));
     } catch (err: any) {
       alert('크레딧 조정 실패: ' + (err.message || '알 수 없는 오류'));
+    }
+  };
+
+  const handleApproveTutorApp = async (app: any) => {
+    if (!window.confirm(`${app.name} 님의 강사 신청을 승인합니다.\n승인 시 해당 유저의 역할이 '강사'로 변경되고 튜터 목록에 등록됩니다.`)) return;
+    try {
+      // 1. 튜터 문서 생성 (user uid를 문서 ID로 사용)
+      await setDoc(doc(db, 'tutors', app.userId), {
+        id: app.userId,
+        name: app.name,
+        avatar: `https://picsum.photos/seed/tutor_${app.userId}/200/200`,
+        rating: 0,
+        reviewCount: 0,
+        specialties: [],
+        bio: app.introduction || '',
+        longBio: app.experience || '',
+        hourlyRate: 0,
+        availability: [],
+        languages: ['English'],
+        location: '',
+        tier: '',
+        hidden: false,
+        createdAt: serverTimestamp(),
+      });
+
+      // 2. 유저 역할 변경
+      await updateDoc(doc(db, 'users', app.userId), {
+        role: 'tutor',
+        tutorApplicationStatus: 'approved',
+      });
+
+      // 3. 신청 문서 상태 업데이트
+      await updateDoc(doc(db, 'tutor_applications', app.id), {
+        status: 'approved',
+        reviewedAt: serverTimestamp(),
+      });
+
+      setTutorApps(prev => prev.map(a => (a.id === app.id ? { ...a, status: 'approved' } : a)));
+      setUsersList(prev => prev.map(u => (u.id === app.userId ? { ...u, role: 'tutor', tutorApplicationStatus: 'approved' } : u)));
+      alert('승인 처리 완료');
+      setDetailTutorApp(null);
+      fetchAdminData();
+    } catch (err: any) {
+      alert('승인 실패: ' + (err.message || '알 수 없는 오류'));
+    }
+  };
+
+  const handleRejectTutorApp = async (app: any, reason: string) => {
+    if (!reason.trim()) {
+      alert('거절 사유를 입력해주세요.');
+      return;
+    }
+    try {
+      await updateDoc(doc(db, 'tutor_applications', app.id), {
+        status: 'rejected',
+        rejectionReason: reason.trim(),
+        reviewedAt: serverTimestamp(),
+      });
+      await updateDoc(doc(db, 'users', app.userId), {
+        tutorApplicationStatus: 'rejected',
+      });
+      setTutorApps(prev =>
+        prev.map(a => (a.id === app.id ? { ...a, status: 'rejected', rejectionReason: reason.trim() } : a))
+      );
+      alert('거절 처리 완료');
+      setDetailTutorApp(null);
+      setRejectionReason('');
+    } catch (err: any) {
+      alert('거절 처리 실패: ' + (err.message || '알 수 없는 오류'));
     }
   };
 
@@ -274,11 +356,14 @@ export default function AdminDashboard() {
     );
   }
 
+  const pendingTutorAppsCount = tutorApps.filter(a => a.status === 'pending').length;
+
   const navItems = [
     { id: 'overview', label: '현황판', icon: TrendingUp },
     { id: 'consultations', label: '상담 내역', icon: MessageSquare, count: stats.pendingConsults },
     { id: 'payments', label: '결제 관리', icon: CreditCard },
     { id: 'users', label: '유저 관리', icon: Users },
+    { id: 'tutor_apps', label: '강사 신청', icon: School, count: pendingTutorAppsCount },
     { id: 'tutors', label: '강사 관리', icon: UserPlus },
   ];
 
@@ -729,6 +814,58 @@ export default function AdminDashboard() {
             </motion.div>
           )}
 
+          {activeTab === 'tutor_apps' && (
+            <motion.div key="tutor_apps" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+              <h2 className="text-xl font-bold text-slate-900 mb-4">
+                강사 신청 내역 ({tutorApps.length}건)
+              </h2>
+              {tutorApps.length === 0 ? (
+                <Card className="p-12 text-center text-slate-500 border-dashed">
+                  접수된 강사 신청이 없습니다.
+                </Card>
+              ) : (
+                <div className="space-y-3">
+                  {tutorApps.map(app => (
+                    <Card key={app.id} className="p-5 flex items-center justify-between hover:shadow-md transition-shadow">
+                      <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600">
+                          <School size={22} />
+                        </div>
+                        <div>
+                          <p className="font-bold text-slate-900">
+                            {app.name}
+                            <span className="ml-2 text-xs text-slate-500 font-normal">{app.email}</span>
+                          </p>
+                          <p className="text-xs text-slate-500 mt-0.5">
+                            신청일: {formatTS(app.createdAt, 'datetime')}
+                          </p>
+                          <p className="text-xs text-slate-500 line-clamp-1 mt-1 max-w-md">
+                            {app.introduction || app.experience}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={cn(
+                            'text-xs font-black uppercase tracking-wider px-3 py-1 rounded-full',
+                            app.status === 'pending' && 'bg-amber-100 text-amber-700',
+                            app.status === 'approved' && 'bg-green-100 text-green-700',
+                            app.status === 'rejected' && 'bg-red-100 text-red-700'
+                          )}
+                        >
+                          {app.status === 'pending' ? '대기' : app.status === 'approved' ? '승인됨' : '거절'}
+                        </span>
+                        <Button variant="outline" size="sm" className="text-xs" onClick={() => setDetailTutorApp(app)}>
+                          상세보기
+                        </Button>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          )}
+
           {activeTab === 'tutors' && (
             <motion.div key="tutors" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
               <div className="flex items-center justify-between mb-4">
@@ -1002,6 +1139,109 @@ export default function AdminDashboard() {
             onClose={() => setIsAddingTutor(false)}
             onSave={handleCreateTutor}
           />
+        )}
+      </AnimatePresence>
+
+      {/* 강사 신청 상세 모달 */}
+      <AnimatePresence>
+        {detailTutorApp && (
+          <div className="fixed inset-0 z-[250] overflow-y-auto bg-slate-900/60 backdrop-blur-sm">
+            <div className="flex min-h-full items-center justify-center p-4">
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="w-full max-w-3xl bg-white rounded-3xl shadow-2xl overflow-hidden"
+              >
+                <div className="bg-slate-900 text-white p-8 flex items-start justify-between">
+                  <div>
+                    <p className="text-sm font-black uppercase tracking-widest text-indigo-300">강사 신청</p>
+                    <h2 className="mt-2 text-3xl font-bold">{detailTutorApp.name}</h2>
+                    <p className="mt-2 text-base text-slate-300">
+                      {detailTutorApp.email} · {detailTutorApp.contactValue}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setDetailTutorApp(null);
+                      setRejectionReason('');
+                    }}
+                    className="text-slate-400 hover:text-white text-3xl"
+                  >
+                    ×
+                  </button>
+                </div>
+
+                <div className="p-10 space-y-8 max-h-[70vh] overflow-y-auto">
+                  <div className="flex flex-wrap gap-3 text-sm">
+                    <span className={cn(
+                      'px-4 py-1.5 rounded-full font-black uppercase tracking-wider',
+                      detailTutorApp.status === 'pending' && 'bg-amber-100 text-amber-700',
+                      detailTutorApp.status === 'approved' && 'bg-green-100 text-green-700',
+                      detailTutorApp.status === 'rejected' && 'bg-red-100 text-red-700'
+                    )}>
+                      {detailTutorApp.status === 'pending' ? '대기' : detailTutorApp.status === 'approved' ? '승인됨' : '거절됨'}
+                    </span>
+                    <span className="px-4 py-1.5 rounded-full bg-slate-100 text-slate-600 font-bold">
+                      신청일: {formatTS(detailTutorApp.createdAt, 'datetime')}
+                    </span>
+                  </div>
+
+                  <DetailSection title="영어 교육 / 체류 경험" value={detailTutorApp.experience} />
+                  <DetailSection title="자격증 · 학력" value={detailTutorApp.qualifications} />
+                  <DetailSection title="자기 소개" value={detailTutorApp.introduction} />
+
+                  {detailTutorApp.status === 'rejected' && detailTutorApp.rejectionReason && (
+                    <div>
+                      <p className="text-sm font-black uppercase tracking-widest text-red-500 mb-3">거절 사유</p>
+                      <p className="text-base text-red-700 leading-relaxed whitespace-pre-wrap bg-red-50 p-4 rounded-2xl border border-red-100">
+                        {detailTutorApp.rejectionReason}
+                      </p>
+                    </div>
+                  )}
+
+                  {detailTutorApp.status === 'pending' && (
+                    <div className="pt-4 border-t border-slate-100">
+                      <p className="text-sm font-black uppercase tracking-widest text-slate-500 mb-3">
+                        거절할 경우 사유 입력 (승인 시 무시됨)
+                      </p>
+                      <textarea
+                        rows={3}
+                        className="w-full rounded-xl border border-slate-200 px-4 py-3 text-base outline-none focus:border-blue-500 resize-none"
+                        placeholder="예: 경력 증빙 부족으로 이번에는 승인이 어렵습니다."
+                        value={rejectionReason}
+                        onChange={(e) => setRejectionReason(e.target.value)}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <div className="p-6 border-t border-slate-100 flex gap-3 justify-end bg-slate-50/50">
+                  {detailTutorApp.status === 'pending' ? (
+                    <>
+                      <Button
+                        variant="outline"
+                        className="text-red-600 border-red-200 hover:text-red-700 hover:bg-red-50"
+                        onClick={() => handleRejectTutorApp(detailTutorApp, rejectionReason)}
+                      >
+                        거절
+                      </Button>
+                      <Button onClick={() => handleApproveTutorApp(detailTutorApp)}>승인</Button>
+                    </>
+                  ) : (
+                    <Button
+                      onClick={() => {
+                        setDetailTutorApp(null);
+                        setRejectionReason('');
+                      }}
+                    >
+                      닫기
+                    </Button>
+                  )}
+                </div>
+              </motion.div>
+            </div>
+          </div>
         )}
       </AnimatePresence>
     </div>

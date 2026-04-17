@@ -12,6 +12,7 @@ import TermsOfService from './pages/TermsOfService';
 import PaymentSuccess from './pages/PaymentSuccess';
 import PaymentFail from './pages/PaymentFail';
 import ReferralProgram from './pages/ReferralProgram';
+import Placeholder from './pages/Placeholder';
 import { useEffect, useRef } from 'react';
 import { db, auth } from './firebase';
 import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
@@ -67,9 +68,11 @@ function AppContent() {
           if (!userSnap.exists()) {
             const referralCode = Math.random().toString(36).substring(2, 8).toUpperCase();
             const fallbackName = `카카오회원${user.uid.slice(-4)}`;
+            const kakaoName = data.userName || user.displayName || fallbackName;
             await setDoc(userRef, {
               uid: user.uid,
-              name: data.userName || user.displayName || fallbackName,
+              name: kakaoName,           // 표시명 (닉네임이 없으면 실명 사용)
+              realName: kakaoName,       // 실명 (마이페이지에서 참조용)
               email: user.email || '',
               role: 'student',
               credits: 0,
@@ -81,12 +84,17 @@ function AppContent() {
               hasCompletedConsultation: !!pendingConsultationId // If consultation was done before login
             });
           } else {
-            // Update existing user profile — 닉네임만 최신 카카오 프로필로 갱신 (아바타는 그대로 유지)
+            // Update existing user profile — realName 없으면 보정, 표시명(name)은 사용자 설정값 유지
             const existing = userSnap.data() as any;
             const updateData: any = {};
-            if (data.userName && data.userName !== existing.name) {
-              updateData.name = data.userName;
-            } else if (existing.name === '카카오 회원' && (data.userName || user.displayName)) {
+            if (!existing.realName && (data.userName || user.displayName)) {
+              updateData.realName = data.userName || user.displayName;
+            }
+            // 기존 표시명이 기본값(카카오회원·카카오 회원)이고 닉네임을 설정하지 않은 경우에만 최신 이름으로 덮어씀
+            if (
+              (existing.name === '카카오 회원' || !existing.name) &&
+              (data.userName || user.displayName)
+            ) {
               updateData.name = data.userName || user.displayName;
             }
             if (pendingConsultationId) {
@@ -137,6 +145,26 @@ function AppContent() {
           <Route path="/payment/success" element={<PaymentSuccess />} />
           <Route path="/payment/fail" element={<PaymentFail />} />
           <Route path="/referral" element={<ReferralProgram />} />
+          <Route
+            path="/about"
+            element={<Placeholder title="프로그램 소개 · 소개와 목적" />}
+          />
+          <Route
+            path="/level-test"
+            element={<Placeholder title="레벨테스트" description="영어 회화 레벨을 진단하는 테스트 페이지가 준비 중입니다." />}
+          />
+          <Route
+            path="/faq"
+            element={<Placeholder title="자주 묻는 질문 (FAQ)" description="메인 페이지 FAQ 섹션에서 먼저 확인해보세요. 전용 페이지는 곧 추가될 예정입니다." />}
+          />
+          <Route
+            path="/qna"
+            element={<Placeholder title="Q&A 게시판" description="회원 간 질문과 답변을 나누는 게시판입니다. 곧 오픈 예정입니다." />}
+          />
+          <Route
+            path="/info-board"
+            element={<Placeholder title="정보 게시판 (회원 전용)" description="학습 팁과 공지가 공유되는 회원 전용 게시판입니다. 준비 중입니다." />}
+          />
         </Routes>
       </main>
       <Footer />
