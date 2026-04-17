@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'react-router-dom';
 import {
   User, Calendar, Menu, X, LogOut, Shield, ChevronDown,
-  BookOpen, Users, ClipboardList, Info,
+  BookOpen, ClipboardList, Info,
 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '../ui/Button';
@@ -11,29 +11,25 @@ import { auth } from '../../firebase';
 import { signOut } from 'firebase/auth';
 
 type SubItem = { name: string; path: string };
-type MenuItem =
-  | { type: 'link'; name: string; path: string; icon: any }
-  | { type: 'dropdown'; name: string; icon: any; items: SubItem[] };
+type MenuItem = { name: string; icon: any; items: SubItem[] };
 
 export const Navbar = () => {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [isDropdownHovered, setIsDropdownHovered] = useState(false);
   const [mobileSub, setMobileSub] = useState<string | null>(null);
   const location = useLocation();
   const { user, firebaseUser, setIsAuthModalOpen, setAuthMode } = useAuth();
 
   const menus: MenuItem[] = [
     {
-      type: 'dropdown',
       name: '소개',
       icon: BookOpen,
       items: [
-        { name: '프로그램 소개 · 소개와 목적', path: '/about' },
+        { name: '프로그램 소개', path: '/about' },
         { name: '튜터 소개', path: '/tutors' },
       ],
     },
     {
-      type: 'dropdown',
       name: '레벨테스트',
       icon: ClipboardList,
       items: [
@@ -41,7 +37,6 @@ export const Navbar = () => {
       ],
     },
     {
-      type: 'dropdown',
       name: '정보',
       icon: Info,
       items: [
@@ -56,12 +51,9 @@ export const Navbar = () => {
   ];
 
   const isActive = (path: string) => location.pathname === path;
-  const isActiveDropdown = (item: MenuItem) =>
-    item.type === 'dropdown' && item.items.some(s => isActive(s.path));
+  const isActiveDropdown = (item: MenuItem) => item.items.some(s => isActive(s.path));
 
-  const handleSignOut = () => {
-    signOut(auth);
-  };
+  const handleSignOut = () => signOut(auth);
 
   const openAuth = (mode: 'signin' | 'signup') => {
     setAuthMode(mode);
@@ -70,79 +62,67 @@ export const Navbar = () => {
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-brand-cream-dark/50 bg-brand-cream/80 backdrop-blur-md">
-      <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center gap-2">
+      <div className="mx-auto grid grid-cols-[auto_1fr_auto] h-20 max-w-7xl items-center gap-4 px-4 sm:px-6 lg:px-8">
+        {/* 좌측: 로고 */}
+        <div className="justify-self-start">
           <Link to="/" className="flex items-center gap-2 text-2xl font-black text-slate-900 font-display tracking-tight">
             <span>English<span className="text-blue-600">Bites</span></span>
           </Link>
         </div>
 
-        {/* Desktop Nav */}
-        <div className="hidden md:flex md:items-center md:gap-2">
-          {menus.map((menu) => (
-            <div
-              key={menu.name}
-              className="relative"
-              onMouseEnter={() => setOpenMenu(menu.name)}
-              onMouseLeave={() => setOpenMenu(null)}
-            >
-              {menu.type === 'link' ? (
-                <Link
-                  to={menu.path}
+        {/* 중앙: 데스크톱 메뉴 */}
+        <div className="hidden md:flex md:items-center md:justify-center md:gap-2 justify-self-center">
+          {/* 드롭다운 메뉴 그룹 — 그룹 전체에 hover 걸어 모든 드롭다운이 동시에 열림 */}
+          <div
+            className="flex items-center gap-1 relative"
+            onMouseEnter={() => setIsDropdownHovered(true)}
+            onMouseLeave={() => setIsDropdownHovered(false)}
+          >
+            {menus.map((menu) => (
+              <div key={menu.name} className="relative">
+                <button
                   className={cn(
-                    'flex items-center gap-2 px-3 py-2 text-sm font-bold transition-colors rounded-lg hover:text-blue-600',
-                    isActive(menu.path) ? 'text-blue-600' : 'text-slate-600'
+                    'flex items-center gap-1 px-4 py-2 text-sm font-bold transition-colors rounded-lg hover:text-blue-600',
+                    isActiveDropdown(menu) ? 'text-blue-600' : 'text-slate-600'
                   )}
                 >
                   <menu.icon size={16} />
                   {menu.name}
-                </Link>
-              ) : (
-                <>
-                  <button
-                    className={cn(
-                      'flex items-center gap-1 px-3 py-2 text-sm font-bold transition-colors rounded-lg hover:text-blue-600',
-                      isActiveDropdown(menu) ? 'text-blue-600' : 'text-slate-600'
-                    )}
-                  >
-                    <menu.icon size={16} />
-                    {menu.name}
-                    <ChevronDown
-                      size={14}
-                      className={cn('transition-transform', openMenu === menu.name && 'rotate-180')}
-                    />
-                  </button>
-                  {openMenu === menu.name && (
-                    <div className="absolute left-0 top-full pt-1 min-w-60">
-                      <div className="rounded-2xl border border-slate-100 bg-white shadow-xl p-2">
-                        {menu.items.map((sub) => (
-                          <Link
-                            key={sub.path}
-                            to={sub.path}
-                            className={cn(
-                              'block px-4 py-2.5 text-sm font-medium rounded-xl transition-colors',
-                              isActive(sub.path)
-                                ? 'bg-blue-50 text-blue-600 font-bold'
-                                : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                            )}
-                          >
-                            {sub.name}
-                          </Link>
-                        ))}
-                      </div>
+                  <ChevronDown
+                    size={14}
+                    className={cn('transition-transform', isDropdownHovered && 'rotate-180')}
+                  />
+                </button>
+                {isDropdownHovered && (
+                  <div className="absolute left-1/2 -translate-x-1/2 top-full pt-2 min-w-56 z-50">
+                    <div className="rounded-2xl border border-slate-100 bg-white shadow-xl p-2">
+                      {menu.items.map((sub) => (
+                        <Link
+                          key={sub.path}
+                          to={sub.path}
+                          className={cn(
+                            'block px-4 py-2.5 text-sm font-medium rounded-xl transition-colors whitespace-nowrap',
+                            isActive(sub.path)
+                              ? 'bg-blue-50 text-blue-600 font-bold'
+                              : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                          )}
+                        >
+                          {sub.name}
+                        </Link>
+                      ))}
                     </div>
-                  )}
-                </>
-              )}
-            </div>
-          ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
 
-          {/* 내 강의실 — 로그인한 경우만 */}
+          {/* 내 강의실 — 로그인 시에만 */}
           {firebaseUser && (
             <Link
               to="/dashboard"
               className={cn(
-                'flex items-center gap-2 px-3 py-2 text-sm font-bold transition-colors rounded-lg hover:text-blue-600',
+                'flex items-center gap-2 px-4 py-2 text-sm font-bold transition-colors rounded-lg hover:text-blue-600',
                 isActive('/dashboard') ? 'text-blue-600' : 'text-slate-600'
               )}
             >
@@ -155,18 +135,19 @@ export const Navbar = () => {
             <Link
               to="/admin"
               className={cn(
-                'flex items-center gap-2 px-3 py-2 text-sm font-bold transition-colors rounded-lg hover:text-blue-600',
+                'flex items-center gap-2 px-4 py-2 text-sm font-bold transition-colors rounded-lg hover:text-blue-600',
                 isActive('/admin') ? 'text-blue-600' : 'text-slate-600'
               )}
             >
               <Shield size={16} />관리자
             </Link>
           )}
+        </div>
 
-          <div className="h-4 w-[1px] bg-slate-200 mx-2" />
-
+        {/* 우측: 인증 영역 (데스크톱) */}
+        <div className="hidden md:flex md:items-center md:gap-3 justify-self-end">
           {firebaseUser ? (
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3">
               <div className="flex items-center gap-2">
                 <img
                   src={user?.avatar || `https://picsum.photos/seed/${firebaseUser.uid}/100/100`}
@@ -194,15 +175,13 @@ export const Navbar = () => {
                 <User size={16} />
                 로그인
               </Button>
-              <Button size="sm" onClick={() => openAuth('signup')}>
-                시작하기
-              </Button>
+              <Button size="sm" onClick={() => openAuth('signup')}>시작하기</Button>
             </>
           )}
         </div>
 
-        {/* Mobile menu button */}
-        <div className="flex md:hidden">
+        {/* 모바일 메뉴 버튼 */}
+        <div className="flex md:hidden justify-self-end">
           <button
             onClick={() => setIsMobileOpen(!isMobileOpen)}
             className="text-slate-600 hover:text-blue-600 focus:outline-none"
@@ -212,7 +191,7 @@ export const Navbar = () => {
         </div>
       </div>
 
-      {/* Mobile Nav */}
+      {/* 모바일 Nav */}
       {isMobileOpen && (
         <div className="border-t border-slate-100 bg-white p-4 md:hidden">
           <div className="flex flex-col gap-1">
@@ -231,7 +210,7 @@ export const Navbar = () => {
                     className={cn('transition-transform text-slate-400', mobileSub === menu.name && 'rotate-180')}
                   />
                 </button>
-                {mobileSub === menu.name && menu.type === 'dropdown' && (
+                {mobileSub === menu.name && (
                   <div className="ml-8 mb-2 flex flex-col gap-1 border-l border-slate-100 pl-3">
                     {menu.items.map((sub) => (
                       <Link
