@@ -10,6 +10,14 @@ import { useAuth } from '../contexts/AuthContext';
 import { db } from '../firebase';
 import { collection, query, getDocs, orderBy, where, doc, updateDoc, writeBatch, increment, addDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { cn } from '@/src/lib/utils';
+import { Pagination, usePaginated } from '../components/ui/Pagination';
+
+const PAGE_SIZES = {
+  consultations: 15,
+  payments: 15,
+  users: 15,
+  tutors: 9,
+};
 
 // 역할 한국어 라벨
 function roleLabel(role: string | undefined): string {
@@ -53,6 +61,7 @@ export default function AdminDashboard() {
   const [detailUser, setDetailUser] = useState<any | null>(null);
   const [editTutor, setEditTutor] = useState<any | null>(null);
   const [isAddingTutor, setIsAddingTutor] = useState(false);
+  const [consultFilter, setConsultFilter] = useState<'all' | 'pending' | 'completed'>('all');
 
   const fetchAdminData = async () => {
     setLoading(true);
@@ -149,6 +158,24 @@ export default function AdminDashboard() {
       setCreditDelta(prev => ({ ...prev, [u.id]: '' }));
     } catch (err: any) {
       alert('크레딧 조정 실패: ' + (err.message || '알 수 없는 오류'));
+    }
+  };
+
+  const handleDeleteConsult = async (c: any) => {
+    const confirmed = window.confirm(
+      `"${c.name || '(이름 없음)'}" 님의 상담 신청을 삭제합니다.\n\n` +
+      `이 작업은 되돌릴 수 없습니다. 진행하시겠습니까?`
+    );
+    if (!confirmed) return;
+    try {
+      await deleteDoc(doc(db, 'consultations', c.id));
+      setConsultations(prev => prev.filter(x => x.id !== c.id));
+      setStats(prev => ({
+        ...prev,
+        pendingConsults: prev.pendingConsults - (c.status === 'completed' ? 0 : 1),
+      }));
+    } catch (err: any) {
+      alert('삭제 실패: ' + (err.message || '알 수 없는 오류'));
     }
   };
 
@@ -267,6 +294,20 @@ export default function AdminDashboard() {
         (u.referralCode || '').toLowerCase().includes(q)
       );
     });
+
+  const filteredConsultations = consultations.filter(c => {
+    if (consultFilter === 'all') return true;
+    if (consultFilter === 'pending') return c.status === 'pending' || !c.status;
+    return c.status === 'completed';
+  });
+
+  const completedCount = consultations.filter(c => c.status === 'completed').length;
+  const pendingCount = consultations.filter(c => c.status === 'pending' || !c.status).length;
+
+  const usersPage = usePaginated(filteredUsers, PAGE_SIZES.users);
+  const consultPage = usePaginated(filteredConsultations, PAGE_SIZES.consultations);
+  const paymentsPage = usePaginated(payments, PAGE_SIZES.payments);
+  const tutorsPage = usePaginated(tutors, PAGE_SIZES.tutors);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
@@ -405,7 +446,30 @@ export default function AdminDashboard() {
 
           {activeTab === 'consultations' && (
             <motion.div key="consultations" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
-              <h2 className="text-xl font-bold text-slate-900 mb-4">전체 상담 신청 내역</h2>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                <h2 className="text-xl font-bold text-slate-900">상담 신청 내역</h2>
+                {/* 상태 필터 탭 */}
+                <div className="inline-flex items-center gap-1 p-1 bg-slate-100 rounded-xl">
+                  {([
+                    { id: 'all', label: `전체 (${consultations.length})` },
+                    { id: 'pending', label: `대기 중 (${pendingCount})` },
+                    { id: 'completed', label: `완료 (${completedCount})` },
+                  ] as const).map(opt => (
+                    <button
+                      key={opt.id}
+                      onClick={() => setConsultFilter(opt.id)}
+                      className={cn(
+                        'px-4 py-1.5 rounded-lg text-xs font-bold transition-all',
+                        consultFilter === opt.id
+                          ? 'bg-white text-blue-600 shadow-sm'
+                          : 'text-slate-500 hover:text-slate-700'
+                      )}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <Card className="p-0 overflow-hidden shadow-sm border border-slate-200">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse">
@@ -420,7 +484,7 @@ export default function AdminDashboard() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {consultations.map(c => (
+                      {consultPage.sliced.map(c => (
                         <tr key={c.id} className="hover:bg-slate-50/50 transition-colors">
                           <td className="px-6 py-4">
                             <p className="font-bold text-slate-900">{c.name || '미입력'}</p>
@@ -438,7 +502,7 @@ export default function AdminDashboard() {
                             </span>
                           </td>
                           <td className="px-6 py-4 text-right">
-                            <div className="flex gap-1 justify-end">
+                            <div className="flex gap-1 justify-end flex-wrap">
                               <Button
                                 variant="outline"
                                 size="sm"
@@ -455,6 +519,14 @@ export default function AdminDashboard() {
                               >
                                 {c.status === 'completed' ? '대기로 변경' : '완료 처리'}
                               </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-xs text-red-600 border-red-200 hover:text-red-700 hover:bg-red-50"
+                                onClick={() => handleDeleteConsult(c)}
+                              >
+                                삭제
+                              </Button>
                             </div>
                           </td>
                         </tr>
@@ -462,6 +534,12 @@ export default function AdminDashboard() {
                     </tbody>
                   </table>
                 </div>
+                <Pagination
+                  currentPage={consultPage.page}
+                  totalItems={filteredConsultations.length}
+                  pageSize={PAGE_SIZES.consultations}
+                  onPageChange={consultPage.setPage}
+                />
               </Card>
             </motion.div>
           )}
@@ -484,7 +562,7 @@ export default function AdminDashboard() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {payments.map(p => {
+                      {paymentsPage.sliced.map(p => {
                         const payer = usersList.find(u => u.id === p.userId || u.uid === p.userId);
                         return (
                         <tr key={p.id} className="hover:bg-slate-50/50 transition-colors">
@@ -514,6 +592,12 @@ export default function AdminDashboard() {
                     </tbody>
                   </table>
                 </div>
+                <Pagination
+                  currentPage={paymentsPage.page}
+                  totalItems={payments.length}
+                  pageSize={PAGE_SIZES.payments}
+                  onPageChange={paymentsPage.setPage}
+                />
               </Card>
             </motion.div>
           )}
@@ -544,7 +628,7 @@ export default function AdminDashboard() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {filteredUsers.map((u: any) => {
+                      {usersPage.sliced.map((u: any) => {
                         const raw = creditDelta[u.id] ?? '';
                         const delta = Number(raw);
                         const isValid = raw !== '' && Number.isFinite(delta);
@@ -635,6 +719,12 @@ export default function AdminDashboard() {
                     </tbody>
                   </table>
                 </div>
+                <Pagination
+                  currentPage={usersPage.page}
+                  totalItems={filteredUsers.length}
+                  pageSize={PAGE_SIZES.users}
+                  onPageChange={usersPage.setPage}
+                />
               </Card>
             </motion.div>
           )}
@@ -648,7 +738,7 @@ export default function AdminDashboard() {
                 </Button>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {tutors.map(tutor => (
+                {tutorsPage.sliced.map(tutor => (
                   <Card
                     key={tutor.id}
                     className={cn(
@@ -711,6 +801,13 @@ export default function AdminDashboard() {
                   </Card>
                 ))}
               </div>
+              <Pagination
+                currentPage={tutorsPage.page}
+                totalItems={tutors.length}
+                pageSize={PAGE_SIZES.tutors}
+                onPageChange={tutorsPage.setPage}
+                className="mt-6 rounded-2xl border border-slate-100"
+              />
             </motion.div>
           )}
         </AnimatePresence>
@@ -781,17 +878,29 @@ export default function AdminDashboard() {
                   <DetailSection title="기타 메모" value={detailConsult.notes} />
                 </div>
 
-                <div className="p-6 border-t border-slate-100 flex gap-3 justify-end bg-slate-50/50">
+                <div className="p-6 border-t border-slate-100 flex gap-3 justify-between bg-slate-50/50">
                   <Button
                     variant="outline"
+                    className="text-red-600 border-red-200 hover:text-red-700 hover:bg-red-50"
                     onClick={() => {
-                      handleToggleConsultStatus(detailConsult);
+                      handleDeleteConsult(detailConsult);
                       setDetailConsult(null);
                     }}
                   >
-                    {detailConsult.status === 'completed' ? '대기로 변경' : '완료 처리'}
+                    삭제
                   </Button>
-                  <Button onClick={() => setDetailConsult(null)}>닫기</Button>
+                  <div className="flex gap-3">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        handleToggleConsultStatus(detailConsult);
+                        setDetailConsult(null);
+                      }}
+                    >
+                      {detailConsult.status === 'completed' ? '대기로 변경' : '완료 처리'}
+                    </Button>
+                    <Button onClick={() => setDetailConsult(null)}>닫기</Button>
+                  </div>
                 </div>
               </motion.div>
             </div>

@@ -14,9 +14,12 @@ import { ScheduleManager } from '../components/Dashboard/ScheduleManager';
 import { PointTransferModal } from '../components/Payment/PointTransferModal';
 import { ProfileEditModal } from '../components/Dashboard/ProfileEditModal';
 import { ConsultationForm } from '../components/Consultation/ConsultationForm';
+import { Pagination, usePaginated } from '../components/ui/Pagination';
 import { db } from '../firebase';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { shareReferralCode } from '../lib/kakao';
+
+const USER_PAGE_SIZE = 10;
 
 type TabType = 'sessions' | 'payments' | 'consultations';
 
@@ -35,6 +38,10 @@ export default function Dashboard() {
 
   // Safety: Ensure user and wishlist exist before filtering
   const wishlistedTutors = tutors.filter(t => user?.wishlist?.includes(t.id) || false);
+
+  const sessionsPage = usePaginated(sessions, USER_PAGE_SIZE);
+  const paymentsPage = usePaginated(payments, USER_PAGE_SIZE);
+  const consultsPage = usePaginated(consultations, USER_PAGE_SIZE);
 
   // Fetch Payment & Consultation History
   useEffect(() => {
@@ -210,7 +217,7 @@ export default function Dashboard() {
                           아직 예약된 수업이 없습니다.
                         </Card>
                       ) : (
-                        sessions.map((cls) => (
+                        sessionsPage.sliced.map((cls) => (
                           <Card key={cls.id} className="flex items-center justify-between p-4 hover:shadow-md transition-shadow">
                             <div className="flex items-center gap-4">
                               <div className="h-12 w-12 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 font-bold uppercase text-lg">
@@ -230,6 +237,13 @@ export default function Dashboard() {
                           </Card>
                         ))
                       )}
+                      <Pagination
+                        currentPage={sessionsPage.page}
+                        totalItems={sessions.length}
+                        pageSize={USER_PAGE_SIZE}
+                        onPageChange={sessionsPage.setPage}
+                        className="rounded-2xl border border-slate-100 bg-white"
+                      />
                     </div>
                   )}
 
@@ -240,7 +254,7 @@ export default function Dashboard() {
                           결제 내역이 없습니다.
                         </Card>
                       ) : (
-                        payments.map((p) => (
+                        paymentsPage.sliced.map((p) => (
                           <Card key={p.id} className="flex items-center justify-between p-4">
                             <div className="flex items-center gap-4">
                               <div className="h-12 w-12 rounded-xl bg-green-50 flex items-center justify-center text-green-600">
@@ -257,6 +271,13 @@ export default function Dashboard() {
                           </Card>
                         ))
                       )}
+                      <Pagination
+                        currentPage={paymentsPage.page}
+                        totalItems={payments.length}
+                        pageSize={USER_PAGE_SIZE}
+                        onPageChange={paymentsPage.setPage}
+                        className="rounded-2xl border border-slate-100 bg-white"
+                      />
                     </div>
                   )}
 
@@ -267,7 +288,7 @@ export default function Dashboard() {
                           상담 신청 내역이 없습니다.
                         </Card>
                       ) : (
-                        consultations.map((c) => (
+                        consultsPage.sliced.map((c) => (
                           <Card key={c.id} className="p-6">
                             <div className="flex items-start justify-between mb-4">
                               <div>
@@ -291,6 +312,13 @@ export default function Dashboard() {
                           </Card>
                         ))
                       )}
+                      <Pagination
+                        currentPage={consultsPage.page}
+                        totalItems={consultations.length}
+                        pageSize={USER_PAGE_SIZE}
+                        onPageChange={consultsPage.setPage}
+                        className="rounded-2xl border border-slate-100 bg-white"
+                      />
                     </div>
                   )}
                 </>
