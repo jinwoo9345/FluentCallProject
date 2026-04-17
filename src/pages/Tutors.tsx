@@ -11,7 +11,7 @@ import { useTutors } from '../hooks/useTutors';
 
 export default function Tutors() {
   const { user, setIsAuthModalOpen, setAuthMode, toggleWishlist } = useAuth();
-  const { tutors, loading } = useTutors();
+  const { tutors, loading, error } = useTutors();
   const [searchQuery, setSearchQuery] = useState('');
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
@@ -40,6 +40,11 @@ export default function Tutors() {
 
   const handleHeartClick = (e: React.MouseEvent, tutorId: string) => {
     e.stopPropagation();
+    if (!user) {
+      setAuthMode('signin');
+      setIsAuthModalOpen(true);
+      return;
+    }
     toggleWishlist(tutorId);
   };
 
@@ -48,6 +53,18 @@ export default function Tutors() {
       <div className="flex flex-col items-center justify-center min-h-[60vh]">
         <Loader2 className="animate-spin text-blue-600 mb-4" size={40} />
         <p className="text-slate-600">최고의 원어민 튜터들을 불러오는 중...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center px-4">
+        <div className="bg-red-50 text-red-600 p-4 rounded-2xl mb-4">
+          <p className="font-bold text-lg">데이터를 가져오지 못했습니다</p>
+          <p className="text-sm opacity-80">{error}</p>
+        </div>
+        <Button onClick={() => window.location.reload()}>다시 시도하기</Button>
       </div>
     );
   }

@@ -7,9 +7,9 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
     
-    // 튜터 목록: 로그인한 유저는 모두 읽기 가능 (튜터 정보 조회용)
+    // 튜터 목록: 누구나 읽기 가능 (탐색용)
     match /tutors/{tutorId} {
-      allow read: if request.auth != null;
+      allow read: if true;
       allow write: if false; // 강사 등록은 관리자만 (추후 확장 가능)
     }
     
