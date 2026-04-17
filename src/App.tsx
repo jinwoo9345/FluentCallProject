@@ -45,6 +45,9 @@ function AppContent() {
           const userCredential = await signInWithCustomToken(auth, data.customToken);
           const user = userCredential.user;
 
+          // Check for pending consultation to link
+          const pendingConsultationId = localStorage.getItem('pendingConsultationId');
+
           // Ensure user document exists or update existing info
           const userRef = doc(db, 'users', user.uid);
           const userSnap = await getDoc(userRef);
@@ -61,14 +64,33 @@ function AppContent() {
               referredBy: '',
               discountBalance: 0,
               createdAt: serverTimestamp(),
-              avatar: data.userPhoto || user.photoURL || `https://picsum.photos/seed/${user.uid}/200/200`
+              avatar: data.userPhoto || user.photoURL || `https://picsum.photos/seed/${user.uid}/200/200`,
+              hasCompletedConsultation: !!pendingConsultationId // If consultation was done before login
             });
           } else {
-            // Update existing user profile if name or photo is missing/different
-            await setDoc(userRef, {
+            // Update existing user profile
+            const updateData: any = {
               name: data.userName || userSnap.data().name,
               avatar: data.userPhoto || userSnap.data().avatar,
-            }, { merge: true });
+            };
+            if (pendingConsultationId) {
+              updateData.hasCompletedConsultation = true;
+            }
+            await setDoc(userRef, updateData, { merge: true });
+          }
+
+          // Link the consultation document to the user
+          if (pendingConsultationId) {
+            try {
+              await updateDoc(doc(db, 'consultations', pendingConsultationId), {
+                userId: user.uid
+              });
+              localStorage.removeItem('pendingConsultationId');
+              localStorage.removeItem('pendingConsultationName');
+              console.log('[Auth] Linked pending consultation to user:', user.uid);
+            } catch (err) {
+              console.error('Error linking consultation:', err);
+            }
           }
           
           // Clear query params
