@@ -258,7 +258,7 @@ export function TutorFinderModal({ isOpen, onClose }: TutorFinderModalProps) {
                 {success ? (
                   <div className="text-center space-y-6 py-4">
                     <div className="w-20 h-20 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto">
-                      <Sparkles size={40} />
+                      <CheckCircle2 size={40} />
                     </div>
                     <div className="space-y-2">
                       <h3 className="text-2xl font-bold text-slate-900">맞춤 튜터 분석 완료!</h3>
