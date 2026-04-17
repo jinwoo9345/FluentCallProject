@@ -196,12 +196,12 @@ export default function Home() {
             <p className="text-lg text-slate-600">"원어민 수업은 비싸다"는 편견을 깼습니다. <br />부담 없는 가격으로 꾸준히 영어를 즐기세요.</p>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-end">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-stretch">
             {/* Basic Plan */}
-            <div className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-xl relative">
+            <div className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-xl relative flex flex-col">
               <div className="mb-8">
                 <h3 className="text-xl font-bold text-slate-900 mb-2">8회 베이직</h3>
-                <p className="text-slate-500 text-sm">주 2회, 한 달 완성</p>
+                <p className="text-slate-500 text-sm">주 2회, 한 달 완성 표준 플랜</p>
               </div>
               <div className="mb-8">
                 <div className="flex items-baseline gap-1">
@@ -210,73 +210,78 @@ export default function Home() {
                 </div>
                 <p className="text-blue-600 font-bold text-sm mt-2">회당 약 22,000원</p>
               </div>
-              <ul className="space-y-4 mb-10">
+              <ul className="space-y-4 mb-10 flex-1">
                 <li className="flex items-center gap-3 text-slate-600 text-sm">
                   <Check size={18} className="text-blue-600" />
-                  <span>25~30분 1:1 수업</span>
+                  <span>25~30분 1:1 원어민 수업</span>
                 </li>
                 <li className="flex items-center gap-3 text-slate-600 text-sm">
                   <Check size={18} className="text-blue-600" />
-                  <span>자유로운 주제 선정</span>
+                  <span>자유로운 주제 & 시간 선정</span>
                 </li>
                 <li className="flex items-center gap-3 text-slate-600 text-sm">
                   <Check size={18} className="text-blue-600" />
-                  <span>튜터와 시간 상의 가능</span>
+                  <span>매 수업 후 피드백 제공</span>
                 </li>
               </ul>
               <Button variant="outline" className="w-full py-6 rounded-2xl font-bold" onClick={() => setIsTutorFinderOpen(true)}>선택하기</Button>
             </div>
 
-            {/* Popular Plan */}
-            <div className="bg-slate-900 p-10 rounded-[3rem] shadow-2xl relative scale-105 z-20 text-white border-4 border-blue-500">
+            {/* Referral / Credit Info (Center Highlight) */}
+            <div className="bg-slate-900 p-10 rounded-[3rem] shadow-2xl relative z-20 text-white border-4 border-blue-500 flex flex-col">
               <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-blue-500 text-white px-6 py-2 rounded-full text-sm font-black uppercase tracking-widest">
-                Most Popular
+                Referral Benefit
               </div>
               <div className="mb-8">
-                <h3 className="text-xl font-bold mb-2">친구 초대 특별가</h3>
-                <p className="text-slate-400 text-sm">지인 추천 시 적용되는 혜택</p>
+                <h3 className="text-xl font-bold mb-2">친구 초대 리워드</h3>
+                <p className="text-slate-400 text-sm">함께하면 더 커지는 할인 혜택</p>
               </div>
-              <div className="mb-8">
-                <div className="flex items-baseline gap-1">
-                  <span className="text-5xl font-black text-white">159,000</span>
-                  <span className="text-slate-400 font-bold">원</span>
-                </div>
-                <p className="text-blue-400 font-bold text-sm mt-2">최대 2만원 할인 적용</p>
+              <div className="mb-8 bg-white/10 p-6 rounded-2xl border border-white/10">
+                <p className="text-sm text-blue-400 font-bold mb-2">무제한 할인 가능</p>
+                <p className="text-lg font-bold leading-tight">
+                  친구 한 명 초대할 때마다 <br />
+                  <span className="text-2xl text-white font-black">10,000원 상당</span>의 <br />
+                  크레딧을 즉시 지급해 드립니다.
+                </p>
               </div>
-              <ul className="space-y-4 mb-10">
+              <ul className="space-y-4 mb-10 flex-1">
                 <li className="flex items-center gap-3 text-slate-300 text-sm">
                   <Check size={18} className="text-blue-400" />
-                  <span>8회 베이직 모든 혜택 포함</span>
+                  <span>초대받은 친구도 60크레딧 시작</span>
                 </li>
                 <li className="flex items-center gap-3 text-slate-300 text-sm">
                   <Check size={18} className="text-blue-400" />
-                  <span>친구와 함께 성장하는 즐거움</span>
+                  <span>보유 크레딧만큼 결제 시 차감 할인</span>
                 </li>
                 <li className="flex items-center gap-3 text-slate-300 text-sm">
                   <Check size={18} className="text-blue-400" />
-                  <span>지속적인 할인 혜택 제공</span>
+                  <span>초대 인원 제한 없는 무제한 혜택</span>
                 </li>
               </ul>
-              <Button className="w-full py-7 rounded-2xl font-black text-lg bg-blue-600 hover:bg-blue-700" onClick={() => setIsTutorFinderOpen(true)}>지금 시작하기</Button>
+              <Link to="/tutors" className="w-full">
+                <Button className="w-full py-7 rounded-2xl font-black text-lg bg-blue-600 hover:bg-blue-700">지금 가입하고 크레딧 받기</Button>
+              </Link>
             </div>
 
             {/* Bulk Plan */}
-            <div className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-xl relative">
+            <div className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-xl relative flex flex-col">
               <div className="mb-8">
-                <h3 className="text-xl font-bold text-slate-900 mb-2">대량 구매 혜택</h3>
-                <p className="text-slate-500 text-sm">꾸준한 학습을 위한 보너스</p>
+                <h3 className="text-xl font-bold text-slate-900 mb-2">장기 수강 혜택</h3>
+                <p className="text-slate-500 text-sm">꾸준한 성장을 응원하는 보너스</p>
               </div>
-              <div className="space-y-6 mb-10">
-                <div className="p-4 rounded-2xl bg-blue-50 border border-blue-100">
-                  <p className="text-sm font-bold text-blue-600 mb-1">16회 구매 시</p>
-                  <p className="text-lg font-black text-slate-900">+ 1회 추가 제공</p>
+              <div className="space-y-6 mb-10 flex-1">
+                <div className="p-6 rounded-3xl bg-blue-50 border border-blue-100 relative group overflow-hidden">
+                  <p className="text-sm font-bold text-blue-600 mb-1">16회 집중 패키지</p>
+                  <p className="text-xl font-black text-slate-900">+ 1회 무료 수업 추가</p>
+                  <Sparkles className="absolute -right-4 -bottom-4 text-blue-100 group-hover:scale-125 transition-transform" size={80} />
                 </div>
-                <div className="p-4 rounded-2xl bg-indigo-50 border border-indigo-100">
-                  <p className="text-sm font-bold text-indigo-600 mb-1">24회 구매 시</p>
-                  <p className="text-lg font-black text-slate-900">+ 2회 추가 제공</p>
+                <div className="p-6 rounded-3xl bg-indigo-50 border border-indigo-100 relative group overflow-hidden">
+                  <p className="text-sm font-bold text-indigo-600 mb-1">24회 마스터 패키지</p>
+                  <p className="text-xl font-black text-slate-900">+ 2회 무료 수업 추가</p>
+                  <Sparkles className="absolute -right-4 -bottom-4 text-indigo-100 group-hover:scale-125 transition-transform" size={80} />
                 </div>
               </div>
-              <Button variant="outline" className="w-full py-6 rounded-2xl font-bold" onClick={() => setIsTutorFinderOpen(true)}>문의하기</Button>
+              <Button variant="outline" className="w-full py-6 rounded-2xl font-bold" onClick={() => setIsTutorFinderOpen(true)}>패키지 문의하기</Button>
             </div>
           </div>
 

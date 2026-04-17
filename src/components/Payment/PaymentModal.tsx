@@ -163,13 +163,14 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
                   </div>
                   
                   <div className="h-32 overflow-y-auto text-[11px] text-slate-500 bg-slate-50 p-4 rounded-xl border border-slate-100 leading-relaxed">
-                    <p className="font-bold mb-1 text-slate-700">[서비스 이용약관 요약]</p>
+                    <p className="font-bold mb-1 text-slate-700">[서비스 이용 및 환불 정책 요약]</p>
                     <p>- 본 서비스는 강사와 회원을 연결하는 중개 서비스입니다.</p>
-                    <p>- 수업 일정은 강사와 상호 협의하여 결정합니다.</p>
-                    <p className="font-bold mt-3 mb-1 text-slate-700">[환불 정책 요약]</p>
-                    <p>- 수업 시작 전: 100% 전액 환불</p>
-                    <p>- 수업 시작 후: 진행 횟수 제외 후 환불</p>
-                    <p>- 3/8 이상 진행 시 서비스 이용료 공제 후 환불</p>
+                    <p>- 수업 시작 전에는 100% 전액 환불이 가능합니다.</p>
+                    <p>- 수업 진행 후 환불 시 잔여 횟수만큼 환불되나, <strong>전체 수업의 3/8 이상 진행 시 서비스 이용료(49,000원)가 공제</strong>됩니다.</p>
+                    <p>- 수업 취소는 시작 3시간 전까지 가능하며, 이후 취소나 노쇼 시 횟수가 차감됩니다.</p>
+                    <p className="font-bold mt-3 mb-1 text-slate-700">[수업 구성]</p>
+                    <p>- 8회 / 16회(+1) / 24회(+2) 패키지로 구성됩니다.</p>
+                    <p>- 모든 수업은 원어민과 1:1로 25~30분간 진행됩니다.</p>
                   </div>
 
                   <label className="flex items-center gap-3 p-4 rounded-2xl border-2 border-slate-100 hover:border-blue-100 cursor-pointer transition-all group">
