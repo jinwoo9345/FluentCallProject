@@ -95,10 +95,9 @@ export const onRequestPost: PagesFunction<any> = async ({ request, env }) => {
 
     const customToken = await createCustomToken(uid, clientEmail, privateKey);
 
-    return new Response(JSON.stringify({ 
+    return new Response(JSON.stringify({
       customToken,
       userName: userData.kakao_account?.profile?.nickname,
-      userPhoto: userData.kakao_account?.profile?.profile_image_url,
       debug: { iss: clientEmail, projectId }
     }), { headers: { 'Content-Type': 'application/json' } });
 

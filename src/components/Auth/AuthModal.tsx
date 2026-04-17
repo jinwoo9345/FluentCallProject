@@ -66,8 +66,8 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
       const redirectUri = `${window.location.origin}/dashboard`;
       Kakao.Auth.authorize({
         redirectUri: redirectUri,
-        // 닉네임/프로필 이미지 권한을 요청 (카카오 앱 설정에서도 동의 항목 활성화 필요)
-        scope: 'profile_nickname,profile_image',
+        // 닉네임만 요청 — 프로필 이미지는 사용하지 않음
+        scope: 'profile_nickname',
       });
     } catch (err: any) {
       console.error(err);
@@ -91,7 +91,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
         referredBy: '',
         discountBalance: 0,
         createdAt: serverTimestamp(),
-        avatar: user.photoURL || `https://picsum.photos/seed/${user.uid}/200/200`
+        avatar: `https://picsum.photos/seed/${user.uid}/200/200`
       });
     }
   };

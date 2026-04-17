@@ -76,20 +76,17 @@ function AppContent() {
               referredBy: '',
               discountBalance: 0,
               createdAt: serverTimestamp(),
-              avatar: data.userPhoto || user.photoURL || `https://picsum.photos/seed/${user.uid}/200/200`,
+              avatar: `https://picsum.photos/seed/${user.uid}/200/200`,
               hasCompletedConsultation: !!pendingConsultationId // If consultation was done before login
             });
           } else {
-            // Update existing user profile — 닉네임/아바타를 카카오 최신 프로필로 덮어씀
+            // Update existing user profile — 닉네임만 최신 카카오 프로필로 갱신 (아바타는 그대로 유지)
             const existing = userSnap.data() as any;
             const updateData: any = {};
             if (data.userName && data.userName !== existing.name) {
               updateData.name = data.userName;
             } else if (existing.name === '카카오 회원' && (data.userName || user.displayName)) {
               updateData.name = data.userName || user.displayName;
-            }
-            if (data.userPhoto && data.userPhoto !== existing.avatar) {
-              updateData.avatar = data.userPhoto;
             }
             if (pendingConsultationId) {
               updateData.hasCompletedConsultation = true;
