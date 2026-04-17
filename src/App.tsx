@@ -56,7 +56,7 @@ function AppContent() {
               name: data.userName || user.displayName || '카카오 회원',
               email: user.email || '',
               role: 'student',
-              credits: 60,
+              credits: 0,
               referralCode,
               referredBy: '',
               discountBalance: 0,
