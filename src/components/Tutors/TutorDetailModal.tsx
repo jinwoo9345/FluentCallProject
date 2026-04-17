@@ -15,6 +15,7 @@ interface TutorDetailModalProps {
 export function TutorDetailModal({ isOpen, onClose, tutor, onRegister }: TutorDetailModalProps) {
   const { user, toggleWishlist } = useAuth();
   const isWishlisted = user?.wishlist?.includes(tutor.id);
+  const canSeePriceBreakdown = user?.role === 'admin' || user?.role === 'tutor';
 
   return (
     <AnimatePresence>
@@ -140,9 +141,11 @@ export function TutorDetailModal({ isOpen, onClose, tutor, onRegister }: TutorDe
                   <p className="text-2xl font-black text-slate-900">
                     {((tutor.hourlyRate || 0) * 8 + 69000).toLocaleString()}원
                   </p>
-                  <p className="text-[11px] text-slate-500 mt-1">
-                    회당 {(tutor.hourlyRate || 0).toLocaleString()}원 × 8회 + 서비스 이용료 69,000원
-                  </p>
+                  {canSeePriceBreakdown && (
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      회당 {(tutor.hourlyRate || 0).toLocaleString()}원 × 8회 + 서비스 이용료 69,000원
+                    </p>
+                  )}
                   <p className="text-[11px] text-slate-400 mt-0.5">16회 · 24회 패키지는 결제 화면에서 선택</p>
                 </div>
                 {tutor.enrollDisabled ? (

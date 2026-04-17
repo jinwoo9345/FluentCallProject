@@ -11,6 +11,8 @@ import { useTutors } from '../hooks/useTutors';
 
 export default function Tutors() {
   const { user, setIsAuthModalOpen, setAuthMode, toggleWishlist } = useAuth();
+  // 가격 구성 세부(회당 단가 + 서비스 이용료)를 볼 수 있는 권한: 관리자 + 튜터만
+  const canSeePriceBreakdown = user?.role === 'admin' || user?.role === 'tutor';
   const { tutors, loading, error } = useTutors();
   const [searchQuery, setSearchQuery] = useState('');
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -190,9 +192,11 @@ export default function Tutors() {
                         <span className="text-lg font-black text-slate-900">
                           {((tutor.hourlyRate || 0) * 8 + 69000).toLocaleString()}원
                         </span>
-                        <span className="text-[11px] text-slate-500 block">
-                          회당 {(tutor.hourlyRate || 0).toLocaleString()}원 + 서비스 이용료 69,000원
-                        </span>
+                        {canSeePriceBreakdown && (
+                          <span className="text-[11px] text-slate-500 block">
+                            회당 {(tutor.hourlyRate || 0).toLocaleString()}원 + 서비스 이용료 69,000원
+                          </span>
+                        )}
                       </div>
                       {(tutor as any).enrollDisabled ? (
                         <span
