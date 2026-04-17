@@ -3,15 +3,15 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   ArrowRight, Globe, Zap, ShieldCheck, CheckCircle2, 
   Clock, CreditCard, MessageCircle, Users, Calendar, 
-  Sparkles, HelpCircle, ChevronDown, Star, Check
+  Sparkles, HelpCircle, ChevronDown, Star, Check, Gift, X, Info
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Link } from 'react-router-dom';
 import { TutorFinderModal } from '../components/Consultation/TutorFinderModal';
-import { MOCK_TUTORS } from '../constants';
 
 export default function Home() {
   const [isTutorFinderOpen, setIsTutorFinderOpen] = useState(false);
+  const [isReferralManualOpen, setIsReferralManualOpen] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
 
   const faqs = [
@@ -25,7 +25,7 @@ export default function Home() {
     },
     {
       q: "상담 신청 절차가 어떻게 되나요?",
-      a: "EnglishBites는 모든 수강생의 학습 효과 극대화를 위해 '상담 필수제'를 운영합니다. '지금 시작하기'를 통해 간단한 설문을 마치시면 전문 매니저가 24시간 이내에 연락드려 최적의 튜터를 매칭해 드립니다."
+      a: "EnglishBites는 모든 수강생의 학습 효과 극대화를 위해 '상담 필수제'를 운영합니다. '지금 시작하기'를 통해 간단한 설문을 마치시면 전문 매니저가 작성해주신 상담 희망 시간대에 맞춰 직접 연락드려 최적의 튜터를 매칭해 드립니다."
     },
     {
       q: "환불 규정이 궁금합니다.",
@@ -96,7 +96,7 @@ export default function Home() {
                 </Button>
                 <div className="flex items-center gap-2 text-slate-500 font-medium">
                   <CheckCircle2 size={20} className="text-green-500" />
-                  <span>학습 상담 후 매칭 진행</span>
+                  <span>신청하신 시간대에 상담 진행</span>
                 </div>
               </div>
             </motion.div>
@@ -156,7 +156,7 @@ export default function Home() {
               <Button variant="outline" className="w-full py-6 rounded-2xl font-bold" onClick={() => setIsTutorFinderOpen(true)}>상담 신청하기</Button>
             </div>
 
-            {/* Referral Benefit Card */}
+            {/* Referral Reward Card */}
             <div className="bg-slate-900 p-10 rounded-[3rem] shadow-2xl relative z-20 text-white border-4 border-blue-500 flex flex-col scale-105">
               <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-blue-500 text-white px-6 py-2 rounded-full text-sm font-black uppercase tracking-widest">
                 Referral Reward
@@ -173,7 +173,7 @@ export default function Home() {
                   포인트를 즉시 지급해 드립니다.
                 </p>
               </div>
-              <ul className="space-y-4 mb-10 flex-1">
+              <ul className="space-y-4 mb-8 flex-1">
                 <li className="flex items-center gap-3 text-slate-300 text-sm">
                   <Check size={18} className="text-blue-400" />
                   <span>포인트 적용 시 159,000원</span>
@@ -182,14 +182,11 @@ export default function Home() {
                   <Check size={18} className="text-blue-400" />
                   <span>추천인-친구 포인트 쉐어 가능</span>
                 </li>
-                <li className="flex items-center gap-3 text-slate-300 text-sm">
-                  <Check size={18} className="text-blue-400" />
-                  <span>수강 유지 시 무제한 혜택</span>
-                </li>
               </ul>
-              <Link to="/tutors" className="w-full">
-                <Button className="w-full py-7 rounded-2xl font-black text-lg bg-blue-600 hover:bg-blue-700">지금 친구 초대하기</Button>
-              </Link>
+              <div className="space-y-3">
+                <Button className="w-full py-6 rounded-2xl font-black text-lg bg-blue-600 hover:bg-blue-700" onClick={() => setIsReferralManualOpen(true)}>프로그램 자세히 보기</Button>
+                <p className="text-[10px] text-slate-500 text-center">※ 포인트는 다음 달 결제 시 자동 적용됩니다.</p>
+              </div>
             </div>
 
             {/* Bulk Plan */}
@@ -223,7 +220,7 @@ export default function Home() {
 
           <div className="space-y-4">
             {faqs.map((faq, idx) => (
-              <div key={idx} className="border border-slate-100 rounded-2xl overflow-hidden bg-white">
+              <div key={idx} className="border border-slate-100 rounded-2xl overflow-hidden bg-white shadow-sm">
                 <button 
                   onClick={() => setOpenFaq(openFaq === idx ? null : idx)}
                   className="w-full flex items-center justify-between p-6 text-left hover:bg-slate-50 transition-colors"
@@ -251,6 +248,60 @@ export default function Home() {
         </div>
       </section>
       
+      {/* Referral Manual Modal */}
+      <AnimatePresence>
+        {isReferralManualOpen && (
+          <div className="fixed inset-0 z-[200] overflow-y-auto bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="bg-white rounded-[2.5rem] max-w-2xl w-full shadow-2xl overflow-hidden">
+              <div className="bg-blue-600 p-8 text-white relative">
+                <button onClick={() => setIsReferralManualOpen(false)} className="absolute right-6 top-6 hover:rotate-90 transition-transform"><X size={24} /></button>
+                <Gift size={48} className="mb-4 opacity-80" />
+                <h2 className="text-3xl font-black">친구 추천 할인 프로그램</h2>
+                <p className="text-blue-100 mt-2">함께할수록 혜택이 커지는 EnglishBites만의 특별한 보상</p>
+              </div>
+              <div className="p-8 sm:p-12 space-y-10">
+                <section>
+                  <h3 className="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2"><CheckCircle2 size={20} className="text-blue-600" /> 친구 추천 혜택</h3>
+                  <div className="bg-slate-50 p-6 rounded-3xl border border-slate-100">
+                    <p className="text-slate-700 leading-relaxed">
+                      수강생이 친구를 추천하고, 해당 친구가 실제 결제를 완료할 경우<br />
+                      <strong>추천인에게 다음 달 사용 가능한 20,000 포인트</strong>가 지급됩니다.
+                    </p>
+                    <ul className="mt-4 space-y-2 text-sm text-slate-500">
+                      <li>• 지급된 포인트는 다음 달 결제 시 자동 적용됩니다.</li>
+                      <li>• 포인트 적용 시 다음 달 결제 금액은 <strong>159,000원</strong>으로 할인됩니다.</li>
+                    </ul>
+                  </div>
+                </section>
+                <section>
+                  <h3 className="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2"><Info size={20} className="text-amber-500" /> 유의사항</h3>
+                  <ul className="space-y-3 text-slate-600 text-sm">
+                    <li className="flex gap-3">
+                      <div className="h-1.5 w-1.5 rounded-full bg-slate-300 mt-2 flex-shrink-0" />
+                      <span>포인트는 <strong>수강을 유지하는 경우에만</strong> 사용 가능합니다.</span>
+                    </li>
+                    <li className="flex gap-3">
+                      <div className="h-1.5 w-1.5 rounded-full bg-slate-300 mt-2 flex-shrink-0" />
+                      <span>추천받은 친구는 별도의 할인 없이 <strong>정상가(179,000원)</strong>로 결제됩니다.</span>
+                    </li>
+                    <li className="flex gap-3">
+                      <div className="h-1.5 w-1.5 rounded-full bg-slate-300 mt-2 flex-shrink-0" />
+                      <span>단, 추천인과 친구 간 협의하여 <strong>포인트를 나누어 사용하는 것은 가능</strong>합니다.</span>
+                    </li>
+                  </ul>
+                </section>
+                <div className="bg-blue-50 p-8 rounded-3xl text-center">
+                  <p className="text-blue-800 font-bold mb-4">지금 바로 친구에게 초대 코드를 공유해 보세요!</p>
+                  <Link to="/tutors" onClick={() => setIsReferralManualOpen(false)}>
+                    <Button className="w-full py-6 text-lg rounded-2xl shadow-xl">초대하러 가기</Button>
+                  </Link>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       <TutorFinderModal isOpen={isTutorFinderOpen} onClose={() => setIsTutorFinderOpen(false)} />
     </div>
   );

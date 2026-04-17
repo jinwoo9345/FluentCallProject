@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, ChevronRight, ChevronLeft, Check, Phone, MessageCircle, MessageSquare, Send, Sparkles } from 'lucide-react';
+import { X, ChevronRight, ChevronLeft, Check, Phone, MessageCircle, MessageSquare, Send, CheckCircle, Loader2 } from 'lucide-react';
 import { db, auth } from '../../firebase';
 import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useAuth } from '../../contexts/AuthContext';
@@ -35,7 +35,7 @@ const INITIAL_DATA: FormData = {
 };
 
 export function TutorFinderModal({ isOpen, onClose }: TutorFinderModalProps) {
-  const { setIsAuthModalOpen, setAuthMode } = useAuth();
+  const { setIsAuthModalOpen, setAuthMode, user } = useAuth();
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState<FormData>(INITIAL_DATA);
   const [loading, setLoading] = useState(false);
@@ -66,7 +66,7 @@ export function TutorFinderModal({ isOpen, onClose }: TutorFinderModalProps) {
     setError('');
 
     try {
-      // 1. Firestore 저장 (userId가 있으면 포함, 없으면 null)
+      // 1. Firestore 저장
       const docRef = await addDoc(collection(db, 'consultations'), {
         ...formData,
         userId: auth.currentUser?.uid || null,
@@ -75,13 +75,12 @@ export function TutorFinderModal({ isOpen, onClose }: TutorFinderModalProps) {
         createdAt: serverTimestamp()
       });
 
-      // 비로그인 시 나중에 계정 연결을 위해 ID 저장
       if (!auth.currentUser) {
         localStorage.setItem('pendingConsultationId', docRef.id);
         localStorage.setItem('pendingConsultationName', '튜터 찾기 신청자');
       }
 
-      // 2. EmailJS 발송 (동일 로직 생략하지 않고 포함)
+      // 2. EmailJS 발송
       const serviceId = serverConfig?.emailjsServiceId || (import.meta as any).env.VITE_EMAILJS_SERVICE_ID;
       const templateId = serverConfig?.emailjsTemplateId || (import.meta as any).env.VITE_EMAILJS_TEMPLATE_ID;
       const publicKey = serverConfig?.emailjsPublicKey || (import.meta as any).env.VITE_EMAILJS_PUBLIC_KEY;
@@ -210,7 +209,7 @@ export function TutorFinderModal({ isOpen, onClose }: TutorFinderModalProps) {
         return (
           <div className="space-y-4">
             <h3 className="text-xl font-bold text-slate-900">7. 연락처를 남겨주세요</h3>
-            <input type="text" placeholder="전화번호 또는 카카오톡 ID" className="w-full px-4 py-4 rounded-2xl border-2 border-slate-100 focus:border-blue-600 focus:ring-2 focus:ring-blue-100 outline-none transition-all" value={formData.contact} onChange={(e) => updateFields({ contact: e.target.value })} />
+            <input type="text" placeholder="전화번호 또는 카카오톡 ID" className="w-full px-4 py-4 rounded-2xl border-2 border-slate-100 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none transition-all" value={formData.contact} onChange={(e) => updateFields({ contact: e.target.value })} />
             <Button className="w-full py-4 mt-4" onClick={nextStep} disabled={!formData.contact}>마지막 단계로</Button>
           </div>
         );
@@ -221,22 +220,26 @@ export function TutorFinderModal({ isOpen, onClose }: TutorFinderModalProps) {
             <div className="bg-blue-50 p-6 rounded-2xl border border-blue-100">
               <p className="text-sm text-blue-700 leading-relaxed">
                 전송해주신 정보를 바탕으로 <strong>작성하신 상담 가능 시간대</strong>에 <br />
-                전문 매니저가 연락드려 최적의 튜터 매칭을 도와드립니다.
+                전문 매니저가 직접 연락드려 최적의 튜터 매칭을 도와드립니다.
               </p>
             </div>
             <Button 
-              className="w-full py-6 mt-6 gap-2 text-lg shadow-blue-200 shadow-xl" 
+              className="w-full py-6 mt-6 gap-2 text-lg shadow-blue-200 shadow-xl font-black" 
               onClick={handleSubmit} 
               disabled={loading}
             >
-              {loading ? '전송 중...' : <><Send size={20} /> 분석 완료하고 상담 신청하기</>}
+              {loading ? <Loader2 className="animate-spin" size={20} /> : <Send size={20} />}
+              {loading ? '전송 중...' : '분석 완료하고 상담 신청하기'}
             </Button>
-            <p className="text-center text-xs text-slate-400">정보는 매칭 목적으로만 사용됩니다.</p>
+            <p className="text-center text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-4">Safe & Confidential</p>
           </div>
         );
       default: return null;
     }
   };
+
+  // Check if user already has completed consultation
+  const isAlreadyConsulted = user?.hasCompletedConsultation;
 
   return (
     <AnimatePresence>
@@ -255,25 +258,39 @@ export function TutorFinderModal({ isOpen, onClose }: TutorFinderModalProps) {
               </div>
 
               <div className="p-8">
-                {success ? (
+                {isAlreadyConsulted && !success ? (
+                  <div className="text-center space-y-6 py-8">
+                    <div className="w-20 h-20 bg-green-50 text-green-600 rounded-full flex items-center justify-center mx-auto">
+                      <CheckCircle size={40} />
+                    </div>
+                    <div className="space-y-2">
+                      <h3 className="text-2xl font-bold text-slate-900">이미 상담이 완료되었습니다</h3>
+                      <p className="text-slate-600 leading-relaxed">
+                        신청하신 정보를 바탕으로 매니저가 연락드릴 예정입니다.<br />
+                        대시보드에서 수업 일정을 확인해 보세요!
+                      </p>
+                    </div>
+                    <Button onClick={handleClose} className="w-full py-4 rounded-2xl">닫기</Button>
+                  </div>
+                ) : success ? (
                   <div className="text-center space-y-6 py-4">
                     <div className="w-20 h-20 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto">
-                      <CheckCircle2 size={40} />
+                      <CheckCircle size={40} />
                     </div>
                     <div className="space-y-2">
                       <h3 className="text-2xl font-bold text-slate-900">맞춤 튜터 분석 완료!</h3>
-                      <p className="text-slate-600">
-                        {formData.contact}님에게 딱 맞는 튜터들을 찾았습니다.<br />
-                        결과를 확인하고 무료 상담을 확정하려면 지금 가입해 주세요!
+                      <p className="text-slate-600 leading-relaxed">
+                        딱 맞는 튜터를 찾았습니다. <strong>작성하신 시간대</strong>에 맞춰 <br />
+                        매니저가 연락드려 상담을 확정해 드릴게요.
                       </p>
                     </div>
-                    <div className="space-y-3">
-                      <Button onClick={handleStartAuth} className="w-full py-6 rounded-2xl text-lg shadow-lg">
-                        결과 확인하고 시작하기
-                      </Button>
-                      <button onClick={handleClose} className="text-sm text-slate-400 hover:text-slate-600 transition-colors">
-                        나중에 할게요
-                      </button>
+                    <div className="space-y-3 pt-4">
+                      {auth.currentUser ? (
+                        <Button onClick={handleClose} className="w-full py-6 rounded-2xl text-lg shadow-lg">대시보드로 가기</Button>
+                      ) : (
+                        <Button onClick={handleStartAuth} className="w-full py-6 rounded-2xl text-lg shadow-lg">결과 확인하고 가입하기</Button>
+                      )}
+                      <button onClick={handleClose} className="text-sm text-slate-400 hover:text-slate-600 transition-colors">나중에 할게요</button>
                     </div>
                   </div>
                 ) : (
