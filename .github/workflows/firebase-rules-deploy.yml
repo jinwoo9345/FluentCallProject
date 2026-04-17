@@ -4,9 +4,11 @@ on:
   push:
     branches:
       - main
+    # 모든 파일 변경에 대해 실행되도록 paths 필터를 제거하거나 워크플로우 파일을 포함합니다.
     paths:
       - 'firestore.rules'
       - 'firebase.json'
+      - '.github/workflows/**'
 
 jobs:
   deploy:
