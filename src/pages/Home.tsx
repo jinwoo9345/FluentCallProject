@@ -130,18 +130,18 @@ export default function Home() {
               transition={{ duration: 0.8, ease: "easeOut" }}
             >
               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-blue-50 text-blue-600 text-sm font-bold mb-8 border border-blue-100">
-                <span>야금야금 영어가 느는 구조, EnglishBites</span>
+                <span>원어민 튜터 매칭 플랫폼, EnglishBites</span>
               </div>
-              
+
               <h1 className="text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl leading-[1.2] mb-8 font-display">
-                머릿속 단어가 <br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">입 밖으로 터지는</span> <br />
-                진짜 회화의 시작
+                나에게 맞는 <br />
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">원어민 튜터</span>를 <br />
+                직접 찾아보세요
               </h1>
-              
+
               <div className="space-y-6 mb-12 text-lg text-slate-600 leading-relaxed">
-                 북미/유럽 원어민 튜터와 함께 가장 자유로운 분위기에서 <br/>
-                 당신의 일상을 영어로 채워보세요.
+                각 튜터가 자신만의 전문 분야와 수강료를 직접 설정합니다.<br />
+                프로필·리뷰·시간표를 비교하고, 마음에 드는 튜터와 바로 1:1 수업을 시작해보세요.
               </div>
 
               <div className="flex flex-col sm:flex-row items-center gap-4">
@@ -173,27 +173,32 @@ export default function Home() {
       <section className="py-32 bg-white relative overflow-hidden border-t border-slate-50">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="text-center max-w-3xl mx-auto mb-20">
-            <h2 className="text-4xl font-black text-slate-900 mb-6 font-display">합리적인 정가제 시스템</h2>
-            <p className="text-lg text-slate-600">모든 수강생에게 동일한 품질의 교육을 투명한 가격으로 제공합니다.</p>
+            <h2 className="text-4xl font-black text-slate-900 mb-6 font-display">튜터별 맞춤 수강권</h2>
+            <p className="text-lg text-slate-600">
+              각 튜터가 경력·전공에 따라 수강료를 직접 설정합니다.<br />
+              원하는 튜터의 프로필에서 수강권 횟수(8/16/24회)를 선택해 결제하세요.
+            </p>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-stretch">
             {/* Basic Plan */}
             <div className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-xl flex flex-col">
-              <h3 className="text-xl font-bold text-slate-900 mb-2">8회 베이직</h3>
-              <p className="text-slate-500 text-sm mb-8">주 2회 표준 플랜</p>
+              <h3 className="text-xl font-bold text-slate-900 mb-2">8회 수강권</h3>
+              <p className="text-slate-500 text-sm mb-8">가볍게 시작하기 좋은 기본 패키지</p>
               <div className="mb-8">
                 <div className="flex items-baseline gap-1">
-                  <span className="text-4xl font-black text-slate-900">179,000</span>
-                  <span className="text-slate-500 font-bold">원</span>
+                  <span className="text-4xl font-black text-slate-900">튜터별</span>
+                  <span className="text-slate-500 font-bold ml-2">가격 상이</span>
                 </div>
-                <p className="text-blue-600 font-bold text-sm mt-2">회당 약 22,000원</p>
+                <p className="text-blue-600 font-bold text-sm mt-2">각 튜터가 회당 단가를 직접 설정합니다</p>
               </div>
               <ul className="space-y-4 mb-10 flex-1">
-                <li className="flex items-center gap-3 text-slate-600 text-sm"><Check size={18} className="text-blue-600" /> <span>25~30분 1:1 원어민 수업</span></li>
-                <li className="flex items-center gap-3 text-slate-600 text-sm"><Check size={18} className="text-blue-600" /> <span>자유로운 주제 & 시간 선정</span></li>
+                <li className="flex items-center gap-3 text-slate-600 text-sm"><Check size={18} className="text-blue-600" /> <span>튜터가 정한 시간에 25~30분 1:1 수업</span></li>
+                <li className="flex items-center gap-3 text-slate-600 text-sm"><Check size={18} className="text-blue-600" /> <span>프로필·리뷰 확인 후 직접 매칭</span></li>
               </ul>
-              <Button variant="outline" className="w-full py-6 rounded-2xl font-bold" onClick={() => setIsTutorFinderOpen(true)}>상담 신청하기</Button>
+              <Link to="/tutors">
+                <Button variant="outline" className="w-full py-6 rounded-2xl font-bold">튜터 찾아보기</Button>
+              </Link>
             </div>
 
             {/* Referral Reward Card (HIGHLIGHT) */}
@@ -221,8 +226,8 @@ export default function Home() {
 
             {/* Bulk Plan */}
             <div className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-xl flex flex-col">
-              <h3 className="text-xl font-bold text-slate-900 mb-2">장기 패키지</h3>
-              <p className="text-slate-500 text-sm mb-8">꾸준한 성장을 위한 보너스</p>
+              <h3 className="text-xl font-bold text-slate-900 mb-2">장기 패키지 보너스</h3>
+              <p className="text-slate-500 text-sm mb-8">더 많이 배울수록 더 많이 드립니다</p>
               <div className="space-y-4 mb-10 flex-1">
                 <div className="p-6 rounded-3xl bg-blue-50 border border-blue-100">
                   <p className="text-sm font-bold text-blue-600 mb-1">16회 패키지</p>
@@ -233,7 +238,9 @@ export default function Home() {
                   <p className="text-xl font-black text-slate-900">+ 2회 무료 수업</p>
                 </div>
               </div>
-              <Button variant="outline" className="w-full py-6 rounded-2xl font-bold" onClick={() => setIsTutorFinderOpen(true)}>패키지 문의하기</Button>
+              <Link to="/tutors">
+                <Button variant="outline" className="w-full py-6 rounded-2xl font-bold">튜터 프로필 비교하기</Button>
+              </Link>
             </div>
           </div>
         </div>

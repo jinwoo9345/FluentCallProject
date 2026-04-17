@@ -25,7 +25,8 @@ export function RefundPolicyContent({ compact = false }: PolicyContentProps) {
     <div className={rootClass(compact)}>
       {!compact && (
         <p className="text-lg font-medium text-slate-800 bg-blue-50 p-6 rounded-2xl border border-blue-100">
-          본 서비스는 강사와 회원을 연결하는 중개 플랫폼으로, 수업 진행 및 운영 관리가 포함된 서비스입니다.
+          본 서비스는 <strong>통신판매중개자</strong>로서 튜터와 학습자를 연결하는 플랫폼이며, 수업의 직접 제공 주체는 각 튜터입니다.
+          본 환불 정책은 플랫폼 차원의 표준 가이드라인이며, 실제 환불 이행 및 책임은 튜터(판매자)와 협의하여 진행됩니다.
           서비스 이용 전 아래 내용을 반드시 확인해주시기 바랍니다.
         </p>
       )}
@@ -182,9 +183,15 @@ export function TermsContent({ compact = false }: PolicyContentProps) {
   return (
     <div className={rootClass(compact)}>
       <section>
-        <h2 className={sectionTitle(compact)}>제1조【목적】</h2>
+        <h2 className={sectionTitle(compact)}>제1조【목적 및 서비스의 성격】</h2>
         <p className={paragraphClass(compact)}>
-          본 약관은 전화영어 중개 서비스를 운영하는 "회사"(이하 "갑")와 서비스를 이용하는 회원(이하 "회원") 간의 권리 및 의무를 규정함을 목적으로 한다.
+          본 약관은 영어 회화 튜터와 학습자를 연결하는 <strong>통신판매중개 서비스</strong>(이하 "서비스")를 운영하는
+          "회사"(이하 "갑")와 서비스를 이용하는 회원(이하 "회원") 간의 권리 및 의무를 규정함을 목적으로 한다.
+        </p>
+        <p className={`${paragraphClass(compact)} mt-2`}>
+          <strong>"갑"은 통신판매중개자이며, 통신판매의 당사자가 아니다.</strong>
+          수강권의 상품·거래정보·가격 및 수업 내용 등에 관한 일체의 의무와 책임은 개별 튜터(판매자)에게 있으며,
+          "갑"은 회원과 튜터 간의 분쟁 발생 시 신의성실하게 조정·중재한다.
         </p>
       </section>
 

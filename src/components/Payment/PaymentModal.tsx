@@ -196,7 +196,17 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
                 <div className="bg-blue-50 rounded-2xl p-6 border border-blue-100">
                   <p className="text-sm text-blue-600 font-bold mb-1">선택한 튜터</p>
                   <h3 className="text-lg font-bold text-slate-900">{productName}</h3>
-                  <p className="text-xs text-slate-500 mt-1">8회 기준 {price}</p>
+                  <p className="text-xs text-slate-500 mt-1">
+                    이 튜터가 설정한 <strong className="text-slate-700">8회 기준 수강료 {price}</strong>
+                  </p>
+                </div>
+
+                {/* 통신판매중개자 고지 */}
+                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-[11px] text-slate-600 leading-relaxed">
+                  <strong className="text-slate-800">[통신판매중개자 고지]</strong>{' '}
+                  EnglishBites는 통신판매중개자이며, 통신판매의 당사자가 아닙니다.
+                  수강권의 상품·가격·수업 내용 등에 관한 일체의 의무와 책임은
+                  <strong className="text-slate-800"> 해당 튜터(판매자)</strong>에게 있습니다.
                 </div>
 
                 {/* Package Select */}
