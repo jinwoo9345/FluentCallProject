@@ -149,7 +149,7 @@ function AppContent() {
           <Route path="/consultation" element={<ConsultationRequest />} />
           <Route
             path="/about"
-            element={<Placeholder title="프로그램 소개 · 소개와 목적" />}
+            element={<Placeholder title="프로그램 소개" />}
           />
           <Route
             path="/level-test"
