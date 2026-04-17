@@ -1,20 +1,33 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { 
-  Users, UserPlus, CreditCard, MessageSquare, TrendingUp, 
-  Search, CheckCircle, Clock, MoreVertical, Shield, Star,
-  AlertCircle
+import {
+  Users, UserPlus, CreditCard, MessageSquare, TrendingUp,
+  Clock, Shield, Star
 } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { useAuth } from '../contexts/AuthContext';
 import { db } from '../firebase';
-import { collection, query, getDocs, orderBy, limit, where } from 'firebase/firestore';
+import { collection, query, getDocs, orderBy, where, doc, updateDoc, writeBatch, increment } from 'firebase/firestore';
 import { cn } from '@/src/lib/utils';
+
+// Firestore Timestamp / Date / 문자열 어떤 형태든 안전하게 포맷
+function formatTS(ts: any, variant: 'date' | 'datetime' = 'date'): string {
+  if (!ts) return '-';
+  try {
+    const d: Date = typeof ts?.toDate === 'function' ? ts.toDate() : new Date(ts);
+    if (isNaN(d.getTime())) return '-';
+    return variant === 'datetime' ? d.toLocaleString() : d.toLocaleDateString();
+  } catch {
+    return '-';
+  }
+}
 
 export default function AdminDashboard() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'overview' | 'consultations' | 'tutors' | 'payments'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'consultations' | 'tutors' | 'payments' | 'users'>('overview');
+  const [userSearch, setUserSearch] = useState('');
+  const [creditDelta, setCreditDelta] = useState<Record<string, string>>({});
   
   const [stats, setStats] = useState({ users: 0, revenue: 0, upcomingSessions: 0, pendingConsults: 0 });
   const [consultations, setConsultations] = useState<any[]>([]);
@@ -23,64 +36,133 @@ export default function AdminDashboard() {
   const [usersList, setUsersList] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const fetchAdminData = async () => {
+    setLoading(true);
+    try {
+      // 1. Fetch Users
+      const userSnap = await getDocs(collection(db, 'users'));
+      setUsersList(userSnap.docs.map(d => ({ id: d.id, ...d.data() })));
+
+      // 2. Fetch Consultations
+      let combinedConsults: any[] = [];
+      try {
+        const consultSnap = await getDocs(query(collection(db, 'consultations'), orderBy('createdAt', 'desc')));
+        combinedConsults = consultSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      } catch (err) {
+        console.warn('consultations fetch failed:', err);
+      }
+      setConsultations(combinedConsults);
+      const pendingCount = combinedConsults.filter(c => c.status === 'pending' || !c.status).length;
+
+      // 3. Fetch Payments
+      let allPayments: any[] = [];
+      try {
+        const paymentSnap = await getDocs(query(collection(db, 'payments'), orderBy('createdAt', 'desc')));
+        allPayments = paymentSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      } catch (err) {
+        console.warn('payments fetch failed:', err);
+      }
+      setPayments(allPayments);
+
+      let totalRevenue = 0;
+      allPayments.forEach(p => {
+        if (p.status === 'completed') totalRevenue += (p.amount || 0);
+      });
+
+      // 4. Fetch Tutors
+      let tutorList: any[] = [];
+      try {
+        const tutorSnap = await getDocs(collection(db, 'tutors'));
+        tutorList = tutorSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      } catch (err) {
+        console.warn('tutors fetch failed:', err);
+      }
+      setTutors(tutorList);
+
+      // 5. Fetch Upcoming Sessions
+      let upcomingCount = 0;
+      try {
+        const sessionSnap = await getDocs(query(collection(db, 'sessions'), where('status', '==', 'upcoming')));
+        upcomingCount = sessionSnap.size;
+      } catch (err) {
+        console.warn('sessions fetch failed:', err);
+      }
+
+      setStats({
+        users: userSnap.size,
+        revenue: totalRevenue,
+        upcomingSessions: upcomingCount,
+        pendingConsults: pendingCount
+      });
+    } catch (err) {
+      console.error('Error fetching admin data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (user?.role !== 'admin') return;
-
-    async function fetchAdminData() {
-      setLoading(true);
-      try {
-        // 1. Fetch Users
-        const userSnap = await getDocs(collection(db, 'users'));
-        setUsersList(userSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-        
-        // 2. Fetch Consultations (Combined from multiple sources if needed)
-        const consultSnap = await getDocs(query(collection(db, 'consultations'), orderBy('createdAt', 'desc')));
-        const allConsultations = consultSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        
-        // Also fetch from 'tutor_requests' if any exist
-        const trSnap = await getDocs(query(collection(db, 'tutor_requests'), orderBy('createdAt', 'desc')));
-        const tutorRequests = trSnap.docs.map(doc => ({ id: doc.id, type: 'tutor_request', ...doc.data() }));
-
-        const combinedConsults = [...allConsultations, ...tutorRequests].sort((a: any, b: any) => 
-          (b.createdAt?.toMillis?.() || 0) - (a.createdAt?.toMillis?.() || 0)
-        );
-
-        setConsultations(combinedConsults);
-        const pendingCount = combinedConsults.filter(c => c.status === 'pending' || !c.status).length;
-
-        // 3. Fetch Payments
-        const paymentSnap = await getDocs(query(collection(db, 'payments'), orderBy('createdAt', 'desc')));
-        const allPayments = paymentSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        setPayments(allPayments);
-        
-        let totalRevenue = 0;
-        allPayments.forEach(p => {
-          if (p.status === 'completed') totalRevenue += (p.amount || 0);
-        });
-
-        // 4. Fetch Tutors
-        const tutorSnap = await getDocs(collection(db, 'tutors'));
-        setTutors(tutorSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-
-        // 5. Fetch Upcoming Sessions
-        const sessionSnap = await getDocs(query(collection(db, 'sessions'), where('status', '==', 'upcoming')));
-
-        setStats({
-          users: userSnap.size,
-          revenue: totalRevenue,
-          upcomingSessions: sessionSnap.size,
-          pendingConsults: pendingCount
-        });
-
-      } catch (err) {
-        console.error("Error fetching admin data:", err);
-      } finally {
-        setLoading(false);
-      }
-    }
-
     fetchAdminData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
+
+  const handleToggleConsultStatus = async (c: any) => {
+    const nextStatus = c.status === 'completed' ? 'pending' : 'completed';
+    try {
+      await updateDoc(doc(db, 'consultations', c.id), { status: nextStatus });
+      setConsultations(prev => prev.map(x => (x.id === c.id ? { ...x, status: nextStatus } : x)));
+      setStats(prev => ({
+        ...prev,
+        pendingConsults: prev.pendingConsults + (nextStatus === 'completed' ? -1 : 1),
+      }));
+    } catch (err: any) {
+      alert('상태 변경 실패: ' + (err.message || '알 수 없는 오류'));
+    }
+  };
+
+  const handleAdjustUserCredits = async (u: any, delta: number) => {
+    if (!delta || !Number.isFinite(delta)) return;
+    try {
+      await updateDoc(doc(db, 'users', u.id), { credits: increment(delta) });
+      setUsersList(prev =>
+        prev.map(x => (x.id === u.id ? { ...x, credits: (x.credits || 0) + delta } : x))
+      );
+      setCreditDelta(prev => ({ ...prev, [u.id]: '' }));
+    } catch (err: any) {
+      alert('크레딧 조정 실패: ' + (err.message || '알 수 없는 오류'));
+    }
+  };
+
+  const handleResetUserCredits = async (u: any) => {
+    if (!window.confirm(`${u.name || u.email}님의 크레딧을 0으로 초기화합니다. 진행할까요?`)) return;
+    try {
+      await updateDoc(doc(db, 'users', u.id), { credits: 0 });
+      setUsersList(prev => prev.map(x => (x.id === u.id ? { ...x, credits: 0 } : x)));
+    } catch (err: any) {
+      alert('초기화 실패: ' + (err.message || '알 수 없는 오류'));
+    }
+  };
+
+  const handlePurgeAllCredits = async () => {
+    if (!window.confirm('모든 사용자의 크레딧을 0으로 초기화합니다. 실행하시겠습니까?')) return;
+    try {
+      // Firestore batch는 500개 제한 → 여러 묶음으로 커밋
+      const snap = await getDocs(collection(db, 'users'));
+      const CHUNK = 400;
+      for (let i = 0; i < snap.docs.length; i += CHUNK) {
+        const batch = writeBatch(db);
+        snap.docs.slice(i, i + CHUNK).forEach(d => {
+          batch.update(d.ref, { credits: 0 });
+        });
+        await batch.commit();
+      }
+      alert(`완료: ${snap.size}명의 크레딧을 0으로 회수했습니다.`);
+      fetchAdminData();
+    } catch (err: any) {
+      alert('회수 실패: ' + (err.message || '알 수 없는 오류'));
+    }
+  };
 
   if (user?.role !== 'admin') {
     return (
@@ -96,14 +178,40 @@ export default function AdminDashboard() {
     { id: 'overview', label: '현황판', icon: TrendingUp },
     { id: 'consultations', label: '상담 내역', icon: MessageSquare, count: stats.pendingConsults },
     { id: 'payments', label: '결제 관리', icon: CreditCard },
+    { id: 'users', label: '유저 관리', icon: Users },
     { id: 'tutors', label: '강사 관리', icon: UserPlus },
   ];
 
+  const filteredUsers = usersList
+    .slice()
+    .sort((a: any, b: any) => (b.credits || 0) - (a.credits || 0))
+    .filter((u: any) => {
+      if (!userSearch.trim()) return true;
+      const q = userSearch.toLowerCase();
+      return (
+        (u.name || '').toLowerCase().includes(q) ||
+        (u.email || '').toLowerCase().includes(q) ||
+        (u.referralCode || '').toLowerCase().includes(q)
+      );
+    });
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-      <header className="mb-8">
-        <h1 className="text-3xl font-bold text-slate-900">관리자 대시보드</h1>
-        <p className="mt-2 text-slate-600">EnglishBites 전체 서비스 현황을 실시간으로 관리합니다.</p>
+      <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-slate-900">관리자 대시보드</h1>
+          <p className="mt-2 text-slate-600">EnglishBites 전체 서비스 현황을 실시간으로 관리합니다.</p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={fetchAdminData} className="text-xs">새로고침</Button>
+          <Button
+            variant="outline"
+            onClick={handlePurgeAllCredits}
+            className="text-xs text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
+          >
+            전체 크레딧 회수
+          </Button>
+        </div>
       </header>
 
       {/* Tabs Navigation */}
@@ -181,7 +289,7 @@ export default function AdminDashboard() {
                             </div>
                           </div>
                           <div className="flex items-center gap-4">
-                            <span className="text-xs text-slate-400 font-bold">{c.createdAt?.toDate ? c.createdAt.toDate().toLocaleDateString() : '날짜 미상'}</span>
+                            <span className="text-xs text-slate-400 font-bold">{formatTS(c.createdAt, 'date')}</span>
                           </div>
                         </Card>
                       ))
@@ -243,7 +351,7 @@ export default function AdminDashboard() {
                             {c.userId && <p className="text-[10px] text-blue-600 font-bold mt-0.5">회원 가입됨</p>}
                           </td>
                           <td className="px-6 py-4 text-sm text-slate-600">{c.contactType || '연락처'}: {c.contactValue || c.contact}</td>
-                          <td className="px-6 py-4 text-sm text-slate-500">{c.createdAt?.toDate ? c.createdAt.toDate().toLocaleString() : '미상'}</td>
+                          <td className="px-6 py-4 text-sm text-slate-500">{formatTS(c.createdAt, 'datetime')}</td>
                           <td className="px-6 py-4 text-sm text-slate-600">{c.availableTime || '-'}</td>
                           <td className="px-6 py-4">
                             <span className={cn(
@@ -254,7 +362,14 @@ export default function AdminDashboard() {
                             </span>
                           </td>
                           <td className="px-6 py-4 text-right">
-                            <Button variant="outline" size="sm" className="text-xs">상태 변경</Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-xs"
+                              onClick={() => handleToggleConsultStatus(c)}
+                            >
+                              {c.status === 'completed' ? '대기로 변경' : '완료 처리'}
+                            </Button>
                           </td>
                         </tr>
                       ))}
@@ -293,7 +408,7 @@ export default function AdminDashboard() {
                           <td className="px-6 py-4 font-bold text-slate-900">{p.productName}</td>
                           <td className="px-6 py-4 font-black text-slate-900">{p.amount?.toLocaleString()}원</td>
                           <td className="px-6 py-4 text-sm text-amber-600 font-bold">{p.creditsUsed > 0 ? `-${(p.creditsUsed * 1000).toLocaleString()}원` : '-'}</td>
-                          <td className="px-6 py-4 text-sm text-slate-500">{p.createdAt?.toDate ? p.createdAt.toDate().toLocaleString() : '미상'}</td>
+                          <td className="px-6 py-4 text-sm text-slate-500">{formatTS(p.createdAt, 'datetime')}</td>
                           <td className="px-6 py-4">
                             <span className={cn(
                               "inline-flex items-center rounded-full px-2.5 py-1 text-xs font-black tracking-wider uppercase",
@@ -305,6 +420,118 @@ export default function AdminDashboard() {
                           </td>
                         </tr>
                       ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            </motion.div>
+          )}
+
+          {activeTab === 'users' && (
+            <motion.div key="users" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                <h2 className="text-xl font-bold text-slate-900">유저 관리 ({filteredUsers.length}명)</h2>
+                <input
+                  type="text"
+                  placeholder="이름·이메일·추천코드 검색"
+                  className="w-full sm:w-72 rounded-xl border border-slate-200 px-4 py-2 text-sm outline-none focus:border-blue-500"
+                  value={userSearch}
+                  onChange={(e) => setUserSearch(e.target.value)}
+                />
+              </div>
+              <Card className="p-0 overflow-hidden shadow-sm border border-slate-200">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead className="bg-slate-50 text-xs text-slate-500 uppercase">
+                      <tr>
+                        <th className="px-4 py-3 font-bold">이름 / 이메일</th>
+                        <th className="px-4 py-3 font-bold">역할</th>
+                        <th className="px-4 py-3 font-bold">추천 코드</th>
+                        <th className="px-4 py-3 font-bold">크레딧</th>
+                        <th className="px-4 py-3 font-bold">지급 / 회수</th>
+                        <th className="px-4 py-3 font-bold text-right">액션</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {filteredUsers.map((u: any) => {
+                        const raw = creditDelta[u.id] ?? '';
+                        const delta = Number(raw);
+                        const isValid = raw !== '' && Number.isFinite(delta);
+                        return (
+                          <tr key={u.id} className="hover:bg-slate-50/50 transition-colors">
+                            <td className="px-4 py-3">
+                              <p className="font-bold text-slate-900">{u.name || '—'}</p>
+                              <p className="text-[11px] text-slate-500">{u.email || '-'}</p>
+                              <p className="text-[10px] text-slate-400 font-mono">{u.id.substring(0, 10)}…</p>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className={cn(
+                                'text-[10px] font-black uppercase px-2 py-1 rounded-md',
+                                u.role === 'admin'
+                                  ? 'bg-purple-100 text-purple-700'
+                                  : u.role === 'tutor'
+                                    ? 'bg-indigo-100 text-indigo-700'
+                                    : 'bg-slate-100 text-slate-600'
+                              )}>
+                                {u.role || 'student'}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-xs font-mono text-slate-600">{u.referralCode || '-'}</td>
+                            <td className="px-4 py-3">
+                              <span className="text-lg font-black text-slate-900">{(u.credits || 0).toLocaleString()}</span>
+                              <span className="text-xs text-slate-400 ml-1">P</span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-1">
+                                <input
+                                  type="number"
+                                  placeholder="숫자"
+                                  className="w-24 rounded-lg border border-slate-200 px-2 py-1 text-sm outline-none focus:border-blue-500"
+                                  value={raw}
+                                  onChange={(e) =>
+                                    setCreditDelta(prev => ({ ...prev, [u.id]: e.target.value }))
+                                  }
+                                />
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-xs text-green-700 border-green-200 hover:bg-green-50"
+                                  disabled={!isValid || delta <= 0}
+                                  onClick={() => handleAdjustUserCredits(u, Math.abs(delta))}
+                                >
+                                  + 지급
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-xs text-red-700 border-red-200 hover:bg-red-50"
+                                  disabled={!isValid || delta <= 0}
+                                  onClick={() => handleAdjustUserCredits(u, -Math.abs(delta))}
+                                >
+                                  − 회수
+                                </Button>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-[10px] text-slate-500 hover:text-slate-700"
+                                onClick={() => handleResetUserCredits(u)}
+                              >
+                                0으로 초기화
+                              </Button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      {filteredUsers.length === 0 && (
+                        <tr>
+                          <td colSpan={6} className="px-4 py-10 text-center text-sm text-slate-400">
+                            검색 결과가 없습니다.
+                          </td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>

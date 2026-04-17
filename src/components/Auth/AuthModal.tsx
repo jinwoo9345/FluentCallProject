@@ -25,7 +25,6 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
-  const [referredBy, setReferredBy] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -60,13 +59,15 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
         if (KAKAO_KEY) {
           Kakao.init(KAKAO_KEY);
         } else {
-          throw new Error('VITE_KAKAO_JS_KEY 설정이 누력되었습니다. Settings 메뉴를 확인해주세요.');
+          throw new Error('VITE_KAKAO_JS_KEY 설정이 누락되었습니다. Settings 메뉴를 확인해주세요.');
         }
       }
 
-      const redirectUri = `${window.location.origin}/dashboard`; 
+      const redirectUri = `${window.location.origin}/dashboard`;
       Kakao.Auth.authorize({
         redirectUri: redirectUri,
+        // 닉네임/프로필 이미지 권한을 요청 (카카오 앱 설정에서도 동의 항목 활성화 필요)
+        scope: 'profile_nickname,profile_image',
       });
     } catch (err: any) {
       console.error(err);
@@ -85,7 +86,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
         name: user.displayName || '회원',
         email: user.email || '',
         role: 'student',
-        credits: 60,
+        credits: 0,
         referralCode,
         referredBy: '',
         discountBalance: 0,
@@ -106,7 +107,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
       if (mode === 'signup') {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
-        
+
         await updateProfile(user, { displayName: name });
         const referralCode = Math.random().toString(36).substring(2, 8).toUpperCase();
 
@@ -115,9 +116,9 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
           name,
           email,
           role,
-          credits: role === 'student' ? 60 : 0,
+          credits: 0,
           referralCode,
-          referredBy: role === 'student' ? referredBy : '',
+          referredBy: '',
           discountBalance: 0,
           createdAt: serverTimestamp(),
           avatar: `https://picsum.photos/seed/${user.uid}/200/200`

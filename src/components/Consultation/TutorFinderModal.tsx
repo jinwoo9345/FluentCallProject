@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, ChevronRight, ChevronLeft, Check, Phone, MessageCircle, MessageSquare, Send, CheckCircle, Loader2 } from 'lucide-react';
 import { db, auth } from '../../firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
 import { useAuth } from '../../contexts/AuthContext';
 import emailjs from '@emailjs/browser';
 import { Button } from '../ui/Button';
@@ -75,7 +75,13 @@ export function TutorFinderModal({ isOpen, onClose }: TutorFinderModalProps) {
         createdAt: serverTimestamp()
       });
 
-      if (!auth.currentUser) {
+      if (auth.currentUser) {
+        try {
+          await updateDoc(doc(db, 'users', auth.currentUser.uid), { hasCompletedConsultation: true });
+        } catch (err) {
+          console.warn('hasCompletedConsultation update skipped:', err);
+        }
+      } else {
         localStorage.setItem('pendingConsultationId', docRef.id);
         localStorage.setItem('pendingConsultationName', '튜터 찾기 신청자');
       }

@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Check, ExternalLink, CreditCard, ShieldCheck, AlertCircle, Ticket } from 'lucide-react';
+import { X, Check, ExternalLink, CreditCard, ShieldCheck, AlertCircle, Ticket, Gift } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Link } from 'react-router-dom';
 import { loadTossPayments } from '@tosspayments/payment-sdk';
 import { db, auth } from '../../firebase';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp, collection, query, where, getDocs } from 'firebase/firestore';
 import { useAuth } from '../../contexts/AuthContext';
 
 interface PaymentModalProps {
@@ -24,6 +24,10 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
   const [error, setError] = useState('');
   const [serverConfig, setServerConfig] = useState<any>(null);
   const [useCredits, setUseCredits] = useState(false);
+  const [referrerCode, setReferrerCode] = useState('');
+  const [referrerName, setReferrerName] = useState<string | null>(null);
+  const [checkingReferrer, setCheckingReferrer] = useState(false);
+  const [referrerError, setReferrerError] = useState('');
 
   // Credit discount logic: 1 credit = 1000 won
   const CREDIT_VALUE = 1000;
@@ -50,13 +54,55 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
     loadConfig();
   }, []);
 
+  const validateReferrer = async (code: string): Promise<string | null> => {
+    const trimmed = (code || '').trim().toUpperCase();
+    if (!trimmed) return null;
+
+    if (trimmed === user?.referralCode) {
+      setReferrerError('본인의 추천 코드는 사용할 수 없습니다.');
+      setReferrerName(null);
+      return null;
+    }
+
+    setCheckingReferrer(true);
+    setReferrerError('');
+    try {
+      const q = query(collection(db, 'users'), where('referralCode', '==', trimmed));
+      const snap = await getDocs(q);
+      if (snap.empty) {
+        setReferrerError('존재하지 않는 추천 코드입니다.');
+        setReferrerName(null);
+        return null;
+      }
+      const name = (snap.docs[0].data() as any).name || '회원';
+      setReferrerName(name);
+      return trimmed;
+    } catch (err) {
+      setReferrerError('추천 코드 확인 중 오류가 발생했습니다.');
+      setReferrerName(null);
+      return null;
+    } finally {
+      setCheckingReferrer(false);
+    }
+  };
+
   const handlePayment = async () => {
     if (!termsAgreed) return;
     if (!clientKey) {
       setError(`결제 설정을 찾을 수 없습니다. 페이지를 새로고침 해주세요.`);
       return;
     }
-    
+
+    // 추천 코드가 입력됐다면 유효한 코드인지 최종 확인
+    let validatedReferrer: string | null = null;
+    if (referrerCode.trim()) {
+      validatedReferrer = await validateReferrer(referrerCode);
+      if (!validatedReferrer) {
+        setError('추천인 코드를 다시 확인해주세요.');
+        return;
+      }
+    }
+
     setLoading(true);
     setError('');
 
@@ -75,7 +121,7 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
           productId: productId,
           productName: productName,
           status: 'pending',
-          referredBy: user?.referredBy || null,
+          referredBy: validatedReferrer || '',
           createdAt: serverTimestamp()
         });
       }
@@ -138,8 +184,8 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
                     </div>
                     <label className="flex items-center justify-between p-3 rounded-xl bg-white border border-amber-200 cursor-pointer">
                       <span className="text-sm text-slate-600">전액 사용 (최대 -{(availableCredits * CREDIT_VALUE).toLocaleString()}원)</span>
-                      <input 
-                        type="checkbox" 
+                      <input
+                        type="checkbox"
                         className="h-5 w-5 rounded border-amber-300 text-amber-600 focus:ring-amber-500"
                         checked={useCredits}
                         onChange={(e) => setUseCredits(e.target.checked)}
@@ -147,6 +193,46 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
                     </label>
                   </div>
                 )}
+
+                {/* Referrer Code */}
+                <div className="bg-blue-50 rounded-2xl p-6 border border-blue-100">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Gift className="text-blue-600" size={20} />
+                    <span className="font-bold text-slate-900">추천인 코드 (선택)</span>
+                  </div>
+                  <p className="text-xs text-slate-500 mb-3">
+                    친구에게 받은 추천 코드를 입력하면 결제 완료 시 <strong>해당 친구에게 20,000포인트</strong>가 지급됩니다.
+                  </p>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="예: A1B2C3"
+                      className="flex-1 rounded-xl border border-blue-200 px-4 py-3 text-sm focus:border-blue-500 outline-none uppercase tracking-widest"
+                      value={referrerCode}
+                      onChange={(e) => {
+                        setReferrerCode(e.target.value.toUpperCase());
+                        setReferrerName(null);
+                        setReferrerError('');
+                      }}
+                      maxLength={10}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="px-4"
+                      onClick={() => validateReferrer(referrerCode)}
+                      disabled={checkingReferrer || !referrerCode.trim()}
+                    >
+                      {checkingReferrer ? '확인 중…' : '확인'}
+                    </Button>
+                  </div>
+                  {referrerName && (
+                    <p className="text-xs text-blue-700 font-bold mt-2">✓ 추천인 확인: {referrerName}님</p>
+                  )}
+                  {referrerError && (
+                    <p className="text-xs text-red-600 font-bold mt-2">{referrerError}</p>
+                  )}
+                </div>
 
                 {/* Detailed Terms & Refund Policy (RESTORED) */}
                 <div className="space-y-4">

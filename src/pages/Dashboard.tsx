@@ -1,8 +1,7 @@
-import { motion } from 'motion/react';
-import { 
-  Calendar, Clock, Video, ChevronRight, Award, BookOpen, 
-  MessageSquare, DollarSign, Users, User as UserIcon, 
-  Heart, Star, CreditCard, ClipboardList, Share2, Copy, Check, Gift, Loader2
+import {
+  Calendar, Clock, ChevronRight, Award, BookOpen,
+  User as UserIcon,
+  Heart, CreditCard, Share2, Copy, Check, Gift, Loader2
 } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -42,14 +41,18 @@ export default function Dashboard() {
     async function fetchHistory() {
       setLoadingHistory(true);
       try {
-        // Fetch Payments
+        // Fetch Payments — 사용자에게는 완료된 결제만 노출
         const pQuery = query(
-          collection(db, 'payments'), 
+          collection(db, 'payments'),
           where('userId', '==', firebaseUser.uid),
           orderBy('createdAt', 'desc')
         );
         const pSnap = await getDocs(pQuery);
-        setPayments(pSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+        setPayments(
+          pSnap.docs
+            .map(d => ({ id: d.id, ...(d.data() as any) }))
+            .filter(p => p.status === 'completed')
+        );
 
         // Fetch Consultations
         const cQuery = query(
@@ -67,7 +70,7 @@ export default function Dashboard() {
     }
 
     fetchHistory();
-  }, [firebaseUser, isAuthReady, activeTab]);
+  }, [firebaseUser, isAuthReady]);
 
   const handleCopyCode = () => {
     if (user?.referralCode) {
@@ -240,7 +243,7 @@ export default function Dashboard() {
                                 </p>
                               </div>
                             </div>
-                            <span className="text-lg font-black text-slate-900">{p.amount.toLocaleString()}원</span>
+                            <span className="text-lg font-black text-slate-900">{(p.amount || 0).toLocaleString()}원</span>
                           </Card>
                         ))
                       )}

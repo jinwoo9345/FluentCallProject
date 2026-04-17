@@ -1,6 +1,5 @@
-import { Phone, Github, Twitter, Instagram, Sparkles } from 'lucide-react';
+import { Github, Twitter, Instagram } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { Logo } from '../ui/Logo';
 
 export const Footer = () => {
   return (
@@ -17,23 +16,20 @@ export const Footer = () => {
               가장 자유로운 1:1 회화 서비스입니다.
             </p>
           </div>
-          
+
           <div>
             <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-900">플랫폼</h3>
             <ul className="mt-4 space-y-2">
               <li><Link to="/tutors" className="text-sm text-slate-500 hover:text-blue-600">튜터 찾기</Link></li>
-              <li><Link to="/pricing" className="text-sm text-slate-500 hover:text-blue-600">가격 안내</Link></li>
-              <li><Link to="/for-business" className="text-sm text-slate-500 hover:text-blue-600">비즈니스용</Link></li>
+              <li><Link to="/dashboard" className="text-sm text-slate-500 hover:text-blue-600">내 강의실</Link></li>
             </ul>
           </div>
 
           <div>
             <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-900">고객 지원</h3>
             <ul className="mt-4 space-y-2">
-              <li><Link to="/help" className="text-sm text-slate-500 hover:text-blue-600">고객 센터</Link></li>
               <li><Link to="/terms-of-service" className="text-sm text-slate-500 hover:text-blue-600">이용약관</Link></li>
               <li><Link to="/refund-policy" className="text-sm text-slate-500 hover:text-blue-600">환불 정책</Link></li>
-              <li><Link to="/faq" className="text-sm text-slate-500 hover:text-blue-600">자주 묻는 질문</Link></li>
             </ul>
           </div>
 

@@ -13,20 +13,29 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     }
 
     const { paymentKey, orderId, amount } = await request.json<any>();
-    const secretKey = (env.TOSS_SECRET_KEY || "").trim();
 
+    if (!paymentKey || !orderId || amount == null) {
+      return new Response(JSON.stringify({ message: "필수 결제 정보가 누락되었습니다." }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" }
+      });
+    }
+
+    const numericAmount = Number(amount);
+    if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
+      return new Response(JSON.stringify({ message: "유효하지 않은 결제 금액입니다." }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" }
+      });
+    }
+
+    const secretKey = (env.TOSS_SECRET_KEY || "").trim();
     if (!secretKey) {
       return new Response(JSON.stringify({ message: "TOSS_SECRET_KEY is missing" }), {
         status: 500,
         headers: { "Content-Type": "application/json" }
       });
     }
-
-    // [Security Refinement] 
-    // In a real production environment, you should verify the orderId and amount 
-    // against your database (Firestore) here before calling Toss.
-    // Example: const order = await getOrderFromFirestore(orderId);
-    // if (order.amount !== amount) throw new Error("Amount mismatch");
 
     const encryptedSecretKey = btoa(secretKey + ":");
 
@@ -36,10 +45,21 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
         Authorization: `Basic ${encryptedSecretKey}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ paymentKey, orderId, amount }),
+      body: JSON.stringify({ paymentKey, orderId, amount: numericAmount }),
     });
 
-    const data = await response.json();
+    const data = await response.json() as any;
+
+    if (response.ok) {
+      // Toss 응답 금액이 요청 금액과 다르면 거부
+      if (data.totalAmount != null && Number(data.totalAmount) !== numericAmount) {
+        return new Response(
+          JSON.stringify({ message: "결제 금액 불일치가 감지되었습니다.", detail: { requested: numericAmount, actual: data.totalAmount } }),
+          { status: 400, headers: { "Content-Type": "application/json" } }
+        );
+      }
+    }
+
     return new Response(JSON.stringify(data), {
       status: response.status,
       headers: { "Content-Type": "application/json" }

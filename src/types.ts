@@ -33,19 +33,23 @@ export interface Session {
   meetingLink?: string;
 }
 
+export type UserRole = 'student' | 'tutor' | 'admin';
+
 export interface User {
-  id: string;
+  uid: string;
   name: string;
   email: string;
   avatar?: string;
   credits: number;
-  role: 'student' | 'tutor' | 'admin';
+  role: UserRole;
   referralCode?: string;
   referredBy?: string;
   discountBalance?: number;
   wishlist?: string[];
   hasCompletedConsultation?: boolean;
   studentAvailability?: string[];
+  availability?: string[];
+  createdAt?: any;
 }
 
 export interface Consultation {
@@ -56,5 +60,7 @@ export interface Consultation {
   availableTime: string;
   motivation: string;
   notes?: string;
+  userId?: string | null;
+  status?: 'pending' | 'completed';
   createdAt?: any;
 }

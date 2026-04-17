@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Phone, MessageCircle, MessageSquare } from 'lucide-react';
 import { db, auth } from '../../firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
 import { handleFirestoreError, OperationType } from '../../lib/firestore-errors';
 import emailjs from '@emailjs/browser';
 import { Button } from '../ui/Button';
@@ -47,16 +47,32 @@ export function ConsultationModal({ isOpen, onClose }: ConsultationModalProps) {
     try {
       // 1. Save to Firestore (consultations collection)
       const path = 'consultations';
+      const currentUid = auth.currentUser?.uid || null;
+      let createdId: string | null = null;
       try {
-        await addDoc(collection(db, path), {
+        const docRef = await addDoc(collection(db, path), {
           name,
           contactType,
           contactValue,
           availableTime,
           motivation,
           notes,
+          userId: currentUid,
+          status: 'pending',
           createdAt: serverTimestamp()
         });
+        createdId = docRef.id;
+
+        if (currentUid) {
+          try {
+            await updateDoc(doc(db, 'users', currentUid), { hasCompletedConsultation: true });
+          } catch (err) {
+            console.warn('hasCompletedConsultation update skipped:', err);
+          }
+        } else {
+          localStorage.setItem('pendingConsultationId', createdId);
+          localStorage.setItem('pendingConsultationName', name);
+        }
       } catch (fsErr: any) {
         handleFirestoreError(fsErr, OperationType.CREATE, path);
       }

@@ -2,10 +2,10 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Send, Search, AlertCircle, CheckCircle2, User as UserIcon } from 'lucide-react';
 import { Button } from '../ui/Button';
-import { db } from '../../firebase';
-import { 
-  collection, query, where, getDocs, runTransaction, doc, 
-  serverTimestamp, addDoc 
+import { db, auth } from '../../firebase';
+import {
+  collection, query, where, getDocs, runTransaction, doc,
+  serverTimestamp
 } from 'firebase/firestore';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -52,9 +52,18 @@ export function PointTransferModal({ isOpen, onClose }: PointTransferModalProps)
 
   // Execute point transfer
   const handleTransfer = async () => {
-    if (!recipient || amount <= 0 || !user) return;
+    const currentUid = auth.currentUser?.uid;
+    if (!recipient || amount <= 0 || !user || !currentUid) return;
+    if (!Number.isInteger(amount)) {
+      setError('정수 단위의 포인트만 전송할 수 있습니다.');
+      return;
+    }
     if (user.credits < amount) {
       setError('보유 포인트가 부족합니다.');
+      return;
+    }
+    if (currentUid === recipient.id) {
+      setError('본인에게는 포인트를 전송할 수 없습니다.');
       return;
     }
 
@@ -63,33 +72,33 @@ export function PointTransferModal({ isOpen, onClose }: PointTransferModalProps)
 
     try {
       await runTransaction(db, async (transaction) => {
-        const senderRef = doc(db, 'users', user.uid);
+        const senderRef = doc(db, 'users', currentUid);
         const recipientRef = doc(db, 'users', recipient.id);
+        const historyRef = doc(collection(db, 'point_transfers'));
 
         const senderDoc = await transaction.get(senderRef);
-        if (!senderDoc.exists()) throw new Error("보내는 분의 정보를 찾을 수 없습니다.");
-        
-        const currentCredits = senderDoc.data().credits || 0;
-        if (currentCredits < amount) throw new Error("보유 포인트가 부족합니다.");
+        const recipientDoc = await transaction.get(recipientRef);
+        if (!senderDoc.exists()) throw new Error('보내는 분의 정보를 찾을 수 없습니다.');
+        if (!recipientDoc.exists()) throw new Error('받는 분의 정보를 찾을 수 없습니다.');
 
-        // Update Credits
-        transaction.update(senderRef, { credits: currentCredits - amount });
-        transaction.update(recipientRef, { credits: (recipient.credits || 0) + amount });
+        const senderCredits = senderDoc.data().credits || 0;
+        const recipientCredits = recipientDoc.data().credits || 0;
+        if (senderCredits < amount) throw new Error('보유 포인트가 부족합니다.');
 
-        // Record History
-        const historyRef = collection(db, 'point_transfers');
-        await addDoc(historyRef, {
-          fromId: user.uid,
+        transaction.update(senderRef, { credits: senderCredits - amount });
+        transaction.update(recipientRef, { credits: recipientCredits + amount });
+
+        transaction.set(historyRef, {
+          fromId: currentUid,
           fromName: user.name,
           toId: recipient.id,
           toName: recipient.name,
           amount,
-          createdAt: serverTimestamp()
+          createdAt: serverTimestamp(),
         });
       });
 
       setSuccess(true);
-      // Optional: Update local user state if needed (AuthContext will handle it via listener)
     } catch (err: any) {
       console.error('Transfer Error:', err);
       setError(err.message || '전송 실패');

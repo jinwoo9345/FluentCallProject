@@ -1,30 +1,38 @@
 import { useState } from 'react';
-import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
-import { cn } from '@/src/lib/utils';
 import { Plus, X } from 'lucide-react';
 import { db } from '@/src/firebase';
 import { doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
+import type { UserRole } from '@/src/types';
 
 interface ScheduleManagerProps {
   userId: string;
   availability: string[];
-  role: 'student' | 'tutor';
+  role: UserRole | undefined;
 }
 
 export const ScheduleManager = ({ userId, availability = [], role }: ScheduleManagerProps) => {
   const [newTime, setNewTime] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const isTutor = role === 'tutor';
+
   const handleAdd = async () => {
-    if (!newTime) return;
+    if (!newTime || !role) return;
     setLoading(true);
     try {
       const userRef = doc(db, 'users', userId);
-      const field = role === 'student' ? 'studentAvailability' : 'availability';
-      await updateDoc(userRef, {
-        [field]: arrayUnion(newTime)
-      });
+      const field = isTutor ? 'availability' : 'studentAvailability';
+      await updateDoc(userRef, { [field]: arrayUnion(newTime) });
+
+      if (isTutor) {
+        // tutors 컬렉션의 동일 ID 문서에도 반영 (탐색용 스케줄 동기화)
+        try {
+          await updateDoc(doc(db, 'tutors', userId), { availability: arrayUnion(newTime) });
+        } catch (err) {
+          console.warn('Tutor profile schedule sync skipped:', err);
+        }
+      }
       setNewTime('');
     } catch (error) {
       console.error('Error adding time:', error);
@@ -34,16 +42,27 @@ export const ScheduleManager = ({ userId, availability = [], role }: ScheduleMan
   };
 
   const handleRemove = async (time: string) => {
+    if (!role) return;
     try {
       const userRef = doc(db, 'users', userId);
-      const field = role === 'student' ? 'studentAvailability' : 'availability';
-      await updateDoc(userRef, {
-        [field]: arrayRemove(time)
-      });
+      const field = isTutor ? 'availability' : 'studentAvailability';
+      await updateDoc(userRef, { [field]: arrayRemove(time) });
+
+      if (isTutor) {
+        try {
+          await updateDoc(doc(db, 'tutors', userId), { availability: arrayRemove(time) });
+        } catch (err) {
+          console.warn('Tutor profile schedule sync skipped:', err);
+        }
+      }
     } catch (error) {
       console.error('Error removing time:', error);
     }
   };
+
+  if (!role) {
+    return <p className="text-sm text-slate-400">역할 정보가 확인되지 않아 스케줄을 편집할 수 없습니다.</p>;
+  }
 
   return (
     <div className="space-y-4">

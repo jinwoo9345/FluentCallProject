@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { motion } from 'motion/react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { CheckCircle, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '../components/ui/Button';
@@ -44,27 +45,24 @@ export default function PaymentSuccess() {
         if (response.ok) {
           setPaymentData(data);
 
-          // 2. DB 기록 및 보상 처리 (Phase 3)
+          // 2. DB 기록 및 보상 처리
           const pendingPaymentDoc = await getDoc(doc(db, 'payments', orderId!));
           if (pendingPaymentDoc.exists()) {
             const pData = pendingPaymentDoc.data();
-            
-            // 결제 기록 업데이트
-            await paymentService.recordPayment({
-              ...pData,
-              paymentKey,
-              method: data.method,
-              status: 'completed',
-              receiptUrl: data.receipt?.url || null
-            });
 
-            // 크레딧 충전 (예: 결제 금액 1000원당 1분 크레딧)
-            const creditsToCharge = Math.floor(Number(amount) / 1000);
-            await paymentService.updateUserCredits(userId, creditsToCharge);
+            // 이미 처리된 결제라면 추천인 보상 중복 지급 방지
+            if (pData.status !== 'completed') {
+              await paymentService.recordPayment(orderId!, {
+                paymentKey,
+                method: data.method,
+                receiptUrl: data.receipt?.url || null,
+              });
 
-            // 추천인 보상 (첫 결제인 경우)
-            if (pData.referredBy) {
-              await paymentService.handleReferralReward(userId, pData.referredBy);
+              // 결제자 본인에게는 크레딧 자동 적립하지 않음 (크레딧은 추천인 보상에서만 지급)
+              // 추천인 보상 — PaymentModal에서 입력받아 payments.referredBy에 저장된 코드 사용
+              if (pData.referredBy) {
+                await paymentService.handleReferralReward(userId, pData.referredBy);
+              }
             }
           }
         } else {

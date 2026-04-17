@@ -4,7 +4,7 @@ import { Send, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { Card } from '../ui/Card';
 import { Button } from '../ui/Button';
 import { db } from '@/src/firebase';
-import { doc, updateDoc, collection, addDoc, serverTimestamp, getDoc } from 'firebase/firestore';
+import { doc, updateDoc, collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import emailjs from '@emailjs/browser';
 import { useAuth } from '@/src/contexts/AuthContext';
 
@@ -74,15 +74,14 @@ export const ConsultationForm = ({ userId, onComplete }: ConsultationFormProps) 
         );
       }
 
-      // 3. 로컬 스토리지에 임시 저장 (로그인 후 연결을 위해)
-      localStorage.setItem('pendingConsultationId', docRef.id);
-      localStorage.setItem('pendingConsultationName', formData.name);
-
-      // 4. 유저 상태 업데이트 (로그인 된 상태인 경우에만)
+      // 3. 유저 상태 업데이트 or 로그인 후 연결을 위한 임시 저장
       if (userId) {
         await updateDoc(doc(db, 'users', userId), {
           hasCompletedConsultation: true,
         });
+      } else {
+        localStorage.setItem('pendingConsultationId', docRef.id);
+        localStorage.setItem('pendingConsultationName', formData.name);
       }
 
       setSubmitted(true);

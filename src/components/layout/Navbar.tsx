@@ -1,12 +1,11 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Phone, User, Calendar, Search, Menu, X, LogOut, Sparkles, Shield } from 'lucide-react';
+import { User, Calendar, Search, Menu, X, LogOut, Shield } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '../ui/Button';
 import { cn } from '@/src/lib/utils';
 import { useAuth } from '../../contexts/AuthContext';
 import { auth } from '../../firebase';
 import { signOut } from 'firebase/auth';
-import { Logo } from '../ui/Logo';
 
 export const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -66,7 +65,7 @@ export const Navbar = () => {
                 />
                 <div className="flex flex-col">
                   <span className="text-xs font-bold text-slate-900">{user?.name || firebaseUser.displayName}</span>
-                  <span className="text-[10px] text-slate-500 uppercase">{user?.role === 'tutor' ? '강사' : '수강생'}</span>
+                  <span className="text-[10px] text-slate-500 uppercase">{user?.role === 'tutor' ? '강사' : user?.role === 'admin' ? '관리자' : '수강생'}</span>
                 </div>
               </div>
               <button 

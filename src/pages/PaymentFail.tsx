@@ -1,7 +1,9 @@
-import React from 'react';
-import { useSearchParams, useNavigate, Link } from 'react-router-dom';
-import { XCircle, AlertCircle } from 'lucide-react';
+import React, { useEffect } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import { XCircle } from 'lucide-react';
 import { Button } from '../components/ui/Button';
+import { db } from '../firebase';
+import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
 
 export default function PaymentFail() {
   const [searchParams] = useSearchParams();
@@ -9,6 +11,24 @@ export default function PaymentFail() {
 
   const message = searchParams.get('message') || '결제 중 오류가 발생했습니다.';
   const code = searchParams.get('code');
+  const orderId = searchParams.get('orderId');
+
+  useEffect(() => {
+    // pending 상태로 남아있던 결제 문서를 cancelled로 업데이트
+    if (!orderId) return;
+    (async () => {
+      try {
+        await updateDoc(doc(db, 'payments', orderId), {
+          status: 'cancelled',
+          failReason: message,
+          failCode: code || null,
+          cancelledAt: serverTimestamp(),
+        });
+      } catch (err) {
+        console.warn('Failed to mark payment as cancelled:', err);
+      }
+    })();
+  }, [orderId, message, code]);
 
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center p-4">
@@ -25,11 +45,9 @@ export default function PaymentFail() {
         <Button variant="outline" onClick={() => navigate('/tutors')}>
           다시 시도하기
         </Button>
-        <Link to="/help">
-          <Button variant="ghost">
-            고객센터 문의
-          </Button>
-        </Link>
+        <Button variant="ghost" onClick={() => navigate('/')}>
+          홈으로
+        </Button>
       </div>
     </div>
   );

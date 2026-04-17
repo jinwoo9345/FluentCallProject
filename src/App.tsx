@@ -13,13 +13,23 @@ import PaymentSuccess from './pages/PaymentSuccess';
 import PaymentFail from './pages/PaymentFail';
 import { useEffect, useRef } from 'react';
 import { db, auth } from './firebase';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { signInWithCustomToken } from 'firebase/auth';
 
 function AppContent() {
   const { isAuthModalOpen, setIsAuthModalOpen, authMode } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const processingRef = useRef(false);
+
+  // Capture referral code from URL (?ref=CODE) so signup can use it later
+  useEffect(() => {
+    const ref = searchParams.get('ref');
+    if (ref) {
+      localStorage.setItem('pendingReferralCode', ref);
+      searchParams.delete('ref');
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   // Handle Kakao Redirect
   useEffect(() => {
@@ -47,16 +57,18 @@ function AppContent() {
 
           // Check for pending consultation to link
           const pendingConsultationId = localStorage.getItem('pendingConsultationId');
+          const pendingReferral = localStorage.getItem('pendingReferralCode') || '';
 
           // Ensure user document exists or update existing info
           const userRef = doc(db, 'users', user.uid);
           const userSnap = await getDoc(userRef);
-          
+
           if (!userSnap.exists()) {
             const referralCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+            const fallbackName = `카카오회원${user.uid.slice(-4)}`;
             await setDoc(userRef, {
               uid: user.uid,
-              name: data.userName || user.displayName || '카카오 회원',
+              name: data.userName || user.displayName || fallbackName,
               email: user.email || '',
               role: 'student',
               credits: 0,
@@ -68,15 +80,23 @@ function AppContent() {
               hasCompletedConsultation: !!pendingConsultationId // If consultation was done before login
             });
           } else {
-            // Update existing user profile
-            const updateData: any = {
-              name: data.userName || userSnap.data().name,
-              avatar: data.userPhoto || userSnap.data().avatar,
-            };
+            // Update existing user profile — 닉네임/아바타를 카카오 최신 프로필로 덮어씀
+            const existing = userSnap.data() as any;
+            const updateData: any = {};
+            if (data.userName && data.userName !== existing.name) {
+              updateData.name = data.userName;
+            } else if (existing.name === '카카오 회원' && (data.userName || user.displayName)) {
+              updateData.name = data.userName || user.displayName;
+            }
+            if (data.userPhoto && data.userPhoto !== existing.avatar) {
+              updateData.avatar = data.userPhoto;
+            }
             if (pendingConsultationId) {
               updateData.hasCompletedConsultation = true;
             }
-            await setDoc(userRef, updateData, { merge: true });
+            if (Object.keys(updateData).length > 0) {
+              await setDoc(userRef, updateData, { merge: true });
+            }
           }
 
           // Link the consultation document to the user
