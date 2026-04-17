@@ -2,7 +2,7 @@ import { motion } from 'motion/react';
 import { 
   Calendar, Clock, Video, ChevronRight, Award, BookOpen, 
   MessageSquare, DollarSign, Users, User as UserIcon, 
-  Heart, Star, CreditCard, ClipboardList, Share2, Copy, Check
+  Heart, Star, CreditCard, ClipboardList, Share2, Copy, Check, Gift
 } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -12,6 +12,7 @@ import { useEffect, useState } from 'react';
 import { useSessions } from '../hooks/useSessions';
 import { useTutors } from '../hooks/useTutors';
 import { ScheduleManager } from '../components/Dashboard/ScheduleManager';
+import { PointTransferModal } from '../components/Payment/PointTransferModal';
 import { db } from '../firebase';
 import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
 import { shareReferralCode } from '../lib/kakao';
@@ -28,6 +29,7 @@ export default function Dashboard() {
   const [consultations, setConsultations] = useState<any[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
 
   const wishlistedTutors = tutors.filter(t => user?.wishlist?.includes(t.id));
 
@@ -92,7 +94,6 @@ export default function Dashboard() {
   }
 
   // Phase 2: Consultation Hard Blocker for Students
-  // Note: We don't show history if they haven't done consultation yet
   if (user?.role === 'student' && !user?.hasCompletedConsultation) {
     return (
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
@@ -107,8 +108,7 @@ export default function Dashboard() {
             <p className="mt-2 text-blue-100">나에게 맞는 튜터와 커리큘럼을 추천해 드립니다.</p>
           </div>
           <div className="p-8">
-            {/* ConsultationForm component here */}
-            <p className="text-center text-slate-500">상담 신청 폼이 여기에 위치합니다...</p>
+             <p className="text-center text-slate-500">홈 페이지의 상담 신청 과정을 완료해 주세요.</p>
           </div>
         </Card>
       </div>
@@ -118,7 +118,7 @@ export default function Dashboard() {
   const stats = [
     { label: '완료 수업', value: sessions.filter(s => s.status === 'completed').length.toString(), icon: BookOpen, color: 'text-blue-600', bg: 'bg-blue-50' },
     { label: '학습 시간', value: `${sessions.filter(s => s.status === 'completed').length * 25}m`, icon: Clock, color: 'text-green-600', bg: 'bg-green-50' },
-    { label: '보유 크레딧', value: user?.credits?.toString() || '0', icon: Award, color: 'text-amber-600', bg: 'bg-amber-50' },
+    { label: '보유 포인트', value: (user?.credits || 0).toLocaleString(), icon: Award, color: 'text-amber-600', bg: 'bg-amber-50' },
   ];
 
   return (
@@ -157,33 +157,18 @@ export default function Dashboard() {
           {/* Detailed Tabs Section */}
           <section className="space-y-6">
             <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-2xl w-fit">
-              <button 
-                onClick={() => setActiveTab('sessions')}
-                className={cn(
-                  "px-6 py-2.5 rounded-xl text-sm font-bold transition-all",
-                  activeTab === 'sessions' ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-700"
-                )}
-              >
-                수업 일정
-              </button>
-              <button 
-                onClick={() => setActiveTab('payments')}
-                className={cn(
-                  "px-6 py-2.5 rounded-xl text-sm font-bold transition-all",
-                  activeTab === 'payments' ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-700"
-                )}
-              >
-                결제 내역
-              </button>
-              <button 
-                onClick={() => setActiveTab('consultations')}
-                className={cn(
-                  "px-6 py-2.5 rounded-xl text-sm font-bold transition-all",
-                  activeTab === 'consultations' ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-700"
-                )}
-              >
-                상담 내역
-              </button>
+              {['sessions', 'payments', 'consultations'].map((t) => (
+                <button 
+                  key={t}
+                  onClick={() => setActiveTab(t as TabType)}
+                  className={cn(
+                    "px-6 py-2.5 rounded-xl text-sm font-bold transition-all capitalize",
+                    activeTab === t ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-700"
+                  )}
+                >
+                  {t === 'sessions' ? '수업 일정' : t === 'payments' ? '결제 내역' : '상담 내역'}
+                </button>
+              ))}
             </div>
 
             <div className="space-y-4">
@@ -279,35 +264,31 @@ export default function Dashboard() {
               )}
             </div>
           </section>
-
-          {/* Live Wishlist Section */}
-          <section className="pt-4">
-            <h2 className="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
-              <Heart size={20} className="text-red-500 fill-current" /> 찜한 강사
-            </h2>
-            {wishlistedTutors.length === 0 ? (
-              <Card className="p-8 text-center text-slate-500 border-dashed">
-                마음에 드는 튜터를 하트로 표시해 보세요.
-              </Card>
-            ) : (
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                {wishlistedTutors.map(tutor => (
-                  <Card key={tutor.id} className="flex items-center gap-4 p-4 hover:shadow-md transition-shadow">
-                    <img src={tutor.avatar} alt={tutor.name} className="h-12 w-12 rounded-xl object-cover" referrerPolicy="no-referrer" />
-                    <div className="flex-1">
-                      <h3 className="font-bold text-slate-900 text-sm">{tutor.name}</h3>
-                      <p className="text-[10px] text-slate-500 line-clamp-1 uppercase tracking-tight font-bold">{tutor.specialties.slice(0, 2).join(' · ')}</p>
-                    </div>
-                    <ChevronRight size={18} className="text-slate-300" />
-                  </Card>
-                ))}
-              </div>
-            )}
-          </section>
         </div>
 
         {/* Sidebar */}
         <div className="w-full lg:w-80 space-y-6">
+          {/* Credits Card */}
+          <Card className="bg-slate-900 text-white border-none shadow-xl">
+            <h3 className="font-bold text-lg mb-2">보유 포인트</h3>
+            <div className="flex items-end gap-2">
+              <span className="text-4xl font-bold">{(user?.credits || 0).toLocaleString()}</span>
+              <span className="text-slate-400 mb-1">P</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2 mt-6">
+              <Button className="bg-blue-600 hover:bg-blue-500 border-none text-xs py-5 px-0">
+                포인트 충전
+              </Button>
+              <Button 
+                variant="outline" 
+                className="border-slate-700 text-slate-300 hover:bg-slate-800 text-xs py-5 px-0 gap-1"
+                onClick={() => setIsTransferModalOpen(true)}
+              >
+                <Gift size={14} /> 선물하기
+              </Button>
+            </div>
+          </Card>
+
           {/* Referral Card */}
           <Card className="bg-gradient-to-br from-blue-600 to-indigo-700 text-white border-none shadow-2xl relative overflow-hidden group">
             <div className="relative z-10">
@@ -315,9 +296,8 @@ export default function Dashboard() {
                 <Sparkles size={20} /> 친구 초대하고 2만점 받기
               </h3>
               <p className="text-sm text-blue-100 mb-6 leading-relaxed">
-                친구가 결제하면 다음 달 수강료가 <span className="font-black text-white">159,000원</span>으로 자동 할인됩니다! (20,000포인트 지급)
+                친구가 결제하면 다음 달 수강료가 <span className="font-black text-white">159,000원</span>으로 자동 할인됩니다!
               </p>
-              
               <div className="space-y-4">
                 <div className="bg-white/10 rounded-2xl p-4 border border-white/20">
                   <p className="text-[10px] font-black uppercase tracking-widest text-blue-200 mb-2">내 추천 코드</p>
@@ -328,7 +308,6 @@ export default function Dashboard() {
                     </button>
                   </div>
                 </div>
-                
                 <Button 
                   onClick={handleKakaoShare}
                   className="w-full bg-[#FEE500] hover:bg-[#FADA0A] text-[#3C1E1E] font-black border-none gap-2 py-6 rounded-2xl shadow-lg"
@@ -337,8 +316,6 @@ export default function Dashboard() {
                 </Button>
               </div>
             </div>
-            {/* Decorative circles */}
-            <div className="absolute -right-8 -bottom-8 w-32 h-32 bg-white/10 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700" />
           </Card>
 
           {/* Schedule Manager */}
@@ -352,21 +329,13 @@ export default function Dashboard() {
               role={user?.role}
             />
           </Card>
-
-          {/* Account Settings (Simple) */}
-          <Card className="bg-slate-50">
-            <h3 className="font-bold text-slate-900 mb-4">계정 관리</h3>
-            <div className="space-y-3">
-              <Button variant="ghost" className="w-full justify-start text-sm text-slate-600 bg-white border border-slate-200">
-                프로필 정보 수정
-              </Button>
-              <Button variant="ghost" className="w-full justify-start text-sm text-red-600 hover:text-red-700 hover:bg-red-50">
-                회원 탈퇴
-              </Button>
-            </div>
-          </Card>
         </div>
       </div>
+      
+      <PointTransferModal 
+        isOpen={isTransferModalOpen} 
+        onClose={() => setIsTransferModalOpen(false)} 
+      />
     </div>
   );
 }
