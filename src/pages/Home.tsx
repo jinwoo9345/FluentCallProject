@@ -5,27 +5,117 @@ import { Button } from '../components/ui/Button';
 import { Link } from 'react-router-dom';
 import { TutorFinderModal } from '../components/Consultation/TutorFinderModal';
 
+type FaqItem = {
+  q: string;
+  a: string;                    // 짧은 핵심 답변 1~2문장
+  details: React.ReactNode;     // 상세 설명 JSX
+  linkTo?: string;              // "더 자세히 보기" 페이지 링크 (선택)
+  linkLabel?: string;
+};
+
 export default function Home() {
   const [isTutorFinderOpen, setIsTutorFinderOpen] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
+  const [showDetailIdx, setShowDetailIdx] = useState<number | null>(null);
 
-  const faqs = [
+  const faqs: FaqItem[] = [
     {
-      q: "친구 추천 할인 혜택은 어떻게 되나요?",
-      a: "수강생이 친구를 추천하고 해당 친구가 결제를 완료하면, 추천인에게 다음 달 사용 가능한 20,000포인트가 지급됩니다. 이 포인트를 사용하면 다음 달 수강료가 159,000원으로 자동 할인됩니다. 포인트는 수강을 유지하는 경우에만 사용 가능합니다."
+      q: '친구 추천 할인 혜택은 어떻게 되나요?',
+      a: '추천한 친구가 결제하면, 추천인에게 20,000포인트가 지급되어 다음 결제 시 159,000원으로 할인됩니다.',
+      details: (
+        <div className="space-y-3">
+          <p><strong>지급 조건</strong> — 내 추천 코드를 친구가 결제 화면에 입력하고 결제를 완료해야 지급됩니다.</p>
+          <p><strong>포인트 가치</strong> — 1포인트 = 1,000원으로, 20,000포인트는 20,000원 할인과 같습니다.</p>
+          <p><strong>사용 방법</strong> — 다음 결제 시 자동으로 차감되어 적용됩니다.</p>
+          <p><strong>사용 조건</strong> — 포인트는 수강을 유지하고 있을 때만 사용할 수 있으며, 환불 시에는 소멸됩니다.</p>
+        </div>
+      ),
+      linkTo: '/referral',
+      linkLabel: '친구 추천 프로그램 전체 보기',
     },
     {
-      q: "추천받은 친구도 할인을 받나요?",
-      a: "추천받은 친구는 정상가(179,000원)로 결제하게 됩니다. 하지만 추천인과 친구 간 협의하여 지급된 포인트를 나누어 사용하는 것은 가능합니다. 친구와 함께 시작하여 비용 절감 혜택을 챙겨보세요!"
+      q: '추천받은 친구도 할인을 받나요?',
+      a: '친구 본인은 정상가(179,000원)로 결제합니다. 단, 추천인이 받은 포인트를 친구와 나눠 쓸 수 있습니다.',
+      details: (
+        <div className="space-y-3">
+          <p>
+            추천 보상은 <strong>추천인(초대한 사람)에게만</strong> 지급됩니다.
+            따라서 추천을 받은 친구 본인은 별도의 자동 할인을 받지 않습니다.
+          </p>
+          <p>
+            그러나 지급된 20,000포인트를 추천인이 본인 결제 시 사용하거나,
+            <strong> 포인트 선물하기 기능</strong>을 통해 친구와 나눠 쓸 수 있습니다.
+          </p>
+          <p>즉, 친구와 협의하면 실질적으로 두 사람 모두 할인 혜택을 경험할 수 있습니다.</p>
+        </div>
+      ),
+      linkTo: '/referral',
+      linkLabel: '추천 프로그램 규정 보기',
     },
     {
-      q: "상담 신청 절차가 어떻게 되나요?",
-      a: "EnglishBites는 모든 수강생의 학습 효과 극대화를 위해 '상담 필수제'를 운영합니다. '지금 시작하기'를 통해 간단한 설문을 마치시면 전문 매니저가 작성해주신 상담 희망 시간대에 맞춰 직접 연락드려 최적의 튜터를 매칭해 드립니다."
+      q: '상담 신청 절차가 어떻게 되나요?',
+      a: '"지금 시작하기" 설문을 완료하시면 매니저가 신청해주신 시간대에 직접 연락드립니다.',
+      details: (
+        <ol className="list-decimal pl-5 space-y-2">
+          <li>홈페이지의 "지금 시작하기" 버튼을 클릭합니다.</li>
+          <li>8단계 설문(목적·기간·레벨·수업 스타일·동행 여부·상담 시간·연락처·기타)을 작성합니다.</li>
+          <li>제출 후 전문 매니저가 작성하신 상담 가능 시간대에 맞춰 직접 연락드립니다.</li>
+          <li>상담을 통해 학습 목표에 가장 적합한 튜터를 매칭해 드립니다.</li>
+          <li>수업 스타일이 맞지 않을 경우 <strong>1회 무료 튜터 변경</strong>도 가능합니다.</li>
+        </ol>
+      ),
     },
     {
-      q: "환불 규정이 궁금합니다.",
-      a: "수업 시작 전에는 100% 환불 가능합니다. 수업 진행 후에는 (결제 금액 ÷ 총 제공 횟수) × 남은 횟수 공식에 따라 환불됩니다. 단, 전체 수업의 3/8 이상 진행 시 서비스 이용료(49,000원)는 환불되지 않습니다."
-    }
+      q: '수업은 어떻게 진행되나요?',
+      a: '원어민 강사와 1:1로 회당 25~30분, 주 2회 기준으로 진행되며 일정은 유연하게 조정됩니다.',
+      details: (
+        <ul className="list-disc pl-5 space-y-2">
+          <li>모든 수업은 <strong>1:1 원어민 회화</strong>로 진행됩니다.</li>
+          <li>기본 수업 시간은 25~30분이며, 강사와 협의하여 조정할 수 있습니다.</li>
+          <li>수업 일정은 사전에 협의된 시간을 기준으로 진행됩니다.</li>
+          <li>수업 시작 3시간 전까지는 취소 시 횟수가 차감되지 않습니다.</li>
+          <li>노쇼 또는 3시간 이내 취소 시 1회가 차감됩니다.</li>
+        </ul>
+      ),
+    },
+    {
+      q: '환불 규정이 궁금합니다.',
+      a: '수업 시작 전 전액 환불. 진행 후에는 (결제 금액 ÷ 총 횟수) × 남은 횟수 공식으로 계산됩니다.',
+      details: (
+        <div className="space-y-3">
+          <p><strong>수업 전 환불</strong> — 아직 수업을 이용하지 않은 경우 100% 전액 환불 가능합니다.</p>
+          <p>
+            <strong>일부 수업 진행 후</strong> — 아래 공식으로 계산됩니다.
+            <br />
+            <span className="block mt-2 p-3 bg-slate-100 rounded-lg text-center font-bold text-slate-800">
+              환불 금액 = (결제 금액 ÷ 총 제공 횟수) × 남은 횟수
+            </span>
+          </p>
+          <p>
+            <strong>예시</strong> — 179,000원 / 8회 구매 후 4회 이용 시 → 환불 금액 89,500원
+          </p>
+          <p className="text-red-600 font-medium">
+            단, 전체 수업의 3/8 이상 진행 시 서비스 이용료(49,000원)는 환불되지 않습니다.
+          </p>
+          <p className="text-slate-500 text-sm">환불은 접수일 기준 영업일 3~7일 이내 처리됩니다.</p>
+        </div>
+      ),
+      linkTo: '/refund-policy',
+      linkLabel: '환불 정책 전문 보기',
+    },
+    {
+      q: '결제 방법과 수강권 구성은 어떻게 되나요?',
+      a: '8회 / 16회(+1) / 24회(+2) 패키지로 선결제하며, 포인트와 추천인 코드를 결제 시 적용할 수 있습니다.',
+      details: (
+        <ul className="list-disc pl-5 space-y-2">
+          <li>수강권은 <strong>8회 · 16회(+1회 보너스) · 24회(+2회 보너스)</strong> 중 선택 가능합니다.</li>
+          <li>모든 수업은 <strong>선결제 후 이용</strong>할 수 있습니다.</li>
+          <li>결제 시 <strong>추천인 코드를 입력</strong>하여 추천인에게 포인트를 지급할 수 있습니다.</li>
+          <li>본인이 보유한 포인트는 결제 시 전액 사용 가능합니다. (1포인트 = 1,000원)</li>
+          <li>결제는 토스페이먼츠(Toss Payments)를 통해 안전하게 처리됩니다.</li>
+        </ul>
+      ),
+    },
   ];
 
   return (
@@ -153,24 +243,100 @@ export default function Home() {
       <section className="py-32 bg-slate-50">
         <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-black text-slate-900 mb-6 font-display">궁금한 점이 있으신가요?</h2>
+            <h2 className="text-4xl font-black text-slate-900 mb-4 font-display">자주 묻는 질문</h2>
+            <p className="text-slate-500">자주 문의 주시는 내용을 모았습니다. 질문을 눌러 답변을 확인하세요.</p>
           </div>
           <div className="space-y-4">
-            {faqs.map((faq, idx) => (
-              <div key={idx} className="border border-slate-200 rounded-[2rem] overflow-hidden bg-white shadow-sm transition-all hover:shadow-md">
-                <button onClick={() => setOpenFaq(openFaq === idx ? null : idx)} className="w-full flex items-center justify-between p-7 text-left">
-                  <span className="text-lg font-bold text-slate-900">{faq.q}</span>
-                  <ChevronDown className={`text-slate-400 transition-transform duration-300 ${openFaq === idx ? 'rotate-180' : ''}`} />
-                </button>
-                <AnimatePresence>
-                  {openFaq === idx && (
-                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-                      <div className="p-7 pt-0 text-slate-600 leading-relaxed border-t border-slate-50">{faq.a}</div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            ))}
+            {faqs.map((faq, idx) => {
+              const isOpen = openFaq === idx;
+              const isDetailOpen = showDetailIdx === idx;
+              return (
+                <div
+                  key={idx}
+                  className="border border-slate-200 rounded-[2rem] overflow-hidden bg-white shadow-sm transition-all hover:shadow-md"
+                >
+                  <button
+                    onClick={() => {
+                      setOpenFaq(isOpen ? null : idx);
+                      if (isOpen) setShowDetailIdx(null);
+                    }}
+                    className="w-full flex items-start justify-between gap-4 p-7 text-left"
+                  >
+                    <div className="flex gap-4">
+                      <span className="flex-shrink-0 h-7 w-7 rounded-full bg-blue-600 text-white text-xs font-black flex items-center justify-center">
+                        Q
+                      </span>
+                      <span className="text-lg font-bold text-slate-900 pt-0.5">{faq.q}</span>
+                    </div>
+                    <ChevronDown
+                      className={`text-slate-400 transition-transform duration-300 flex-shrink-0 mt-1 ${
+                        isOpen ? 'rotate-180' : ''
+                      }`}
+                    />
+                  </button>
+
+                  <AnimatePresence initial={false}>
+                    {isOpen && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="px-7 pb-6 pt-0 border-t border-slate-100">
+                          {/* 핵심 답변 */}
+                          <div className="flex gap-4 pt-5">
+                            <span className="flex-shrink-0 h-7 w-7 rounded-full bg-slate-100 text-slate-600 text-xs font-black flex items-center justify-center">
+                              A
+                            </span>
+                            <p className="text-slate-700 leading-relaxed pt-0.5">{faq.a}</p>
+                          </div>
+
+                          {/* 상세보기 버튼 + 상세 내용 */}
+                          <div className="mt-4 pl-11">
+                            <button
+                              onClick={() => setShowDetailIdx(isDetailOpen ? null : idx)}
+                              className="inline-flex items-center gap-1 text-sm font-bold text-blue-600 hover:text-blue-700 transition-colors"
+                            >
+                              {isDetailOpen ? '상세 설명 접기' : '상세 설명 보기'}
+                              <ChevronDown
+                                size={14}
+                                className={`transition-transform duration-300 ${isDetailOpen ? 'rotate-180' : ''}`}
+                              />
+                            </button>
+
+                            <AnimatePresence initial={false}>
+                              {isDetailOpen && (
+                                <motion.div
+                                  initial={{ height: 0, opacity: 0 }}
+                                  animate={{ height: 'auto', opacity: 1 }}
+                                  exit={{ height: 0, opacity: 0 }}
+                                  className="overflow-hidden"
+                                >
+                                  <div className="mt-4 p-5 rounded-2xl bg-slate-50 border border-slate-100 text-sm text-slate-700 leading-relaxed">
+                                    {faq.details}
+                                    {faq.linkTo && (
+                                      <div className="mt-5 pt-4 border-t border-slate-200">
+                                        <Link
+                                          to={faq.linkTo}
+                                          className="inline-flex items-center gap-1 text-sm font-bold text-blue-600 hover:text-blue-700 hover:underline"
+                                        >
+                                          {faq.linkLabel || '자세히 보기'} <ArrowRight size={14} />
+                                        </Link>
+                                      </div>
+                                    )}
+                                  </div>
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              );
+            })}
           </div>
         </div>
       </section>
