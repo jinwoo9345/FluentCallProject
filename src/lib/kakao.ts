@@ -23,7 +23,7 @@ export const shareReferralCode = (referralCode: string, userName: string) => {
     objectType: 'feed',
     content: {
       title: 'EnglishBites 친구 초대 🎁',
-      description: `${userName}님이 보내신 선물! 지금 가입할 때 코드 [${referralCode}]를 입력하면 60,000원 상당의 크레딧을 드려요.`,
+      description: `${userName}님이 보내신 선물! 지금 가입할 때 코드 [${referralCode}]를 입력하고 결제하면, 추천인에게 20,000포인트(=20,000원)가 지급되어 함께 나눠 쓸 수 있어요.`,
       imageUrl: 'https://englishbites.pages.dev/logo.png', // Replace with your actual logo URL
       link: {
         mobileWebUrl: window.location.origin,
