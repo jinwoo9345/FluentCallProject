@@ -61,13 +61,14 @@ service cloud.firestore {
     }
 
     // 수업 세션 — 관리자만 쓰기 가능, 본인/튜터/관리자만 읽기
+    // list(query)는 read 규칙이 각 문서 단위로 검증되므로 별도 제한 두지 않음
+    // (수강생은 where('userId','==',self), 튜터는 where('tutorId','==',self)로 쿼리)
     match /sessions/{sessionId} {
       allow read: if isSignedIn() && (
         resource.data.userId == request.auth.uid
         || resource.data.tutorId == request.auth.uid
         || isAdmin()
       );
-      allow list: if isAdmin();
       allow create, update, delete: if isAdmin();
     }
 

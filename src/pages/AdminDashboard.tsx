@@ -192,9 +192,14 @@ export default function AdminDashboard() {
   const handleAdjustUserCredits = async (u: any, delta: number) => {
     if (!delta || !Number.isFinite(delta)) return;
     try {
-      await updateDoc(doc(db, 'users', u.id), { credits: increment(delta) });
+      // 서버 문서를 먼저 조회해 현재 값을 기준으로 가감 (legacy 문자열/누락 대비)
+      const userRef = doc(db, 'users', u.id);
+      const snap = await getDoc(userRef);
+      const currentCredits = Number(snap.data()?.credits) || 0;
+      const nextCredits = Math.max(0, currentCredits + delta);
+      await updateDoc(userRef, { credits: nextCredits });
       setUsersList(prev =>
-        prev.map(x => (x.id === u.id ? { ...x, credits: (x.credits || 0) + delta } : x))
+        prev.map(x => (x.id === u.id ? { ...x, credits: nextCredits } : x))
       );
       setCreditDelta(prev => ({ ...prev, [u.id]: '' }));
     } catch (err: any) {
