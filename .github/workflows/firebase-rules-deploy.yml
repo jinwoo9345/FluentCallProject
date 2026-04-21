@@ -19,5 +19,11 @@ jobs:
       - name: Install Firebase CLI
         run: npm install -g firebase-tools
 
+      - name: Show firebase.json (디버그)
+        run: cat firebase.json
+
+      - name: Show firestore.rules (디버그)
+        run: sed -n '60,75p' firestore.rules
+
       - name: Deploy Firestore Rules & Indexes
-        run: firebase deploy --only firestore:rules,firestore:indexes --token "${{ secrets.FIREBASE_TOKEN }}" --project gen-lang-client-0514894849
+        run: firebase deploy --only firestore:rules,firestore:indexes --token "${{ secrets.FIREBASE_TOKEN }}" --project gen-lang-client-0514894849 --debug
