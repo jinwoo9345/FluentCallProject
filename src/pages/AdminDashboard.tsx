@@ -61,7 +61,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [detailConsult, setDetailConsult] = useState<any | null>(null);
   const [detailUser, setDetailUser] = useState<any | null>(null);
-  const [detailUserAutoSession, setDetailUserAutoSession] = useState(false);
+  const [detailUserMode, setDetailUserMode] = useState<'full' | 'session'>('full');
   const [editTutor, setEditTutor] = useState<any | null>(null);
   const [isAddingTutor, setIsAddingTutor] = useState(false);
   const [consultFilter, setConsultFilter] = useState<'all' | 'pending' | 'completed'>('all');
@@ -1016,14 +1016,14 @@ export default function AdminDashboard() {
                                 <Button
                                   size="sm"
                                   className="text-xs gap-1 bg-blue-600 text-white hover:bg-blue-700"
-                                  onClick={() => { setDetailUserAutoSession(false); setDetailUser(u); }}
+                                  onClick={() => { setDetailUserMode('full'); setDetailUser(u); }}
                                 >
                                   <Eye size={13} /> 상세보기
                                 </Button>
                                 <Button
                                   size="sm"
                                   className="text-xs gap-1 bg-indigo-600 text-white hover:bg-indigo-700"
-                                  onClick={() => { setDetailUserAutoSession(true); setDetailUser(u); }}
+                                  onClick={() => { setDetailUserMode('session'); setDetailUser(u); }}
                                 >
                                   <CalendarPlus size={13} /> 수업 등록
                                 </Button>
@@ -1456,13 +1456,18 @@ export default function AdminDashboard() {
                       referrerPolicy="no-referrer"
                     />
                     <div>
-                      <p className="text-sm font-black uppercase tracking-widest text-blue-300">회원 상세</p>
+                      <p className={cn(
+                        'text-sm font-black uppercase tracking-widest',
+                        detailUserMode === 'session' ? 'text-indigo-300' : 'text-blue-300'
+                      )}>
+                        {detailUserMode === 'session' ? '수업 등록' : '회원 상세'}
+                      </p>
                       <h2 className="mt-2 text-3xl font-bold">{detailUser.name || '—'}</h2>
                       <p className="text-base text-slate-300">{detailUser.email || '이메일 미등록'}</p>
                     </div>
                   </div>
                   <button
-                    onClick={() => { setDetailUser(null); setDetailUserAutoSession(false); }}
+                    onClick={() => { setDetailUser(null); setDetailUserMode('full'); }}
                     className="text-slate-400 hover:text-white transition-colors text-3xl"
                   >
                     ×
@@ -1470,6 +1475,8 @@ export default function AdminDashboard() {
                 </div>
 
                 <div className="p-10 space-y-8 max-h-[70vh] overflow-y-auto">
+                  {detailUserMode === 'full' && (
+                    <>
                   {/* 기본 정보 */}
                   <div>
                     <p className="text-sm font-black uppercase tracking-widest text-slate-400 mb-4">기본 정보</p>
@@ -1571,19 +1578,31 @@ export default function AdminDashboard() {
                     })()}
                   </div>
 
+                    </>
+                  )}
+
                   {/* 수업 등록 / 일정 관리 */}
-                  <div className="pt-2 border-t border-slate-100">
+                  <div className={detailUserMode === 'full' ? 'pt-2 border-t border-slate-100' : ''}>
                     <SessionRegisterSection
                       userId={detailUser.id}
                       userName={detailUser.name || '회원'}
                       tutors={tutors}
-                      autoOpenForm={detailUserAutoSession}
+                      autoOpenForm={detailUserMode === 'session'}
                     />
                   </div>
                 </div>
 
-                <div className="p-6 border-t border-slate-100 flex gap-3 justify-end bg-slate-50/50">
-                  <Button onClick={() => { setDetailUser(null); setDetailUserAutoSession(false); }}>닫기</Button>
+                <div className="p-6 border-t border-slate-100 flex gap-3 justify-between items-center bg-slate-50/50">
+                  {detailUserMode === 'session' ? (
+                    <Button
+                      variant="outline"
+                      onClick={() => setDetailUserMode('full')}
+                      className="gap-1"
+                    >
+                      <Eye size={14} /> 회원 상세 정보 보기
+                    </Button>
+                  ) : <span />}
+                  <Button onClick={() => { setDetailUser(null); setDetailUserMode('full'); }}>닫기</Button>
                 </div>
               </motion.div>
             </div>
