@@ -78,10 +78,10 @@ export const Navbar = () => {
         </div>
 
         {/* 중앙: 데스크톱 메뉴 — 그룹 호버 시 3개 드롭다운 동시 표시 (각자 트리거 아래 정렬)
-            트리거 폭 min-w-[8rem](128px) 균등 + gap-4(16px) → 센터 간 거리 = 128+16 = 144
-            드롭다운 폭 w-36(144px)과 정확히 일치해 모든 쌍이 겹침 없이 바로 맞닿음 */}
+            트리거 폭 min-w-[8rem](128px) 균등 + gap-20(80px) → 센터 간 거리 = 128+80 = 208
+            드롭다운 폭 w-52(208px)과 정확히 일치해 모든 쌍이 겹침 없이 바로 맞닿음 */}
         <div
-          className="hidden md:flex md:items-center md:justify-center md:gap-4 justify-self-center relative"
+          className="hidden md:flex md:items-center md:justify-center md:gap-20 justify-self-center relative"
           onMouseEnter={() => setIsGroupHovered(true)}
           onMouseLeave={() => setIsGroupHovered(false)}
         >
@@ -110,15 +110,15 @@ export const Navbar = () => {
 
                 {/* 각 메뉴 드롭다운 — 그룹 호버 시 동시 표시, 각자 트리거 아래 중앙 정렬 */}
                 {isGroupHovered && (
-                  <div className="absolute left-1/2 -translate-x-1/2 top-full pt-3 z-50 w-36">
-                    <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/40 p-2">
-                      <div className="flex items-center gap-1.5 px-2 pt-1 pb-2 mb-1.5 border-b border-slate-100">
-                        <menu.icon size={12} className="text-blue-600" />
-                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                  <div className="absolute left-1/2 -translate-x-1/2 top-full pt-3 z-50 w-52">
+                    <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/40 p-3">
+                      <div className="flex items-center gap-2 px-2 pt-1 pb-2 mb-1.5 border-b border-slate-100">
+                        <menu.icon size={14} className="text-blue-600" />
+                        <p className="text-[11px] font-black uppercase tracking-widest text-slate-500">
                           {menu.name}
                         </p>
                       </div>
-                      <div className="flex flex-col gap-0.5">
+                      <div className="flex flex-col gap-1">
                         {menu.items.map((sub) => {
                           const subActive = isActive(sub.path);
                           return (
@@ -127,24 +127,24 @@ export const Navbar = () => {
                               to={sub.path}
                               onClick={() => setIsGroupHovered(false)}
                               className={cn(
-                                'flex items-start gap-2 px-2 py-2 rounded-lg transition-colors',
+                                'flex items-start gap-2.5 px-2.5 py-2 rounded-xl transition-colors',
                                 subActive ? 'bg-blue-50' : 'hover:bg-slate-50'
                               )}
                             >
                               <div className={cn(
-                                'flex-shrink-0 h-8 w-8 rounded-lg flex items-center justify-center',
+                                'flex-shrink-0 h-9 w-9 rounded-lg flex items-center justify-center',
                                 sub.accent
                               )}>
-                                <sub.icon size={14} />
+                                <sub.icon size={16} />
                               </div>
                               <div className="min-w-0 flex-1">
                                 <p className={cn(
-                                  'text-[13px] font-bold leading-tight',
+                                  'text-sm font-bold leading-tight',
                                   subActive ? 'text-blue-700' : 'text-slate-900'
                                 )}>
                                   {sub.name}
                                 </p>
-                                <p className="text-[10px] text-slate-500 mt-0.5 leading-snug line-clamp-2">
+                                <p className="text-[11px] text-slate-500 mt-0.5 leading-snug line-clamp-2">
                                   {sub.description}
                                 </p>
                               </div>
