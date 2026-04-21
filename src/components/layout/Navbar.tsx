@@ -78,9 +78,9 @@ export const Navbar = () => {
         </div>
 
         {/* 중앙: 데스크톱 메뉴 — 그룹 호버 시 3개 드롭다운 동시 표시 (각자 트리거 아래 정렬)
-            드롭다운 폭(w-52=208px)에 맞춰 트리거 간격(gap-28=112px) — 센터 간 ≈212px로 거의 맞닿음 */}
+            드롭다운 폭(w-48=192px)에 맞춰 트리거 간격(gap-24=96px) — 센터 간 ≈196px · 중앙 묶임 느낌 */}
         <div
-          className="hidden md:flex md:items-center md:justify-center md:gap-28 justify-self-center relative"
+          className="hidden md:flex md:items-center md:justify-center md:gap-24 justify-self-center relative"
           onMouseEnter={() => setIsGroupHovered(true)}
           onMouseLeave={() => setIsGroupHovered(false)}
         >
@@ -109,7 +109,7 @@ export const Navbar = () => {
 
                 {/* 각 메뉴 드롭다운 — 그룹 호버 시 동시 표시, 각자 트리거 아래 중앙 정렬 */}
                 {isGroupHovered && (
-                  <div className="absolute left-1/2 -translate-x-1/2 top-full pt-3 z-50 w-52">
+                  <div className="absolute left-1/2 -translate-x-1/2 top-full pt-3 z-50 w-48">
                     <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/40 p-2">
                       <div className="flex items-center gap-1.5 px-2 pt-1 pb-2 mb-1.5 border-b border-slate-100">
                         <menu.icon size={12} className="text-blue-600" />
