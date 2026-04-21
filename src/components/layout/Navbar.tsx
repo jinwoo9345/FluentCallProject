@@ -77,9 +77,10 @@ export const Navbar = () => {
           </Link>
         </div>
 
-        {/* 중앙: 데스크톱 메뉴 — 그룹 호버 시 3개 드롭다운 동시 표시 (각자 트리거 아래 정렬) */}
+        {/* 중앙: 데스크톱 메뉴 — 그룹 호버 시 3개 드롭다운 동시 표시 (각자 트리거 아래 정렬)
+            간격(gap)은 드롭다운 폭(w-72=288px)보다 넓게 두어 드롭다운이 서로 겹치지 않도록 함 */}
         <div
-          className="hidden md:flex md:items-center md:justify-center md:gap-14 justify-self-center relative"
+          className="hidden md:flex md:items-center md:justify-center md:gap-48 justify-self-center relative"
           onMouseEnter={() => setIsGroupHovered(true)}
           onMouseLeave={() => setIsGroupHovered(false)}
         >

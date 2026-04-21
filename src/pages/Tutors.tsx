@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import React from 'react';
-import { motion } from 'motion/react';
-import { Star, Search, Filter, CreditCard, Heart, Loader2 } from 'lucide-react';
+import { Search, Filter } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { PaymentModal } from '../components/Payment/PaymentModal';
 import { TutorDetailModal } from '../components/Tutors/TutorDetailModal';
+import { TutorCard, TutorCardSkeleton } from '../components/Tutors/TutorCard';
 import { useAuth } from '../contexts/AuthContext';
 import { useTutors } from '../hooks/useTutors';
 
@@ -49,15 +49,6 @@ export default function Tutors() {
     }
     toggleWishlist(tutorId);
   };
-
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh]">
-        <Loader2 className="animate-spin text-blue-600 mb-4" size={40} />
-        <p className="text-slate-600">최고의 원어민 튜터들을 불러오는 중...</p>
-      </div>
-    );
-  }
 
   if (error) {
     return (
@@ -129,93 +120,25 @@ export default function Tutors() {
         {/* Tutor List */}
         <div className="lg:col-span-3">
           <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-            {filteredTutors.map((tutor, idx) => {
-              const isWishlisted = user?.wishlist?.includes(tutor.id);
-              return (
-                <motion.div
-                  key={tutor.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.1 }}
-                  onClick={() => handleTutorClick(tutor)}
-                  className="cursor-pointer"
-                >
-                  <Card className="flex h-full flex-col group hover:shadow-lg transition-shadow relative">
-                    <button 
-                      onClick={(e) => handleHeartClick(e, tutor.id)}
-                      className={`absolute top-4 right-4 z-10 rounded-full p-2 transition-colors ${
-                        isWishlisted ? 'bg-red-50 text-red-500' : 'bg-slate-50 text-slate-300 hover:text-red-400'
-                      }`}
-                    >
-                      <Heart size={18} fill={isWishlisted ? 'currentColor' : 'none'} />
-                    </button>
-
-                    <div className="flex items-start gap-4">
-                      <img 
-                        src={tutor.avatar} 
-                        alt={tutor.name} 
-                        className="h-16 w-16 rounded-2xl object-cover"
-                        referrerPolicy="no-referrer"
-                      />
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between pr-8">
-                          <h3 className="font-bold text-slate-900">{tutor.name}</h3>
-                          <div className="flex items-center gap-1 text-sm font-medium text-amber-500">
-                            <Star size={14} fill="currentColor" />
-                            {(Number(tutor.rating) || 5).toFixed(1)}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">{tutor.tier}</span>
-                          <span className="text-xs text-slate-500">{tutor.location}</span>
-                        </div>
-                        <p className="text-xs text-slate-500 mt-1">리뷰 {tutor.reviewCount || 0}개</p>
-                        <div className="mt-2 flex flex-wrap gap-1">
-                          {tutor.specialties.slice(0, 2).map((s) => (
-                            <span key={s} className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-600">
-                              {s}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <p className="mt-4 flex-1 text-sm text-slate-600 line-clamp-2">
-                      {tutor.bio}
-                    </p>
-
-                    <div className="mt-6 flex items-center justify-between border-t border-slate-50 pt-4">
-                      <div>
-                        <span className="text-[10px] text-slate-400 block uppercase tracking-widest font-bold">
-                          8회 수강권
-                        </span>
-                        <span className="text-lg font-black text-slate-900">
-                          {((tutor.hourlyRate || 0) * 8 + 69000).toLocaleString()}원
-                        </span>
-                        {canSeePriceBreakdown && (
-                          <span className="text-[11px] text-slate-500 block">
-                            회당 {(tutor.hourlyRate || 0).toLocaleString()}원 + 서비스 이용료 69,000원
-                          </span>
-                        )}
-                      </div>
-                      {(tutor as any).enrollDisabled ? (
-                        <span
-                          onClick={(e) => e.stopPropagation()}
-                          className="inline-flex items-center gap-1 px-4 py-2 rounded-xl text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200 cursor-not-allowed"
-                        >
-                          {(tutor as any).disabledMessage || '현재 대기 중'}
-                        </span>
-                      ) : (
-                        <Button size="sm" className="gap-2 px-6" onClick={(e) => handleRegisterClick(e, tutor)}>
-                          <CreditCard size={16} />
-                          등록하기
-                        </Button>
-                      )}
-                    </div>
-                  </Card>
-                </motion.div>
-              );
-            })}
+            {loading
+              ? Array.from({ length: 6 }).map((_, i) => <TutorCardSkeleton key={`skel-${i}`} />)
+              : filteredTutors.map((tutor, idx) => (
+                  <TutorCard
+                    key={tutor.id}
+                    tutor={tutor as any}
+                    index={idx}
+                    canSeePriceBreakdown={canSeePriceBreakdown}
+                    isWishlisted={user?.wishlist?.includes(tutor.id)}
+                    onClick={() => handleTutorClick(tutor)}
+                    onRegister={(t) => handleRegisterClick({ stopPropagation: () => {} } as any, t)}
+                    onWishlistToggle={(id) => handleHeartClick({ stopPropagation: () => {} } as any, id)}
+                  />
+                ))}
+            {!loading && filteredTutors.length === 0 && (
+              <div className="col-span-full py-16 text-center text-slate-400">
+                검색 조건에 맞는 튜터가 없습니다.
+              </div>
+            )}
           </div>
         </div>
       </div>
