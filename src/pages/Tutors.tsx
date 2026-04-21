@@ -162,14 +162,14 @@ export default function Tutors() {
                           <h3 className="font-bold text-slate-900">{tutor.name}</h3>
                           <div className="flex items-center gap-1 text-sm font-medium text-amber-500">
                             <Star size={14} fill="currentColor" />
-                            {tutor.rating}
+                            {(Number(tutor.rating) || 5).toFixed(1)}
                           </div>
                         </div>
                         <div className="flex items-center gap-2 mt-1">
                           <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">{tutor.tier}</span>
                           <span className="text-xs text-slate-500">{tutor.location}</span>
                         </div>
-                        <p className="text-xs text-slate-500 mt-1">리뷰 {tutor.reviewCount}개</p>
+                        <p className="text-xs text-slate-500 mt-1">리뷰 {tutor.reviewCount || 0}개</p>
                         <div className="mt-2 flex flex-wrap gap-1">
                           {tutor.specialties.slice(0, 2).map((s) => (
                             <span key={s} className="rounded-full bg-blue-50 px-2 py-0.5 text-[10px] font-medium text-blue-600">

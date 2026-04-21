@@ -1171,7 +1171,7 @@ export default function AdminDashboard() {
                       <img src={tutor.avatar} alt={tutor.name} className="w-16 h-16 rounded-2xl object-cover shadow-sm" referrerPolicy="no-referrer" />
                       <div>
                         <h3 className="font-bold text-lg text-slate-900 flex items-center gap-1">
-                          {tutor.name} <Star size={14} className="fill-yellow-400 text-yellow-400 ml-1" /> <span className="text-sm">{tutor.rating}</span>
+                          {tutor.name} <Star size={14} className="fill-yellow-400 text-yellow-400 ml-1" /> <span className="text-sm">{(Number(tutor.rating) || 5).toFixed(1)}</span>
                         </h3>
                         <p className="text-xs font-bold text-blue-600 uppercase tracking-widest">{tutor.location}</p>
                       </div>

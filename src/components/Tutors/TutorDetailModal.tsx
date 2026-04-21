@@ -179,7 +179,12 @@ export function TutorDetailModal({ isOpen, onClose, tutor, onRegister }: TutorDe
                     </span>
                     <div className="flex items-center gap-1 text-sm font-medium text-amber-500">
                       <Star size={16} fill="currentColor" />
-                      {tutor.rating} ({(tutor.reviewCount || 0) + reviews.length} 리뷰)
+                      {(() => {
+                        // 실시간 리뷰 구독 결과를 기준으로 평균·갯수 계산 (리뷰 없으면 기본 5.0)
+                        if (reviews.length === 0) return `5.0 (0 리뷰)`;
+                        const avg = reviews.reduce((s, r) => s + (Number(r.rating) || 0), 0) / reviews.length;
+                        return `${(Math.round(avg * 10) / 10).toFixed(1)} (${reviews.length} 리뷰)`;
+                      })()}
                     </div>
                   </div>
                   <div className="mt-4 flex flex-wrap gap-4 text-sm text-slate-500">
