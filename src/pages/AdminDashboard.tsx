@@ -990,8 +990,7 @@ export default function AdminDashboard() {
                                 />
                                 <Button
                                   size="sm"
-                                  variant="outline"
-                                  className="text-xs text-green-700 border-green-200 hover:bg-green-50"
+                                  className="text-xs font-bold bg-green-600 text-white hover:bg-green-700 disabled:bg-green-300"
                                   disabled={!isValid || delta <= 0}
                                   onClick={() => handleAdjustUserCredits(u, Math.abs(delta))}
                                 >
@@ -999,8 +998,7 @@ export default function AdminDashboard() {
                                 </Button>
                                 <Button
                                   size="sm"
-                                  variant="outline"
-                                  className="text-xs text-red-700 border-red-200 hover:bg-red-50"
+                                  className="text-xs font-bold bg-red-600 text-white hover:bg-red-700 disabled:bg-red-300"
                                   disabled={!isValid || delta <= 0}
                                   onClick={() => handleAdjustUserCredits(u, -Math.abs(delta))}
                                 >
