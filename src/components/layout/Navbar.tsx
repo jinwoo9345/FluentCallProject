@@ -91,7 +91,7 @@ export const Navbar = () => {
                 <button
                   type="button"
                   className={cn(
-                    'flex items-center gap-2 px-4 py-2.5 text-sm font-bold rounded-full transition-all',
+                    'flex items-center gap-2 px-5 py-3 text-[15px] font-bold rounded-full transition-all',
                     active
                       ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
                       : isGroupHovered
@@ -99,10 +99,10 @@ export const Navbar = () => {
                         : 'text-slate-700 hover:bg-white/80 hover:text-blue-700'
                   )}
                 >
-                  <menu.icon size={15} />
+                  <menu.icon size={17} />
                   <span>{menu.name}</span>
                   <ChevronDown
-                    size={13}
+                    size={15}
                     className={cn('transition-transform', isGroupHovered && 'rotate-180')}
                   />
                 </button>
@@ -165,26 +165,26 @@ export const Navbar = () => {
             <Link
               to="/admin"
               className={cn(
-                'flex items-center gap-2 px-4 py-2.5 text-sm font-bold rounded-full transition-all',
+                'flex items-center gap-2 px-5 py-3 text-[15px] font-bold rounded-full transition-all',
                 isActive('/admin')
                   ? 'bg-purple-600 text-white shadow-md shadow-purple-600/20'
                   : 'text-slate-700 hover:bg-white/80 hover:text-purple-700'
               )}
             >
-              <Shield size={15} />관리자
+              <Shield size={17} />관리자
             </Link>
           )}
           {firebaseUser && (
             <Link
               to="/dashboard"
               className={cn(
-                'flex items-center gap-2 px-4 py-2.5 text-sm font-bold rounded-full transition-all',
+                'flex items-center gap-2 px-5 py-3 text-[15px] font-bold rounded-full transition-all',
                 isActive('/dashboard')
                   ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
                   : 'text-slate-700 hover:bg-white/80 hover:text-blue-700'
               )}
             >
-              <Calendar size={15} />내 강의실
+              <Calendar size={17} />내 강의실
             </Link>
           )}
 
