@@ -1,3 +1,4 @@
+import { Fragment } from 'react';
 import {
   Calendar, Clock, ChevronRight, Award, BookOpen,
   User as UserIcon, Settings, School, Sparkles, Bell, DollarSign,
@@ -68,7 +69,6 @@ export default function Dashboard() {
   const [myTutorReviews, setMyTutorReviews] = useState<any[]>([]);
   const [myReviewsLoading, setMyReviewsLoading] = useState(false);
 
-  const sessionsPage = usePaginated(sessions, USER_PAGE_SIZE);
   const paymentsPage = usePaginated(payments, USER_PAGE_SIZE);
   const consultsPage = usePaginated(consultations, USER_PAGE_SIZE);
 
@@ -436,40 +436,7 @@ export default function Dashboard() {
               ) : (
                 <>
                   {activeTab === 'sessions' && (
-                    <div className="space-y-4">
-                      {sessions.length === 0 ? (
-                        <Card className="p-12 text-center text-slate-500 border-dashed">
-                          아직 예약된 수업이 없습니다.
-                        </Card>
-                      ) : (
-                        sessionsPage.sliced.map((cls) => (
-                          <Card key={cls.id} className="flex items-center justify-between p-4 hover:shadow-md transition-shadow">
-                            <div className="flex items-center gap-4">
-                              <div className="h-12 w-12 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 font-bold uppercase text-lg">
-                                {tutors.find(t => t.id === cls.tutorId)?.name.charAt(0) || 'T'}
-                              </div>
-                              <div>
-                                <h3 className="font-bold text-slate-900">
-                                  {tutors.find(t => t.id === cls.tutorId)?.name || '튜터'}와의 수업
-                                </h3>
-                                <div className="flex items-center gap-3 text-sm text-slate-500">
-                                  <span className="flex items-center gap-1"><Calendar size={14} /> {cls.startTime instanceof Date ? cls.startTime.toLocaleDateString() : '일정 확인 중'}</span>
-                                  <span className="flex items-center gap-1"><Clock size={14} /> {cls.duration}분</span>
-                                </div>
-                              </div>
-                            </div>
-                            <Button variant="secondary" size="sm" className="font-bold">입장하기</Button>
-                          </Card>
-                        ))
-                      )}
-                      <Pagination
-                        currentPage={sessionsPage.page}
-                        totalItems={sessions.length}
-                        pageSize={USER_PAGE_SIZE}
-                        onPageChange={sessionsPage.setPage}
-                        className="rounded-2xl border border-slate-100 bg-white"
-                      />
-                    </div>
+                    <SessionsPanel sessions={sessions} tutors={tutors} />
                   )}
 
                   {activeTab === 'payments' && (
@@ -932,5 +899,234 @@ export default function Dashboard() {
         />
       )}
     </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────
+// 수업 일정 패널 — 다가오는 / 완료된 수업 분리
+// ────────────────────────────────────────────────────────────────────
+const SESSIONS_PAGE_SIZE = 6;
+const WEEKDAY_KR = ['일', '월', '화', '수', '목', '금', '토'];
+
+function toDateSafe(ts: any): Date | null {
+  if (!ts) return null;
+  try {
+    const d: Date = typeof ts?.toDate === 'function' ? ts.toDate() : new Date(ts);
+    if (isNaN(d.getTime())) return null;
+    return d;
+  } catch {
+    return null;
+  }
+}
+
+function SessionsPanel({ sessions, tutors }: { sessions: any[]; tutors: any[] }) {
+  const now = Date.now();
+
+  const { upcoming, past } = (() => {
+    const up: any[] = [];
+    const pt: any[] = [];
+    for (const s of sessions) {
+      if (s.status === 'cancelled') {
+        pt.push(s);
+        continue;
+      }
+      const d = toDateSafe(s.startTime);
+      const isFuture = d ? d.getTime() > now : false;
+      if (s.status === 'completed' || !isFuture) {
+        pt.push(s);
+      } else {
+        up.push(s);
+      }
+    }
+    // 다가오는: 가까운 시간 순 (오름차순)
+    up.sort((a, b) => {
+      const da = toDateSafe(a.startTime)?.getTime() || 0;
+      const db = toDateSafe(b.startTime)?.getTime() || 0;
+      return da - db;
+    });
+    // 지난: 최근 순 (내림차순)
+    pt.sort((a, b) => {
+      const da = toDateSafe(a.startTime)?.getTime() || 0;
+      const db = toDateSafe(b.startTime)?.getTime() || 0;
+      return db - da;
+    });
+    return { upcoming: up, past: pt };
+  })();
+
+  const pastPage = usePaginated(past, SESSIONS_PAGE_SIZE);
+
+  return (
+    <div className="space-y-8">
+      {/* 다가오는 수업 */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-black uppercase tracking-widest text-blue-600">
+              다가오는 수업
+            </h3>
+            <span className="text-[10px] font-black uppercase tracking-widest bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+              {upcoming.length}
+            </span>
+          </div>
+        </div>
+
+        {upcoming.length === 0 ? (
+          <Card className="p-10 text-center border-dashed">
+            <div className="mx-auto h-12 w-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mb-3">
+              <Calendar size={22} />
+            </div>
+            <p className="text-sm font-bold text-slate-700 mb-1">예정된 수업이 없습니다</p>
+            <p className="text-xs text-slate-500">
+              강사와 수업 일정을 협의하신 뒤 관리자에게 전달해 주세요. 관리자가 등록하면 이 곳에 자동으로 표시됩니다.
+            </p>
+          </Card>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {upcoming.map((s) => (
+              <Fragment key={s.id}>
+                <UpcomingSessionCard session={s} tutors={tutors} />
+              </Fragment>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* 완료된/지난 수업 */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">
+              완료된 수업
+            </h3>
+            <span className="text-[10px] font-black uppercase tracking-widest bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
+              {past.length}
+            </span>
+          </div>
+        </div>
+
+        {past.length === 0 ? (
+          <Card className="p-8 text-center text-slate-400 text-sm border-dashed">
+            아직 완료된 수업이 없습니다.
+          </Card>
+        ) : (
+          <div className="space-y-2">
+            {pastPage.sliced.map((s) => (
+              <Fragment key={s.id}>
+                <PastSessionRow session={s} tutors={tutors} />
+              </Fragment>
+            ))}
+            <Pagination
+              currentPage={pastPage.page}
+              totalItems={past.length}
+              pageSize={SESSIONS_PAGE_SIZE}
+              onPageChange={pastPage.setPage}
+              className="rounded-2xl border border-slate-100 bg-white"
+            />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function UpcomingSessionCard({ session, tutors }: { session: any; tutors: any[] }) {
+  const d = toDateSafe(session.startTime);
+  const tutor = tutors.find((t) => t.id === session.tutorId);
+  const weekday = d ? WEEKDAY_KR[d.getDay()] : '-';
+  const dateStr = d ? d.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }) : '일정 미정';
+  const timeStr = d ? d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) : '--:--';
+  const now = Date.now();
+  const diffMin = d ? Math.floor((d.getTime() - now) / 60000) : 0;
+  const isSoon = diffMin > 0 && diffMin <= 60;
+
+  return (
+    <Card className="relative overflow-hidden border border-blue-100 hover:border-blue-300 hover:shadow-lg transition-all p-0">
+      <div className="absolute -top-16 -right-16 h-40 w-40 rounded-full bg-blue-100/40 blur-2xl pointer-events-none" />
+      <div className="relative p-5">
+        <div className="flex items-center gap-2 mb-3">
+          <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest bg-blue-600 text-white px-2 py-1 rounded-full">
+            <Calendar size={10} /> 예정
+          </span>
+          {isSoon && (
+            <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full animate-pulse">
+              곧 시작
+            </span>
+          )}
+        </div>
+
+        <p className="text-[11px] font-bold text-slate-500 tracking-widest uppercase mb-1">
+          {weekday}요일
+        </p>
+        <p className="text-2xl font-black text-slate-900 leading-tight">{dateStr}</p>
+        <p className="mt-1 text-3xl font-black text-blue-600 tracking-tight">
+          {timeStr}
+        </p>
+
+        <div className="mt-5 pt-4 border-t border-slate-100 flex items-center gap-3">
+          <img
+            src={tutor?.avatar || `https://picsum.photos/seed/${session.tutorId}/100/100`}
+            alt={tutor?.name || '강사'}
+            className="h-11 w-11 rounded-2xl object-cover border border-slate-100"
+            referrerPolicy="no-referrer"
+          />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">강사</p>
+            <p className="font-bold text-slate-900 truncate">
+              {tutor?.name || session.tutorName || '강사'}
+            </p>
+          </div>
+          <div className="text-right flex-shrink-0">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">수업</p>
+            <p className="text-sm font-black text-slate-900">{session.duration || 25}분</p>
+          </div>
+        </div>
+
+        {session.meetingLink && (
+          <a
+            href={session.meetingLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-4 block w-full text-center py-3 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-500 transition-colors"
+          >
+            수업 입장하기
+          </a>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+function PastSessionRow({ session, tutors }: { session: any; tutors: any[] }) {
+  const d = toDateSafe(session.startTime);
+  const tutor = tutors.find((t) => t.id === session.tutorId);
+  const label = d
+    ? `${d.toLocaleDateString('ko-KR')} (${WEEKDAY_KR[d.getDay()]}) ${d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}`
+    : '일정 미상';
+
+  const statusBadge =
+    session.status === 'completed'
+      ? { text: '완료', cls: 'bg-emerald-100 text-emerald-700' }
+      : session.status === 'cancelled'
+        ? { text: '취소', cls: 'bg-rose-100 text-rose-700' }
+        : { text: '지남', cls: 'bg-slate-100 text-slate-600' };
+
+  return (
+    <Card className="flex items-center gap-3 p-3 border border-slate-100">
+      <div className="h-10 w-10 rounded-xl bg-slate-50 flex items-center justify-center text-slate-400 flex-shrink-0">
+        <Calendar size={16} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className={cn('text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full', statusBadge.cls)}>
+            {statusBadge.text}
+          </span>
+          <span className="text-sm font-bold text-slate-800 truncate">
+            {tutor?.name || session.tutorName || '강사'}
+          </span>
+          <span className="text-[11px] text-slate-400">· {session.duration || 25}분</span>
+        </div>
+        <p className="text-xs text-slate-500 mt-0.5 truncate">{label}</p>
+      </div>
+    </Card>
   );
 }

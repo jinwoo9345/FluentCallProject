@@ -11,6 +11,7 @@ import { db } from '../firebase';
 import { collection, query, getDocs, getDoc, orderBy, where, doc, updateDoc, writeBatch, increment, addDoc, serverTimestamp, deleteDoc, setDoc } from 'firebase/firestore';
 import { cn } from '@/src/lib/utils';
 import { Pagination, usePaginated } from '../components/ui/Pagination';
+import { SessionRegisterSection } from '../components/Dashboard/SessionRegisterSection';
 
 const PAGE_SIZES = {
   consultations: 15,
@@ -195,7 +196,7 @@ export default function AdminDashboard() {
       );
       setCreditDelta(prev => ({ ...prev, [u.id]: '' }));
     } catch (err: any) {
-      alert('크레딧 조정 실패: ' + (err.message || '알 수 없는 오류'));
+      alert('포인트 조정 실패: ' + (err.message || '알 수 없는 오류'));
     }
   };
 
@@ -392,7 +393,7 @@ export default function AdminDashboard() {
             const referrerId = (codeDoc.data() as any).userId as string;
             if (referrerId && referrerId !== p.userId) {
               await updateDoc(doc(db, 'users', referrerId), {
-                credits: increment(20),
+                credits: increment(20000),
               });
               await updateDoc(doc(db, 'payments', p.id), {
                 referralRewarded: true,
@@ -488,7 +489,7 @@ export default function AdminDashboard() {
   };
 
   const handleResetUserCredits = async (u: any) => {
-    if (!window.confirm(`${u.name || u.email}님의 크레딧을 0으로 초기화합니다. 진행할까요?`)) return;
+    if (!window.confirm(`${u.name || u.email}님의 포인트를 0으로 초기화합니다. 진행할까요?`)) return;
     try {
       await updateDoc(doc(db, 'users', u.id), { credits: 0 });
       setUsersList(prev => prev.map(x => (x.id === u.id ? { ...x, credits: 0 } : x)));
@@ -498,7 +499,7 @@ export default function AdminDashboard() {
   };
 
   const handlePurgeAllCredits = async () => {
-    if (!window.confirm('모든 사용자의 크레딧을 0으로 초기화합니다. 실행하시겠습니까?')) return;
+    if (!window.confirm('모든 사용자의 포인트를 0으로 초기화합니다. 실행하시겠습니까?')) return;
     try {
       // Firestore batch는 500개 제한 → 여러 묶음으로 커밋
       const snap = await getDocs(collection(db, 'users'));
@@ -510,7 +511,7 @@ export default function AdminDashboard() {
         });
         await batch.commit();
       }
-      alert(`완료: ${snap.size}명의 크레딧을 0으로 회수했습니다.`);
+      alert(`완료: ${snap.size}명의 포인트를 0으로 회수했습니다.`);
       fetchAdminData();
     } catch (err: any) {
       alert('회수 실패: ' + (err.message || '알 수 없는 오류'));
@@ -605,7 +606,7 @@ export default function AdminDashboard() {
             onClick={handlePurgeAllCredits}
             className="text-xs text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
           >
-            전체 크레딧 회수
+            전체 포인트 회수
           </Button>
         </div>
       </header>
@@ -941,7 +942,7 @@ export default function AdminDashboard() {
                         <th className="px-4 py-3 font-bold">이름 / 이메일</th>
                         <th className="px-4 py-3 font-bold">역할</th>
                         <th className="px-4 py-3 font-bold">추천 코드</th>
-                        <th className="px-4 py-3 font-bold">크레딧</th>
+                        <th className="px-4 py-3 font-bold">포인트</th>
                         <th className="px-4 py-3 font-bold">지급 / 회수</th>
                         <th className="px-4 py-3 font-bold text-right">액션</th>
                       </tr>
@@ -1469,12 +1470,12 @@ export default function AdminDashboard() {
                     </div>
                   </div>
 
-                  {/* 크레딧·추천 */}
+                  {/* 포인트·추천 */}
                   <div>
-                    <p className="text-sm font-black uppercase tracking-widest text-slate-400 mb-4">크레딧 · 추천</p>
+                    <p className="text-sm font-black uppercase tracking-widest text-slate-400 mb-4">포인트 · 추천</p>
                     <div className="grid grid-cols-2 gap-5">
                       <FieldBlock
-                        label="보유 크레딧"
+                        label="보유 포인트"
                         value={`${(detailUser.credits || 0).toLocaleString()} P`}
                         highlight
                       />
@@ -1485,6 +1486,15 @@ export default function AdminDashboard() {
                         mono={!!detailUser.referredBy}
                       />
                     </div>
+                  </div>
+
+                  {/* 수업 등록 / 일정 관리 */}
+                  <div className="pt-2 border-t border-slate-100">
+                    <SessionRegisterSection
+                      userId={detailUser.id}
+                      userName={detailUser.name || '회원'}
+                      tutors={tutors}
+                    />
                   </div>
                 </div>
 

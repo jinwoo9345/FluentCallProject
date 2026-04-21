@@ -60,7 +60,7 @@ service cloud.firestore {
         || (isSignedIn() && request.auth.uid == tutorId);
     }
 
-    // 수업 세션
+    // 수업 세션 — 관리자만 쓰기 가능, 본인/튜터/관리자만 읽기
     match /sessions/{sessionId} {
       allow read: if isSignedIn() && (
         resource.data.userId == request.auth.uid
@@ -68,7 +68,7 @@ service cloud.firestore {
         || isAdmin()
       );
       allow list: if isAdmin();
-      allow write: if isSignedIn();
+      allow create, update, delete: if isAdmin();
     }
 
     // 상담 신청: 생성은 누구나 가능, 로그인 유저가 본인의 상담 업데이트 가능 (카카오 로그인 후 userId 링크용)
@@ -113,7 +113,7 @@ service cloud.firestore {
         || (isSignedIn() && resource.data.userId == request.auth.uid);
     }
 
-    // Q&A 게시판
+    // Q&A 게시판 (isPrivate 필드 · 비공개 글 본문은 클라이언트 레벨에서 마스킹)
     match /qna_posts/{postId} {
       allow read: if true;
       allow create: if isSignedIn()
@@ -122,9 +122,20 @@ service cloud.firestore {
         && resource.data.userId == request.auth.uid;
       allow delete: if isAdmin()
         || (isSignedIn() && resource.data.userId == request.auth.uid);
+
+      // 댓글 서브컬렉션 (관리자 답변 자동 상단 고정 · isPrivate 지원)
+      match /comments/{commentId} {
+        allow read: if true;
+        allow create: if isSignedIn()
+          && request.resource.data.userId == request.auth.uid;
+        allow update: if isSignedIn()
+          && resource.data.userId == request.auth.uid;
+        allow delete: if isAdmin()
+          || (isSignedIn() && resource.data.userId == request.auth.uid);
+      }
     }
 
-    // 정보 게시판
+    // 정보 게시판 (Q&A와 동일 · 댓글 서브컬렉션 포함)
     match /info_posts/{postId} {
       allow read: if true;
       allow create: if isSignedIn()
@@ -133,6 +144,17 @@ service cloud.firestore {
         && resource.data.userId == request.auth.uid;
       allow delete: if isAdmin()
         || (isSignedIn() && resource.data.userId == request.auth.uid);
+
+      // 댓글 서브컬렉션 (관리자 답변 자동 상단 고정 · isPrivate 지원)
+      match /comments/{commentId} {
+        allow read: if true;
+        allow create: if isSignedIn()
+          && request.resource.data.userId == request.auth.uid;
+        allow update: if isSignedIn()
+          && resource.data.userId == request.auth.uid;
+        allow delete: if isAdmin()
+          || (isSignedIn() && resource.data.userId == request.auth.uid);
+      }
     }
 
     // 튜터별 리뷰 (수업 완료 후 수강생이 남김)
