@@ -78,10 +78,10 @@ export const Navbar = () => {
         </div>
 
         {/* 중앙: 데스크톱 메뉴 — 그룹 호버 시 3개 드롭다운 동시 표시 (각자 트리거 아래 정렬)
-            트리거 폭 min-w-[8rem](128px) 균등 + gap-4(16px) — 트리거는 타이트하게 유지
-            드롭다운 w-56(224px)은 트리거 센터 거리(144px)보다 넓어 살짝 겹침 */}
+            트리거 폭 min-w-[8rem](128px) 균등 + gap-24(96px) → 센터 거리 128+96 = 224
+            드롭다운 w-56(224px)과 정확히 일치 → 겹침 0, 간격 0 (바로 맞닿음) */}
         <div
-          className="hidden md:flex md:items-center md:justify-center md:gap-4 justify-self-center relative"
+          className="hidden md:flex md:items-center md:justify-center md:gap-24 justify-self-center relative"
           onMouseEnter={() => setIsGroupHovered(true)}
           onMouseLeave={() => setIsGroupHovered(false)}
         >
