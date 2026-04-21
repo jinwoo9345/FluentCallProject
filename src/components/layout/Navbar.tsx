@@ -78,9 +78,10 @@ export const Navbar = () => {
         </div>
 
         {/* 중앙: 데스크톱 메뉴 — 그룹 호버 시 3개 드롭다운 동시 표시 (각자 트리거 아래 정렬)
-            트리거 간격(gap-12=48px)은 유지, 드롭다운은 좁게(w-36=144px) 해서 겹치지 않고 다닥다닥 붙도록 */}
+            트리거 폭 min-w-[8rem](128px) 균등 + gap-4(16px) → 센터 간 거리 = 128+16 = 144
+            드롭다운 폭 w-36(144px)과 정확히 일치해 모든 쌍이 겹침 없이 바로 맞닿음 */}
         <div
-          className="hidden md:flex md:items-center md:justify-center md:gap-12 justify-self-center relative"
+          className="hidden md:flex md:items-center md:justify-center md:gap-4 justify-self-center relative"
           onMouseEnter={() => setIsGroupHovered(true)}
           onMouseLeave={() => setIsGroupHovered(false)}
         >
@@ -91,7 +92,7 @@ export const Navbar = () => {
                 <button
                   type="button"
                   className={cn(
-                    'flex items-center gap-2 px-5 py-3 text-[15px] font-bold rounded-full transition-all',
+                    'flex items-center justify-center gap-2 px-5 py-3 text-[15px] font-bold rounded-full transition-all min-w-[8rem]',
                     active
                       ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
                       : isGroupHovered
