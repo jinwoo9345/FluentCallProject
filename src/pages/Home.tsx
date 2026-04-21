@@ -181,17 +181,20 @@ export default function Home() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-stretch">
-            {/* Basic Plan */}
-            <div className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-xl flex flex-col">
-              <h3 className="text-xl font-bold text-slate-900 mb-2">8회 수강권</h3>
-              <p className="text-slate-500 text-sm mb-8">가볍게 시작하기 좋은 기본 패키지</p>
+            {/* Basic Plan — 주 전환 카드로 강조 (scale + 그라데이션 + 강조 CTA) */}
+            <div className="bg-gradient-to-br from-white to-blue-50/40 p-10 rounded-[3rem] border-4 border-blue-500 shadow-2xl shadow-blue-500/10 flex flex-col relative lg:scale-105 lg:z-10">
+              <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-blue-600 text-white px-6 py-2 rounded-full text-xs font-black uppercase tracking-widest shadow-lg shadow-blue-600/30">
+                Most Popular
+              </div>
+              <h3 className="text-2xl font-black text-slate-900 mb-2">8회 수강권</h3>
+              <p className="text-slate-500 text-sm mb-8">가볍게 시작하기 좋은 표준 패키지</p>
               <div className="mb-8 space-y-2">
-                <div className="p-4 rounded-2xl bg-blue-50 border border-blue-100">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-blue-600 mb-1">수강권 구성</p>
+                <div className="p-5 rounded-2xl bg-white border border-blue-100 shadow-sm">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-blue-600 mb-2">수강권 구성</p>
                   <p className="text-base font-bold text-slate-900 leading-tight">
                     1:1 매칭 서비스 금액
                   </p>
-                  <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1">
+                  <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
                     <span className="text-blue-500 font-bold">+</span> 플랫폼 서비스 이용료
                   </p>
                 </div>
@@ -199,50 +202,60 @@ export default function Home() {
                   최종 결제 금액은 선택한 튜터·수강권에 따라 달라지며 결제 화면에서 확인하실 수 있습니다.
                 </p>
               </div>
-              <ul className="space-y-4 mb-10 flex-1">
-                <li className="flex items-center gap-3 text-slate-600 text-sm"><Check size={18} className="text-blue-600" /> <span>튜터가 정한 시간에 25~30분 1:1 수업</span></li>
-                <li className="flex items-center gap-3 text-slate-600 text-sm"><Check size={18} className="text-blue-600" /> <span>프로필·리뷰 확인 후 직접 매칭</span></li>
+              <ul className="space-y-3.5 mb-10 flex-1">
+                <li className="flex items-center gap-3 text-slate-700 text-sm"><Check size={18} className="text-blue-600 flex-shrink-0" /> <span>튜터가 정한 시간에 25~30분 1:1 수업</span></li>
+                <li className="flex items-center gap-3 text-slate-700 text-sm"><Check size={18} className="text-blue-600 flex-shrink-0" /> <span>프로필·리뷰 확인 후 직접 매칭</span></li>
+                <li className="flex items-center gap-3 text-slate-700 text-sm"><Check size={18} className="text-blue-600 flex-shrink-0" /> <span>자유로운 시간·주제 선정</span></li>
               </ul>
-              <Link to="/tutors">
-                <Button variant="outline" className="w-full py-6 rounded-2xl font-bold">튜터 찾아보기</Button>
+              <Link to="/tutors" className="block">
+                <Button className="w-full py-7 rounded-2xl font-black text-lg bg-blue-600 hover:bg-blue-700 shadow-xl shadow-blue-600/20">
+                  튜터 찾아보기
+                </Button>
               </Link>
             </div>
 
-            {/* Referral Reward Card (HIGHLIGHT) */}
-            <div className="bg-slate-900 p-10 rounded-[3rem] shadow-2xl relative z-20 text-white border-4 border-blue-500 flex flex-col scale-105">
-              <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-blue-500 text-white px-6 py-2 rounded-full text-xs font-black uppercase tracking-widest">Referral Reward</div>
-              <h3 className="text-xl font-bold mb-2">친구 추천 할인</h3>
+            {/* Referral Reward Card — 보조 혜택으로 톤 다운 */}
+            <div className="bg-slate-900 p-10 rounded-[3rem] shadow-xl text-white border border-slate-800 flex flex-col">
+              <div className="inline-flex items-center gap-1.5 bg-blue-500/20 text-blue-300 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest mb-4 self-start">
+                Referral Reward
+              </div>
+              <h3 className="text-2xl font-black mb-2">친구 추천 할인</h3>
               <p className="text-slate-400 text-sm mb-8">친구와 함께 시작하고 포인트로 할인 받으세요</p>
-              <div className="mb-8 bg-white/10 p-6 rounded-3xl border border-white/10">
-                <p className="text-sm text-blue-400 font-bold mb-2">추천 시 2만 포인트 지급</p>
-                <p className="text-lg font-bold leading-tight">초대한 친구 결제 시 <br/><span className="text-2xl text-white font-black">20,000포인트</span>를 <br/>즉시 지급해 드립니다.</p>
+              <div className="mb-8 bg-white/5 p-6 rounded-3xl border border-white/10">
+                <p className="text-xs text-blue-300 font-bold mb-2 uppercase tracking-widest">추천 시 지급</p>
+                <p className="text-3xl font-black text-white leading-tight">20,000 P</p>
+                <p className="text-xs text-slate-400 mt-1">(= 20,000원 할인)</p>
               </div>
-              <ul className="space-y-4 mb-8 flex-1">
-                <li className="flex items-center gap-3 text-slate-300 text-sm"><Check size={18} className="text-blue-400" /> <span>다음 결제 시 최대 20,000원 할인</span></li>
-                <li className="flex items-center gap-3 text-slate-300 text-sm"><Check size={18} className="text-blue-400" /> <span>초대 무제한 혜택</span></li>
+              <ul className="space-y-3.5 mb-8 flex-1">
+                <li className="flex items-center gap-3 text-slate-300 text-sm"><Check size={18} className="text-blue-400 flex-shrink-0" /> <span>다음 결제 시 최대 20,000원 할인</span></li>
+                <li className="flex items-center gap-3 text-slate-300 text-sm"><Check size={18} className="text-blue-400 flex-shrink-0" /> <span>초대 무제한 혜택</span></li>
+                <li className="flex items-center gap-3 text-slate-300 text-sm"><Check size={18} className="text-blue-400 flex-shrink-0" /> <span>추천인-친구 포인트 쉐어 가능</span></li>
               </ul>
-              <div className="space-y-3">
-                <Link to="/referral" className="block">
-                  <Button className="w-full py-6 rounded-2xl font-black text-lg bg-blue-600 hover:bg-blue-700 shadow-xl shadow-blue-900/20">
-                    프로그램 자세히 보기
-                  </Button>
-                </Link>
-                <p className="text-[10px] text-slate-500 text-center uppercase font-bold tracking-tighter">※ 자세히 보기를 클릭하여 규정을 확인하세요</p>
-              </div>
+              <Link to="/referral" className="block">
+                <Button variant="outline" className="w-full py-6 rounded-2xl font-bold bg-transparent border-white/20 text-white hover:bg-white/10">
+                  프로그램 자세히 보기
+                </Button>
+              </Link>
             </div>
 
-            {/* Bulk Plan */}
+            {/* Bulk Plan — 장기 보너스, 서브 CTA */}
             <div className="bg-white p-10 rounded-[3rem] border border-slate-100 shadow-xl flex flex-col">
-              <h3 className="text-xl font-bold text-slate-900 mb-2">장기 패키지 보너스</h3>
+              <h3 className="text-2xl font-black text-slate-900 mb-2">장기 패키지 보너스</h3>
               <p className="text-slate-500 text-sm mb-8">더 많이 배울수록 더 많이 드립니다</p>
               <div className="space-y-4 mb-10 flex-1">
-                <div className="p-6 rounded-3xl bg-blue-50 border border-blue-100">
-                  <p className="text-sm font-bold text-blue-600 mb-1">16회 패키지</p>
-                  <p className="text-xl font-black text-slate-900">+ 1회 무료 수업</p>
+                <div className="p-5 rounded-2xl bg-blue-50 border border-blue-100 flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-widest text-blue-600">16회 패키지</p>
+                    <p className="text-base font-bold text-slate-900 mt-1">+ 1회 무료 수업</p>
+                  </div>
+                  <div className="text-3xl font-black text-blue-600">+1</div>
                 </div>
-                <div className="p-6 rounded-3xl bg-indigo-50 border border-indigo-100">
-                  <p className="text-sm font-bold text-indigo-600 mb-1">24회 패키지</p>
-                  <p className="text-xl font-black text-slate-900">+ 2회 무료 수업</p>
+                <div className="p-5 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-black uppercase tracking-widest text-indigo-600">24회 패키지</p>
+                    <p className="text-base font-bold text-slate-900 mt-1">+ 2회 무료 수업</p>
+                  </div>
+                  <div className="text-3xl font-black text-indigo-600">+2</div>
                 </div>
               </div>
               <Link to="/tutors">

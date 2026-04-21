@@ -273,10 +273,10 @@ export const Navbar = () => {
                           )}
                         >
                           <div className={cn(
-                            'flex-shrink-0 h-8 w-8 rounded-lg flex items-center justify-center mt-0.5',
+                            'flex-shrink-0 h-10 w-10 rounded-xl flex items-center justify-center mt-0.5',
                             sub.accent
                           )}>
-                            <sub.icon size={14} />
+                            <sub.icon size={18} />
                           </div>
                           <div className="min-w-0 flex-1">
                             <p className={cn(
