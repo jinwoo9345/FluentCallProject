@@ -9,7 +9,7 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { useAuth } from '../contexts/AuthContext';
 import { db } from '../firebase';
-import { collection, query, getDocs, getDoc, orderBy, where, doc, updateDoc, writeBatch, increment, addDoc, serverTimestamp, deleteDoc, setDoc } from 'firebase/firestore';
+import { collection, query, getDocs, getDoc, orderBy, where, doc, updateDoc, writeBatch, increment, addDoc, serverTimestamp, deleteDoc, setDoc, runTransaction } from 'firebase/firestore';
 import { cn } from '@/src/lib/utils';
 import { Pagination, usePaginated } from '../components/ui/Pagination';
 import { SessionRegisterSection } from '../components/Dashboard/SessionRegisterSection';
@@ -377,6 +377,7 @@ export default function AdminDashboard() {
   };
 
   // 관리자 결제 승인 — pending → completed + 추천인 보상 지급
+  // 트랜잭션으로 래핑하여 중복 승인(레이스) · 중복 보상 지급 방지
   const handleApprovePayment = async (p: any) => {
     if (p.status === 'completed') {
       alert('이미 완료 처리된 결제입니다.');
@@ -385,37 +386,54 @@ export default function AdminDashboard() {
     if (!window.confirm(`주문 "${p.orderId || p.id}" 입금을 확인하고 완료 처리하시겠습니까?`)) return;
 
     try {
-      // 1. 결제 문서 상태 업데이트
-      await updateDoc(doc(db, 'payments', p.id), {
-        status: 'completed',
-        confirmedAt: serverTimestamp(),
-        confirmedBy: 'admin',
-      });
+      const paymentRef = doc(db, 'payments', p.id);
+      let rewardGranted = false;
 
-      // 2. 추천인 보상 지급 (중복 지급 방지) — referral_codes 인덱스 기반
-      if (p.referredBy && !p.referralRewarded) {
-        try {
-          const codeDoc = await getDoc(doc(db, 'referral_codes', p.referredBy.toUpperCase()));
-          if (codeDoc.exists()) {
-            const referrerId = (codeDoc.data() as any).userId as string;
-            if (referrerId && referrerId !== p.userId) {
-              await updateDoc(doc(db, 'users', referrerId), {
-                credits: increment(20000),
-              });
-              await updateDoc(doc(db, 'payments', p.id), {
-                referralRewarded: true,
-              });
+      await runTransaction(db, async (tx) => {
+        const paySnap = await tx.get(paymentRef);
+        if (!paySnap.exists()) throw new Error('결제 문서를 찾을 수 없습니다.');
+        const payData = paySnap.data() as any;
+
+        // 이미 완료된 결제는 중복 처리 금지 (서버 상태 기반 검증)
+        if (payData.status === 'completed') {
+          throw new Error('이미 완료 처리된 결제입니다.');
+        }
+
+        // 추천인 보상 여부 사전 판단 (트랜잭션 내부에서 get)
+        let shouldReward = false;
+        let referrerId: string | null = null;
+        if (payData.referredBy && !payData.referralRewarded) {
+          const codeRef = doc(db, 'referral_codes', String(payData.referredBy).toUpperCase());
+          const codeSnap = await tx.get(codeRef);
+          if (codeSnap.exists()) {
+            const cand = (codeSnap.data() as any).userId as string;
+            if (cand && cand !== payData.userId) {
+              referrerId = cand;
+              shouldReward = true;
             }
           }
-        } catch (err) {
-          console.warn('referral reward failed:', err);
         }
-      }
+
+        // 결제 완료 처리 + 필요 시 보상 플래그도 동시에 갱신
+        tx.update(paymentRef, {
+          status: 'completed',
+          confirmedAt: serverTimestamp(),
+          confirmedBy: 'admin',
+          ...(shouldReward ? { referralRewarded: true } : {}),
+        });
+
+        if (shouldReward && referrerId) {
+          tx.update(doc(db, 'users', referrerId), {
+            credits: increment(20000),
+          });
+          rewardGranted = true;
+        }
+      });
 
       setPayments(prev =>
-        prev.map(x => (x.id === p.id ? { ...x, status: 'completed', referralRewarded: true } : x))
+        prev.map(x => (x.id === p.id ? { ...x, status: 'completed', referralRewarded: rewardGranted ? true : x.referralRewarded } : x))
       );
-      alert('입금 확인 및 결제 완료 처리되었습니다.');
+      alert(rewardGranted ? '결제 완료 + 추천인 20,000P 지급 완료.' : '결제 완료 처리되었습니다.');
     } catch (err: any) {
       alert('승인 실패: ' + (err.message || '알 수 없는 오류'));
     }

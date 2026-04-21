@@ -69,9 +69,10 @@ export const onRequestPost: PagesFunction<any> = async ({ request, env }) => {
       return new Response(JSON.stringify({ message: '설정 오류', detail: '환경 변수가 부족합니다.' }), { status: 500 });
     }
 
-    const { code, redirectUri: clientRedirectUri } = await request.json() as any;
+    const { code } = await request.json() as any;
+    // redirectUri는 서버에서 강제로 origin 기반으로 생성 (open redirect 방지)
     const origin = new URL(request.url).origin;
-    const redirectUri = clientRedirectUri || `${origin}/dashboard`;
+    const redirectUri = `${origin}/dashboard`;
 
     const tokenRes = await fetch('https://kauth.kakao.com/oauth/token', {
       method: 'POST',
@@ -98,10 +99,11 @@ export const onRequestPost: PagesFunction<any> = async ({ request, env }) => {
     return new Response(JSON.stringify({
       customToken,
       userName: userData.kakao_account?.profile?.nickname,
-      debug: { iss: clientEmail, projectId }
     }), { headers: { 'Content-Type': 'application/json' } });
 
   } catch (error: any) {
-    return new Response(JSON.stringify({ message: '서버 오류', detail: error.message }), { status: 500 });
+    // 내부 에러 상세는 서버 로그에만, 클라이언트엔 일반화 메시지
+    console.error('[kakao-auth]', error?.message || error);
+    return new Response(JSON.stringify({ message: '서버 오류가 발생했습니다. 잠시 후 다시 시도해주세요.' }), { status: 500 });
   }
 };

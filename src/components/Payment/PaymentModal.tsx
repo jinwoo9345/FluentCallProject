@@ -151,7 +151,8 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
     setError('');
 
     try {
-      const orderId = `order_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+      // 예측 불가능한 orderId (crypto.randomUUID) - Math.random 대체
+      const orderId = `order_${crypto.randomUUID().replace(/-/g, '')}`;
       const fullProductName = `${productName} — ${selectedPackage.label} ${selectedPackage.sessions}회${
         selectedPackage.bonus > 0 ? ` +${selectedPackage.bonus}회` : ''
       }`;

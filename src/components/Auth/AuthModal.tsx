@@ -12,6 +12,7 @@ import {
 } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp, getDoc, addDoc, collection, updateDoc } from 'firebase/firestore';
 import { Button } from '../ui/Button';
+import { generateReferralCode } from '@/src/lib/utils';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -123,7 +124,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
     const userSnap = await getDoc(userRef);
 
     if (!userSnap.exists()) {
-      const referralCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+      const referralCode = generateReferralCode();
       const displayName = user.displayName || '회원';
       await setDoc(userRef, {
         uid: user.uid,
@@ -199,7 +200,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
 
         const displayName = (nickname.trim() || name.trim());
         await updateProfile(user, { displayName });
-        const referralCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+        const referralCode = generateReferralCode();
 
         // 강사 가입 지원자도 일단 'student'로 등록하고 별도 신청 문서 생성.
         // 관리자가 승인하면 tutors 컬렉션 등록 + role 변경.

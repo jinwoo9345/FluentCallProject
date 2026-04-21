@@ -21,6 +21,7 @@ import { useEffect, useRef } from 'react';
 import { db, auth } from './firebase';
 import { doc, getDoc, setDoc, updateDoc, serverTimestamp, collection, query, where, getDocs } from 'firebase/firestore';
 import { signInWithCustomToken } from 'firebase/auth';
+import { generateReferralCode } from './lib/utils';
 
 function AppContent() {
   const { isAuthModalOpen, setIsAuthModalOpen, authMode } = useAuth();
@@ -44,19 +45,15 @@ function AppContent() {
       processingRef.current = true;
       const handleKakaoAuth = async () => {
         try {
-          const redirectUri = `${window.location.origin}/dashboard`;
-          console.log('[Kakao Auth] Sending code to backend...', { redirectUri });
-
           const response = await fetch('/api/auth/kakao', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code, redirectUri }) 
+            body: JSON.stringify({ code })
           });
 
           const data = await response.json();
-          console.log('[Kakao Auth] Backend raw response:', data); // 응답 데이터 전체 출력
-          
-          if (!response.ok) throw new Error(data.detail || data.message);
+          // customToken 포함된 응답 전체를 로그로 남기지 않음 (devtools 유출 방지)
+          if (!response.ok) throw new Error(data.message || '카카오 로그인 실패');
 
           const userCredential = await signInWithCustomToken(auth, data.customToken);
           const user = userCredential.user;
@@ -70,7 +67,7 @@ function AppContent() {
           const userSnap = await getDoc(userRef);
 
           if (!userSnap.exists()) {
-            const referralCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+            const referralCode = generateReferralCode();
             const fallbackName = `카카오회원${user.uid.slice(-4)}`;
             const kakaoName = data.userName || user.displayName || fallbackName;
 
