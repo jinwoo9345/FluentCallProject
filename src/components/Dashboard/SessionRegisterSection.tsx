@@ -29,6 +29,7 @@ interface SessionRegisterSectionProps {
   userId: string;
   userName: string;
   tutors: any[];
+  autoOpenForm?: boolean;
 }
 
 const WEEKDAY_KR = ['일', '월', '화', '수', '목', '금', '토'];
@@ -43,11 +44,15 @@ function formatDateTime(ts: any): string {
   )}`;
 }
 
-export function SessionRegisterSection({ userId, userName, tutors }: SessionRegisterSectionProps) {
+export function SessionRegisterSection({ userId, userName, tutors, autoOpenForm = false }: SessionRegisterSectionProps) {
   const [sessions, setSessions] = useState<SessionDoc[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
+  const [showForm, setShowForm] = useState(autoOpenForm);
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (autoOpenForm) setShowForm(true);
+  }, [autoOpenForm]);
 
   const [form, setForm] = useState({
     tutorId: '',

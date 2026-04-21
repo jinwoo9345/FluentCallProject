@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Users, UserPlus, CreditCard, MessageSquare, TrendingUp,
-  Clock, Shield, Star, School, Settings, Loader2
+  Clock, Shield, Star, School, Settings, Loader2,
+  Eye, CalendarPlus
 } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -60,6 +61,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [detailConsult, setDetailConsult] = useState<any | null>(null);
   const [detailUser, setDetailUser] = useState<any | null>(null);
+  const [detailUserAutoSession, setDetailUserAutoSession] = useState(false);
   const [editTutor, setEditTutor] = useState<any | null>(null);
   const [isAddingTutor, setIsAddingTutor] = useState(false);
   const [consultFilter, setConsultFilter] = useState<'all' | 'pending' | 'completed'>('all');
@@ -1007,19 +1009,25 @@ export default function AdminDashboard() {
                               </div>
                             </td>
                             <td className="px-4 py-3 text-right">
-                              <div className="flex gap-1 justify-end">
+                              <div className="flex gap-1.5 justify-end flex-wrap">
                                 <Button
                                   size="sm"
-                                  variant="outline"
-                                  className="text-[10px]"
-                                  onClick={() => setDetailUser(u)}
+                                  className="text-xs gap-1 bg-blue-600 text-white hover:bg-blue-700"
+                                  onClick={() => { setDetailUserAutoSession(false); setDetailUser(u); }}
                                 >
-                                  상세보기
+                                  <Eye size={13} /> 상세보기
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  className="text-xs gap-1 bg-indigo-600 text-white hover:bg-indigo-700"
+                                  onClick={() => { setDetailUserAutoSession(true); setDetailUser(u); }}
+                                >
+                                  <CalendarPlus size={13} /> 수업 등록
                                 </Button>
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  className="text-[10px] text-slate-500 hover:text-slate-700"
+                                  className="text-xs text-slate-500 hover:text-slate-700"
                                   onClick={() => handleResetUserCredits(u)}
                                 >
                                   0으로 초기화
@@ -1451,7 +1459,7 @@ export default function AdminDashboard() {
                     </div>
                   </div>
                   <button
-                    onClick={() => setDetailUser(null)}
+                    onClick={() => { setDetailUser(null); setDetailUserAutoSession(false); }}
                     className="text-slate-400 hover:text-white transition-colors text-3xl"
                   >
                     ×
@@ -1488,18 +1496,91 @@ export default function AdminDashboard() {
                     </div>
                   </div>
 
+                  {/* 결제 내역 */}
+                  <div className="pt-2 border-t border-slate-100">
+                    {(() => {
+                      const userPayments = payments.filter(
+                        (p: any) => p.userId === detailUser.id || p.userId === detailUser.uid
+                      );
+                      const completedTotal = userPayments
+                        .filter((p: any) => p.status === 'completed')
+                        .reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
+                      return (
+                        <div>
+                          <div className="flex items-center justify-between mb-4">
+                            <p className="text-sm font-black uppercase tracking-widest text-slate-400">
+                              결제 내역
+                            </p>
+                            <span className="text-[10px] font-black uppercase tracking-widest bg-green-100 text-green-700 px-2 py-0.5 rounded-full">
+                              전체 {userPayments.length}건 · 완료 결제 합 {completedTotal.toLocaleString()}원
+                            </span>
+                          </div>
+                          {userPayments.length === 0 ? (
+                            <div className="rounded-2xl border border-dashed border-slate-200 p-8 text-center text-sm text-slate-400">
+                              결제 내역이 없습니다.
+                            </div>
+                          ) : (
+                            <div className="space-y-2">
+                              {userPayments.map((p: any) => (
+                                <div
+                                  key={p.id}
+                                  className="rounded-xl border border-slate-100 bg-white p-3 flex items-center gap-3"
+                                >
+                                  <div className="h-9 w-9 rounded-lg bg-green-50 text-green-600 flex items-center justify-center flex-shrink-0">
+                                    <CreditCard size={16} />
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <span
+                                        className={cn(
+                                          'text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full',
+                                          p.status === 'completed' && 'bg-green-100 text-green-700',
+                                          (p.status === 'cancelled' || p.status === 'failed') && 'bg-red-100 text-red-700',
+                                          (p.status === 'pending' || !p.status) && 'bg-amber-100 text-amber-700'
+                                        )}
+                                      >
+                                        {p.status === 'completed'
+                                          ? '완료'
+                                          : p.status === 'cancelled' || p.status === 'failed'
+                                            ? '취소됨'
+                                            : '입금 대기'}
+                                      </span>
+                                      <span className="text-sm font-bold text-slate-900 truncate">
+                                        {p.productName || '상품'}
+                                      </span>
+                                    </div>
+                                    <p className="text-[11px] text-slate-500 mt-0.5 truncate">
+                                      {formatTS(p.createdAt, 'datetime')}
+                                      {p.depositorName && ` · 입금자 ${p.depositorName}`}
+                                    </p>
+                                  </div>
+                                  <div className="text-right flex-shrink-0">
+                                    <p className="text-sm font-black text-slate-900">
+                                      {(p.amount || 0).toLocaleString()}원
+                                    </p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </div>
+
                   {/* 수업 등록 / 일정 관리 */}
                   <div className="pt-2 border-t border-slate-100">
                     <SessionRegisterSection
                       userId={detailUser.id}
                       userName={detailUser.name || '회원'}
                       tutors={tutors}
+                      autoOpenForm={detailUserAutoSession}
                     />
                   </div>
                 </div>
 
                 <div className="p-6 border-t border-slate-100 flex gap-3 justify-end bg-slate-50/50">
-                  <Button onClick={() => setDetailUser(null)}>닫기</Button>
+                  <Button onClick={() => { setDetailUser(null); setDetailUserAutoSession(false); }}>닫기</Button>
                 </div>
               </motion.div>
             </div>
