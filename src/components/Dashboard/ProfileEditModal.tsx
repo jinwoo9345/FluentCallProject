@@ -131,7 +131,7 @@ export function ProfileEditModal({ isOpen, onClose, user }: ProfileEditModalProp
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="font-bold text-slate-600">보유 크레딧</span>
+                    <span className="font-bold text-slate-600">보유 포인트</span>
                     <span className="font-bold text-slate-900">{(user.credits || 0).toLocaleString()} P</span>
                   </div>
                 </div>

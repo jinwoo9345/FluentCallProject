@@ -330,7 +330,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
                       />
                       <p className="text-[10px] text-slate-500 mt-1.5 leading-relaxed">
                         가입 시 한 번만 입력 가능하며 <strong>이후 변경할 수 없습니다</strong>.
-                        입력한 추천인은 결제 완료 시 <strong>20 포인트</strong>를 받고, 회원님은 이 추천인에게만 <strong>포인트를 선물</strong>할 수 있습니다.
+                        입력한 추천인은 결제 완료 시 <strong>20,000 포인트</strong>(=20,000원)를 받고, 회원님은 이 추천인에게만 <strong>포인트를 선물</strong>할 수 있습니다.
                       </p>
                     </div>
                   </>

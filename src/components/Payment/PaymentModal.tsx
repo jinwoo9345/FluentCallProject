@@ -71,8 +71,8 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
   const packageAmount = tutorFee + SERVICE_FEE;       // + 서비스 이용료
   const perSessionRate = Math.round(packageAmount / totalSessions);
 
-  // Credit discount logic: 1 credit = 1000 won
-  const CREDIT_VALUE = 1000;
+  // Point discount logic: 1 point = 1 won
+  const CREDIT_VALUE = 1;
   const availableCredits = user?.credits || 0;
   const creditDiscount = useCredits ? Math.min(availableCredits * CREDIT_VALUE, packageAmount) : 0;
   const finalAmount = packageAmount - creditDiscount;
@@ -404,19 +404,19 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
                     </p>
                   </div>
 
-                  {/* Credits Discount */}
+                  {/* Points Discount */}
                   {availableCredits > 0 && (
                     <div className="bg-amber-50 rounded-2xl p-6 border border-amber-100">
                       <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-2">
                           <Ticket className="text-amber-600" size={20} />
-                          <span className="font-bold text-slate-900">보유 크레딧 사용</span>
+                          <span className="font-bold text-slate-900">보유 포인트 사용</span>
                         </div>
-                        <span className="text-sm font-bold text-amber-700">{availableCredits} 크레딧 보유</span>
+                        <span className="text-sm font-bold text-amber-700">{availableCredits.toLocaleString()} 포인트 보유</span>
                       </div>
                       <label className="flex items-center justify-between p-3 rounded-xl bg-white border border-amber-200 cursor-pointer">
                         <span className="text-sm text-slate-600">
-                          전액 사용 (최대 -{(availableCredits * CREDIT_VALUE).toLocaleString()}원)
+                          전액 사용 (최대 -{(availableCredits * CREDIT_VALUE).toLocaleString()}원, 1P = 1원)
                         </span>
                         <input
                           type="checkbox"
@@ -441,7 +441,7 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
                           {user.referredBy}
                         </code>{' '}
                         이(가) 자동으로 적용됩니다. 관리자가 입금을 확인하면 해당 회원에게{' '}
-                        <strong>20 포인트</strong>가 지급됩니다.
+                        <strong>20,000 포인트</strong>(=20,000원)가 지급됩니다.
                       </p>
                     ) : (
                       <p className="text-xs text-slate-500 leading-relaxed">
@@ -504,7 +504,7 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
 
                           {creditDiscount > 0 && (
                             <div className="flex justify-between text-amber-600 font-bold text-sm">
-                              <span>크레딧 사용</span>
+                              <span>포인트 사용</span>
                               <span>− {creditDiscount.toLocaleString()}원</span>
                             </div>
                           )}

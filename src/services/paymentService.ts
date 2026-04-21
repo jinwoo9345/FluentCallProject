@@ -39,8 +39,8 @@ export const paymentService = {
     // 본인 코드로 본인 결제 시 지급 금지
     if (!referrerId || referrerId === payerUserId) return;
 
-    // 결제자(친구)는 보상을 받지 않음. 초대한 사람(추천인)에게만 20 포인트 지급
-    const REWARD_AMOUNT = 20;
+    // 결제자(친구)는 보상을 받지 않음. 초대한 사람(추천인)에게만 20,000 포인트 지급 (1 포인트 = 1원)
+    const REWARD_AMOUNT = 20000;
     await updateDoc(doc(db, 'users', referrerId), {
       credits: increment(REWARD_AMOUNT),
     });

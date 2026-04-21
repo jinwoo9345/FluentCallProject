@@ -224,7 +224,7 @@ export function TermsContent({ compact = false }: PolicyContentProps) {
         <h2 className={sectionTitle(compact)}>제5조【리워드 제도】</h2>
         <ul className={listClass(compact)}>
           <li>회원은 지인 추천을 통해 회사로부터 리워드를 받을 수 있다.</li>
-          <li>리워드는 현금이 아닌, 서비스 내에서 사용 가능한 할인 크레딧 형태로 지급되며 다음 결제 시 자동 차감된다.</li>
+          <li>리워드는 현금이 아닌, 서비스 내에서 사용 가능한 할인 포인트(1 포인트 = 1원) 형태로 지급되며 다음 결제 시 자동 차감된다.</li>
           <li>해당 리워드는 현금으로 환급되거나 타인에게 양도할 수 없다.</li>
           <li>리워드는 추천받은 회원이 결제를 완료하고 최소 1개월 이상 서비스를 유지한 경우에 한하여 지급된다.</li>
           <li>추천 회원이 환불하거나 정상 이용 조건을 충족하지 못한 경우 리워드는 지급되지 않는다.</li>

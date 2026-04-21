@@ -73,7 +73,7 @@ export default function ReferralProgram() {
                 <div className="flex items-start gap-3">
                   <div className="mt-1 h-2 w-2 rounded-full bg-white flex-shrink-0" />
                   <p className="text-sm text-blue-50">
-                    <strong className="text-white">1 포인트 = 1,000원</strong>으로 사용 가능합니다.
+                    <strong className="text-white">1 포인트 = 1원</strong>으로 사용 가능합니다. (20,000포인트 = 20,000원 할인)
                   </p>
                 </div>
                 <div className="flex items-start gap-3">
