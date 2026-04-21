@@ -69,7 +69,7 @@ export const Navbar = () => {
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-brand-cream-dark/50 bg-brand-cream/80 backdrop-blur-md">
-      <div className="relative mx-auto flex h-20 max-w-7xl items-center justify-between gap-4 pl-4 pr-2 sm:pl-6 sm:pr-3 lg:pl-8 lg:pr-4">
+      <div className="relative mx-auto flex h-20 w-full items-center justify-between gap-4 pl-4 pr-4 sm:pl-6 sm:pr-6 lg:pl-10 lg:pr-10">
         {/* 좌측: 로고 */}
         <div>
           <Link to="/" className="flex items-center gap-2 text-2xl font-black text-slate-900 font-display tracking-tight">
@@ -88,10 +88,9 @@ export const Navbar = () => {
           {menus.map((menu, idx) => {
             const active = isActiveDropdown(menu);
             // 드롭다운 가로 오프셋 (px)
-            // 트리거 128 + gap-4(16) → 센터 거리 144 · 드롭다운 w-40(160)
-            // ±16 오프셋이면 드롭다운끼리 정확히 맞닿고 트리거도 자신의 드롭다운 내부에
-            // 딱 맞게 들어가 이웃 드롭다운 영역을 침범하지 않음
-            const dropdownOffsetX = idx === 0 ? -16 : idx === menus.length - 1 ? 16 : 0;
+            // 트리거 센터 거리 144 · 드롭다운 w-56(224) 유지
+            // 드롭다운끼리 겹치지 않게 양쪽을 ±80px 밀어냄
+            const dropdownOffsetX = idx === 0 ? -80 : idx === menus.length - 1 ? 80 : 0;
             return (
               <div key={menu.name} className="relative">
                 <button
@@ -113,10 +112,10 @@ export const Navbar = () => {
                   />
                 </button>
 
-                {/* 각 메뉴 드롭다운 — 그룹 호버 시 동시 표시, 양쪽 메뉴는 소폭 오프셋 */}
+                {/* 각 메뉴 드롭다운 — 그룹 호버 시 동시 표시, 양쪽 메뉴는 오프셋으로 치우쳐 배치 */}
                 {isGroupHovered && (
                   <div
-                    className="absolute top-full pt-3 z-50 w-40"
+                    className="absolute top-full pt-3 z-50 w-56"
                     style={{
                       left: '50%',
                       transform: `translateX(calc(-50% + ${dropdownOffsetX}px))`,
