@@ -23,7 +23,7 @@ type MenuItem = { name: string; icon: any; items: SubItem[] };
 
 export const Navbar = () => {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const [openMenuIdx, setOpenMenuIdx] = useState<number | null>(null);
+  const [isGroupHovered, setIsGroupHovered] = useState(false);
   const [mobileSub, setMobileSub] = useState<string | null>(null);
   const location = useLocation();
   const { user, firebaseUser, setIsAuthModalOpen, setAuthMode } = useAuth();
@@ -77,25 +77,23 @@ export const Navbar = () => {
           </Link>
         </div>
 
-        {/* 중앙: 데스크톱 메뉴 — 각 메뉴 독립 드롭다운 (바로 아래 정렬) */}
-        <div className="hidden md:flex md:items-center md:justify-center md:gap-14 justify-self-center">
-          {menus.map((menu, idx) => {
+        {/* 중앙: 데스크톱 메뉴 — 그룹 호버 시 3개 드롭다운 동시 표시 (각자 트리거 아래 정렬) */}
+        <div
+          className="hidden md:flex md:items-center md:justify-center md:gap-14 justify-self-center relative"
+          onMouseEnter={() => setIsGroupHovered(true)}
+          onMouseLeave={() => setIsGroupHovered(false)}
+        >
+          {menus.map((menu) => {
             const active = isActiveDropdown(menu);
-            const isOpen = openMenuIdx === idx;
             return (
-              <div
-                key={menu.name}
-                className="relative"
-                onMouseEnter={() => setOpenMenuIdx(idx)}
-                onMouseLeave={() => setOpenMenuIdx(null)}
-              >
+              <div key={menu.name} className="relative">
                 <button
                   type="button"
                   className={cn(
                     'flex items-center gap-2 px-4 py-2.5 text-sm font-bold rounded-full transition-all',
                     active
                       ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
-                      : isOpen
+                      : isGroupHovered
                         ? 'bg-white text-blue-700 shadow-sm'
                         : 'text-slate-700 hover:bg-white/80 hover:text-blue-700'
                   )}
@@ -104,12 +102,12 @@ export const Navbar = () => {
                   <span>{menu.name}</span>
                   <ChevronDown
                     size={13}
-                    className={cn('transition-transform', isOpen && 'rotate-180')}
+                    className={cn('transition-transform', isGroupHovered && 'rotate-180')}
                   />
                 </button>
 
-                {/* 개별 메뉴 드롭다운 — 트리거 바로 아래 중앙 정렬 */}
-                {isOpen && (
+                {/* 각 메뉴 드롭다운 — 그룹 호버 시 동시 표시, 각자 트리거 아래 중앙 정렬 */}
+                {isGroupHovered && (
                   <div className="absolute left-1/2 -translate-x-1/2 top-full pt-3 z-50 w-72">
                     <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/40 p-3">
                       <div className="flex items-center gap-2 px-2 pt-1 pb-2.5 mb-2 border-b border-slate-100">
@@ -125,7 +123,7 @@ export const Navbar = () => {
                             <Link
                               key={`${menu.name}-${sub.path}-${sub.name}`}
                               to={sub.path}
-                              onClick={() => setOpenMenuIdx(null)}
+                              onClick={() => setIsGroupHovered(false)}
                               className={cn(
                                 'flex items-start gap-3 px-2.5 py-2.5 rounded-xl transition-colors',
                                 subActive ? 'bg-blue-50' : 'hover:bg-slate-50'
@@ -158,8 +156,10 @@ export const Navbar = () => {
               </div>
             );
           })}
+        </div>
 
-          {/* 관리자 — admin만 */}
+        {/* 우측: 관리자(admin만) + 내 강의실 + 인증 영역 (데스크톱) */}
+        <div className="hidden md:flex md:items-center md:gap-3 justify-self-end">
           {user?.role === 'admin' && (
             <Link
               to="/admin"
@@ -173,10 +173,6 @@ export const Navbar = () => {
               <Shield size={15} />관리자
             </Link>
           )}
-        </div>
-
-        {/* 우측: 내 강의실 + 인증 영역 (데스크톱) */}
-        <div className="hidden md:flex md:items-center md:gap-3 justify-self-end">
           {firebaseUser && (
             <Link
               to="/dashboard"
