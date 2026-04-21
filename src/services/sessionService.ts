@@ -13,13 +13,21 @@ export const sessionService = {
       orderBy('startTime', 'desc')
     );
 
-    return onSnapshot(q, (snapshot) => {
-      const sessions = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      } as Session));
-      callback(sessions);
-    });
+    return onSnapshot(
+      q,
+      (snapshot) => {
+        const sessions = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        } as Session));
+        callback(sessions);
+      },
+      (error) => {
+        // 권한 오류·인덱스 누락 등이 조용히 실패하지 않도록 콘솔에 표면화
+        console.error('[sessionService] subscribeToSessions failed:', error);
+        callback([]);
+      }
+    );
   },
 
   async createSession(sessionData: Omit<Session, 'id'>) {

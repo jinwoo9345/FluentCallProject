@@ -4,9 +4,9 @@ on:
   push:
     branches:
       - main
-    # 모든 파일 변경에 대해 실행되도록 paths 필터를 제거하거나 워크플로우 파일을 포함합니다.
     paths:
       - 'firestore.rules'
+      - 'firestore.indexes.json'
       - 'firebase.json'
       - '.github/workflows/**'
 
@@ -19,5 +19,5 @@ jobs:
       - name: Install Firebase CLI
         run: npm install -g firebase-tools
 
-      - name: Deploy Firestore Rules
-        run: firebase deploy --only firestore:rules --token "${{ secrets.FIREBASE_TOKEN }}" --project gen-lang-client-0514894849
+      - name: Deploy Firestore Rules & Indexes
+        run: firebase deploy --only firestore:rules,firestore:indexes --token "${{ secrets.FIREBASE_TOKEN }}" --project gen-lang-client-0514894849
