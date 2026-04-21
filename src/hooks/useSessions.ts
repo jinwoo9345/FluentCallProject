@@ -7,13 +7,16 @@ export function useSessions(userId: string | undefined, role: UserRole | undefin
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    console.log('[useSessions] invoked', { userId, role });
+
     if (!userId || !role) {
+      console.warn('[useSessions] skipping: userId or role missing', { userId, role });
       setLoading(false);
       return;
     }
 
     if (role !== 'student' && role !== 'tutor') {
-      // admin 등 참여자가 아닌 역할은 빈 목록으로 처리
+      console.warn('[useSessions] skipping: role not student/tutor', { role });
       setSessions([]);
       setLoading(false);
       return;
@@ -21,6 +24,7 @@ export function useSessions(userId: string | undefined, role: UserRole | undefin
 
     setLoading(true);
     const unsubscribe = sessionService.subscribeToSessions(userId, role, (data) => {
+      console.log('[useSessions] received', { count: data.length, userId, role });
       setSessions(data);
       setLoading(false);
     });
