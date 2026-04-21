@@ -1,7 +1,8 @@
 import {
   Calendar, Clock, ChevronRight, Award, BookOpen,
   User as UserIcon, Settings, School, Sparkles, Bell, DollarSign,
-  Heart, CreditCard, Share2, Copy, Check, Gift, Loader2
+  Heart, CreditCard, Share2, Copy, Check, Gift, Loader2,
+  Star, MessageSquare,
 } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -16,7 +17,7 @@ import { ProfileEditModal } from '../components/Dashboard/ProfileEditModal';
 import { ConsultationForm } from '../components/Consultation/ConsultationForm';
 import { Pagination, usePaginated } from '../components/ui/Pagination';
 import { db } from '../firebase';
-import { collection, query, where, getDocs, orderBy, onSnapshot, doc, updateDoc, getDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, onSnapshot, doc, updateDoc, getDoc, deleteDoc } from 'firebase/firestore';
 import { shareReferralCode } from '../lib/kakao';
 import { SERVICE_FEE } from '../constants';
 
@@ -52,6 +53,20 @@ export default function Dashboard() {
 
   // Safety: Ensure user and wishlist exist before filtering
   const wishlistedTutors = tutors.filter(t => user?.wishlist?.includes(t.id) || false);
+
+  // 내가 결제한 강사 (payments → tutorId)
+  const registeredTutors = (() => {
+    const ids = new Set<string>();
+    for (const p of payments) {
+      if (p.tutorId) ids.add(p.tutorId);
+    }
+    return tutors.filter((t) => ids.has(t.id));
+  })();
+
+  // 내가 남긴 후기 (플랫폼 + 튜터)
+  const [myPlatformReviews, setMyPlatformReviews] = useState<any[]>([]);
+  const [myTutorReviews, setMyTutorReviews] = useState<any[]>([]);
+  const [myReviewsLoading, setMyReviewsLoading] = useState(false);
 
   const sessionsPage = usePaginated(sessions, USER_PAGE_SIZE);
   const paymentsPage = usePaginated(payments, USER_PAGE_SIZE);
@@ -145,6 +160,50 @@ export default function Dashboard() {
     return () => unsub();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [firebaseUser, isAuthReady, user?.role]);
+
+  // 내가 남긴 후기 (플랫폼 + 튜터) 실시간 구독
+  useEffect(() => {
+    if (!firebaseUser || !isAuthReady) return;
+    setMyReviewsLoading(true);
+
+    const qPlatform = query(
+      collection(db, 'platform_reviews'),
+      where('userId', '==', firebaseUser.uid)
+    );
+    const qTutor = query(
+      collection(db, 'tutor_reviews'),
+      where('userId', '==', firebaseUser.uid)
+    );
+
+    const unsub1 = onSnapshot(
+      qPlatform,
+      (snap) => {
+        setMyPlatformReviews(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })));
+        setMyReviewsLoading(false);
+      },
+      () => setMyReviewsLoading(false)
+    );
+    const unsub2 = onSnapshot(
+      qTutor,
+      (snap) => {
+        setMyTutorReviews(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) })));
+      }
+    );
+    return () => {
+      unsub1();
+      unsub2();
+    };
+  }, [firebaseUser, isAuthReady]);
+
+  const handleDeleteMyReview = async (type: 'platform' | 'tutor', id: string) => {
+    if (!confirm('이 후기를 삭제하시겠어요?')) return;
+    try {
+      const col = type === 'platform' ? 'platform_reviews' : 'tutor_reviews';
+      await deleteDoc(doc(db, col, id));
+    } catch (err: any) {
+      alert('삭제 실패: ' + (err.message || '알 수 없는 오류'));
+    }
+  };
 
   // 튜터 본인 문서 조회 (수업료 편집용)
   useEffect(() => {
@@ -506,6 +565,144 @@ export default function Dashboard() {
               )}
             </div>
           </section>
+
+          {/* 등록한 강사 Section */}
+          {user?.role === 'student' && (
+            <section className="pt-4">
+              <h2 className="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
+                <School size={20} className="text-indigo-600" /> 등록한 강사
+              </h2>
+              {registeredTutors.length === 0 ? (
+                <Card className="p-8 text-center text-slate-500 border-dashed">
+                  아직 결제한 수업이 없습니다. 튜터를 둘러보고 수업을 시작해 보세요.
+                </Card>
+              ) : (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  {registeredTutors.map((tutor) => {
+                    const hasReview = myTutorReviews.some((r) => r.tutorId === tutor.id);
+                    return (
+                      <Card key={tutor.id} className="flex items-center gap-4 p-4 hover:shadow-md transition-shadow">
+                        <img
+                          src={tutor.avatar}
+                          alt={tutor.name}
+                          className="h-12 w-12 rounded-xl object-cover"
+                          referrerPolicy="no-referrer"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-bold text-slate-900 text-sm truncate">{tutor.name}</h3>
+                          <p className="text-[10px] text-slate-500 line-clamp-1 uppercase tracking-tight font-bold">
+                            {tutor.specialties.slice(0, 2).join(' · ')}
+                          </p>
+                          {hasReview ? (
+                            <span className="mt-1 inline-flex items-center gap-1 text-[10px] font-bold text-emerald-600">
+                              <Check size={10} /> 리뷰 작성 완료
+                            </span>
+                          ) : (
+                            <span className="mt-1 inline-flex items-center gap-1 text-[10px] font-bold text-amber-600">
+                              <Star size={10} /> 리뷰 미작성
+                            </span>
+                          )}
+                        </div>
+                        <ChevronRight size={18} className="text-slate-300" />
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* 내가 남긴 후기 Section */}
+          {user?.role === 'student' && (
+            <section className="pt-4">
+              <h2 className="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2">
+                <MessageSquare size={20} className="text-blue-600" /> 내가 남긴 후기
+              </h2>
+              {myReviewsLoading ? (
+                <Card className="p-8 flex justify-center border-dashed">
+                  <Loader2 className="animate-spin text-slate-300" size={20} />
+                </Card>
+              ) : myPlatformReviews.length === 0 && myTutorReviews.length === 0 ? (
+                <Card className="p-8 text-center text-slate-500 border-dashed">
+                  아직 작성한 후기가 없습니다. 수강생 후기·튜터 리뷰를 남겨보세요.
+                </Card>
+              ) : (
+                <div className="space-y-3">
+                  {myTutorReviews.map((r) => {
+                    const tutor = tutors.find((t) => t.id === r.tutorId);
+                    return (
+                      <Card key={`tr-${r.id}`} className="p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-[10px] font-black uppercase tracking-widest bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                                튜터 리뷰
+                              </span>
+                              <span className="text-sm font-bold text-slate-800 truncate">
+                                {tutor?.name || '튜터'}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1 text-amber-500 mb-1">
+                              {[1, 2, 3, 4, 5].map((n) => (
+                                <Star
+                                  key={n}
+                                  size={12}
+                                  className={n <= r.rating ? 'fill-amber-400 text-amber-400' : 'text-slate-200'}
+                                />
+                              ))}
+                            </div>
+                            <p className="text-sm text-slate-600 line-clamp-2 whitespace-pre-wrap">
+                              {r.content}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => handleDeleteMyReview('tutor', r.id)}
+                            className="text-[10px] font-bold text-slate-400 hover:text-red-600 flex-shrink-0"
+                          >
+                            삭제
+                          </button>
+                        </div>
+                      </Card>
+                    );
+                  })}
+                  {myPlatformReviews.map((r) => (
+                    <Card key={`pr-${r.id}`} className="p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-[10px] font-black uppercase tracking-widest bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">
+                              플랫폼 후기
+                            </span>
+                            {r.userTag && (
+                              <span className="text-xs text-slate-500">#{r.userTag}</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1 text-amber-500 mb-1">
+                            {[1, 2, 3, 4, 5].map((n) => (
+                              <Star
+                                key={n}
+                                size={12}
+                                className={n <= r.rating ? 'fill-amber-400 text-amber-400' : 'text-slate-200'}
+                              />
+                            ))}
+                          </div>
+                          <p className="text-sm text-slate-600 line-clamp-2 whitespace-pre-wrap">
+                            {r.content}
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => handleDeleteMyReview('platform', r.id)}
+                          className="text-[10px] font-bold text-slate-400 hover:text-red-600 flex-shrink-0"
+                        >
+                          삭제
+                        </button>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
 
           {/* Live Wishlist Section */}
           <section className="pt-4">

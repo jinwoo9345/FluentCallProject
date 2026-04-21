@@ -12,9 +12,11 @@ import TermsOfService from './pages/TermsOfService';
 import PaymentSuccess from './pages/PaymentSuccess';
 import PaymentFail from './pages/PaymentFail';
 import ReferralProgram from './pages/ReferralProgram';
-import Placeholder from './pages/Placeholder';
 import ConsultationRequest from './pages/ConsultationRequest';
 import About from './pages/About';
+import Reviews from './pages/Reviews';
+import Qna from './pages/Qna';
+import InfoBoard from './pages/InfoBoard';
 import { useEffect, useRef } from 'react';
 import { db, auth } from './firebase';
 import { doc, getDoc, setDoc, updateDoc, serverTimestamp, collection, query, where, getDocs } from 'firebase/firestore';
@@ -176,18 +178,9 @@ function AppContent() {
           <Route path="/referral" element={<ReferralProgram />} />
           <Route path="/consultation" element={<ConsultationRequest />} />
           <Route path="/about" element={<About />} />
-          <Route
-            path="/faq"
-            element={<Placeholder title="자주 묻는 질문 (FAQ)" description="메인 페이지 FAQ 섹션에서 먼저 확인해보세요. 전용 페이지는 곧 추가될 예정입니다." />}
-          />
-          <Route
-            path="/qna"
-            element={<Placeholder title="Q&A 게시판" description="회원 간 질문과 답변을 나누는 게시판입니다. 곧 오픈 예정입니다." />}
-          />
-          <Route
-            path="/info-board"
-            element={<Placeholder title="정보 게시판 (회원 전용)" description="학습 팁과 공지가 공유되는 회원 전용 게시판입니다. 준비 중입니다." />}
-          />
+          <Route path="/reviews" element={<Reviews />} />
+          <Route path="/qna" element={<Qna />} />
+          <Route path="/info-board" element={<InfoBoard />} />
         </Routes>
       </main>
       <Footer />

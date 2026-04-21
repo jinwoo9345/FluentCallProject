@@ -102,6 +102,50 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // 플랫폼 후기 게시판 (누구나 읽기 · 본인만 작성/수정/삭제 · 관리자 삭제 가능)
+    match /platform_reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid;
+      allow update: if isSignedIn()
+        && resource.data.userId == request.auth.uid;
+      allow delete: if isAdmin()
+        || (isSignedIn() && resource.data.userId == request.auth.uid);
+    }
+
+    // Q&A 게시판
+    match /qna_posts/{postId} {
+      allow read: if true;
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid;
+      allow update: if isSignedIn()
+        && resource.data.userId == request.auth.uid;
+      allow delete: if isAdmin()
+        || (isSignedIn() && resource.data.userId == request.auth.uid);
+    }
+
+    // 정보 게시판
+    match /info_posts/{postId} {
+      allow read: if true;
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid;
+      allow update: if isSignedIn()
+        && resource.data.userId == request.auth.uid;
+      allow delete: if isAdmin()
+        || (isSignedIn() && resource.data.userId == request.auth.uid);
+    }
+
+    // 튜터별 리뷰 (수업 완료 후 수강생이 남김)
+    match /tutor_reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid;
+      allow update: if isSignedIn()
+        && resource.data.userId == request.auth.uid;
+      allow delete: if isAdmin()
+        || (isSignedIn() && resource.data.userId == request.auth.uid);
+    }
+
     // 결제 내역
     match /payments/{paymentId} {
       allow read: if isSignedIn() && (

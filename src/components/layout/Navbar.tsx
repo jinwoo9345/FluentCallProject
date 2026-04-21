@@ -41,7 +41,7 @@ export const Navbar = () => {
       name: '정보',
       icon: Info,
       items: [
-        { name: '자주 묻는 질문 (FAQ)', path: '/faq' },
+        { name: '수강생 후기', path: '/reviews' },
         { name: 'Q&A 게시판', path: '/qna' },
         { name: '정보 게시판', path: '/info-board' },
         { name: '환불 정책', path: '/refund-policy' },
