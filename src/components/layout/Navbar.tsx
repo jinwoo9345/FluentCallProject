@@ -69,24 +69,27 @@ export const Navbar = () => {
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-brand-cream-dark/50 bg-brand-cream/80 backdrop-blur-md">
-      <div className="mx-auto grid grid-cols-[auto_1fr_auto] h-20 max-w-7xl items-center gap-4 px-4 sm:px-6 lg:px-8">
+      <div className="relative mx-auto flex h-20 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
         {/* 좌측: 로고 */}
-        <div className="justify-self-start">
+        <div>
           <Link to="/" className="flex items-center gap-2 text-2xl font-black text-slate-900 font-display tracking-tight">
             <span>English<span className="text-blue-600">Bites</span></span>
           </Link>
         </div>
 
-        {/* 중앙: 데스크톱 메뉴 — 그룹 호버 시 3개 드롭다운 동시 표시 (각자 트리거 아래 정렬)
-            트리거 폭 min-w-[8rem](128px) 균등 + gap-4(16px) — 타이트 유지
-            드롭다운 w-36(144px)으로 센터 거리와 동일 → 겹침 0 (바로 맞닿음) */}
+        {/* 중앙: 데스크톱 메뉴 — 페이지 정중앙 고정 배치 (absolute)
+            트리거 gap-4(16px) + min-w-[8rem](128px) 유지 → 트리거는 타이트
+            드롭다운은 각자 offset을 두어 왼쪽/오른쪽으로 치우치게 해 겹침 없이 w-56 확보 */}
         <div
-          className="hidden md:flex md:items-center md:justify-center md:gap-4 justify-self-center relative"
+          className="hidden md:flex md:items-center md:gap-4 absolute left-1/2 -translate-x-1/2 inset-y-0 justify-center"
           onMouseEnter={() => setIsGroupHovered(true)}
           onMouseLeave={() => setIsGroupHovered(false)}
         >
-          {menus.map((menu) => {
+          {menus.map((menu, idx) => {
             const active = isActiveDropdown(menu);
+            // 드롭다운 가로 오프셋 (px): 양쪽 메뉴는 바깥쪽으로 밀어 겹침 제거
+            // 트리거 센터 거리 144 · 드롭다운 w-56(224) → ±80px 오프셋으로 정확히 맞닿음
+            const dropdownOffsetX = idx === 0 ? -80 : idx === menus.length - 1 ? 80 : 0;
             return (
               <div key={menu.name} className="relative">
                 <button
@@ -108,9 +111,15 @@ export const Navbar = () => {
                   />
                 </button>
 
-                {/* 각 메뉴 드롭다운 — 그룹 호버 시 동시 표시, 각자 트리거 아래 중앙 정렬 */}
+                {/* 각 메뉴 드롭다운 — 그룹 호버 시 동시 표시, 양쪽 메뉴는 오프셋으로 치우쳐 배치 */}
                 {isGroupHovered && (
-                  <div className="absolute left-1/2 -translate-x-1/2 top-full pt-3 z-50 w-36">
+                  <div
+                    className="absolute top-full pt-3 z-50 w-56"
+                    style={{
+                      left: '50%',
+                      transform: `translateX(calc(-50% + ${dropdownOffsetX}px))`,
+                    }}
+                  >
                     <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/40 p-3">
                       <div className="flex items-center gap-2 px-2 pt-1 pb-2 mb-1.5 border-b border-slate-100">
                         <menu.icon size={14} className="text-blue-600" />
