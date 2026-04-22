@@ -32,7 +32,20 @@ export interface AppSettings {
   bankName?: string;
   accountNumber?: string;
   accountHolder?: string;
+  footer?: FooterSettings;
   updatedAt?: any;
+}
+
+/** Footer 사업자 정보 (관리자에서 편집) */
+export interface FooterSettings {
+  companyName?: string;
+  representative?: string;
+  businessNumber?: string;
+  mailOrderNumber?: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+  hostingProvider?: string;
 }
 
 export interface Session {

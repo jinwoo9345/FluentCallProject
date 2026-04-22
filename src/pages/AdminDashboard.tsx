@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Users, UserPlus, CreditCard, MessageSquare, TrendingUp,
   Clock, Shield, Star, School, Settings, Loader2,
-  Eye, CalendarPlus
+  Eye, CalendarPlus, Building2
 } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -73,6 +73,15 @@ export default function AdminDashboard() {
   const [bankName, setBankName] = useState('');
   const [accountNumber, setAccountNumber] = useState('');
   const [accountHolder, setAccountHolder] = useState('');
+  // Footer 사업자 정보
+  const [footerCompanyName, setFooterCompanyName] = useState('');
+  const [footerRepresentative, setFooterRepresentative] = useState('');
+  const [footerBusinessNumber, setFooterBusinessNumber] = useState('');
+  const [footerMailOrderNumber, setFooterMailOrderNumber] = useState('');
+  const [footerAddress, setFooterAddress] = useState('');
+  const [footerPhone, setFooterPhone] = useState('');
+  const [footerEmail, setFooterEmail] = useState('');
+  const [footerHostingProvider, setFooterHostingProvider] = useState('');
   const [settingsSaving, setSettingsSaving] = useState(false);
 
   const fetchAdminData = async () => {
@@ -147,6 +156,15 @@ export default function AdminDashboard() {
           setBankName(data.bankName || '');
           setAccountNumber(data.accountNumber || '');
           setAccountHolder(data.accountHolder || '');
+          const footer = data.footer || {};
+          setFooterCompanyName(footer.companyName || '');
+          setFooterRepresentative(footer.representative || '');
+          setFooterBusinessNumber(footer.businessNumber || '');
+          setFooterMailOrderNumber(footer.mailOrderNumber || '');
+          setFooterAddress(footer.address || '');
+          setFooterPhone(footer.phone || '');
+          setFooterEmail(footer.email || '');
+          setFooterHostingProvider(footer.hostingProvider || '');
         }
       } catch (err) {
         console.warn('app_settings fetch failed:', err);
@@ -364,6 +382,16 @@ export default function AdminDashboard() {
           bankName: bankName.trim(),
           accountNumber: accountNumber.trim(),
           accountHolder: accountHolder.trim(),
+          footer: {
+            companyName: footerCompanyName.trim(),
+            representative: footerRepresentative.trim(),
+            businessNumber: footerBusinessNumber.trim(),
+            mailOrderNumber: footerMailOrderNumber.trim(),
+            address: footerAddress.trim(),
+            phone: footerPhone.trim(),
+            email: footerEmail.trim(),
+            hostingProvider: footerHostingProvider.trim(),
+          },
           updatedAt: serverTimestamp(),
         },
         { merge: true }
@@ -1336,6 +1364,106 @@ export default function AdminDashboard() {
                     />
                   </div>
                 </div>
+              </Card>
+
+              {/* Footer 사업자 정보 */}
+              <Card className="p-8">
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="h-11 w-11 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                    <Building2 size={22} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900">사업자 정보 (Footer)</h3>
+                    <p className="text-sm text-slate-500">
+                      모든 페이지 하단에 표시됩니다. 전자상거래법상 표기 의무 항목입니다.
+                    </p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-1.5">상호</label>
+                    <input
+                      type="text"
+                      value={footerCompanyName}
+                      onChange={(e) => setFooterCompanyName(e.target.value)}
+                      placeholder="예: EnglishBites"
+                      className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-1.5">대표자</label>
+                    <input
+                      type="text"
+                      value={footerRepresentative}
+                      onChange={(e) => setFooterRepresentative(e.target.value)}
+                      placeholder="예: 홍길동"
+                      className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-1.5">사업자등록번호</label>
+                    <input
+                      type="text"
+                      value={footerBusinessNumber}
+                      onChange={(e) => setFooterBusinessNumber(e.target.value)}
+                      placeholder="예: 123-45-67890"
+                      className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-1.5">통신판매중개업 신고번호</label>
+                    <input
+                      type="text"
+                      value={footerMailOrderNumber}
+                      onChange={(e) => setFooterMailOrderNumber(e.target.value)}
+                      placeholder="예: 제 2026-서울성북-0000 호"
+                      className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-blue-500"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-bold text-slate-600 mb-1.5">사업장 주소</label>
+                    <input
+                      type="text"
+                      value={footerAddress}
+                      onChange={(e) => setFooterAddress(e.target.value)}
+                      placeholder="예: 서울특별시 성북구 ..."
+                      className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-1.5">고객센터 전화</label>
+                    <input
+                      type="text"
+                      value={footerPhone}
+                      onChange={(e) => setFooterPhone(e.target.value)}
+                      placeholder="예: 02-000-0000"
+                      className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-1.5">대표 이메일</label>
+                    <input
+                      type="text"
+                      value={footerEmail}
+                      onChange={(e) => setFooterEmail(e.target.value)}
+                      placeholder="예: support@englishbites.co.kr"
+                      className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-blue-500"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-bold text-slate-600 mb-1.5">호스팅 제공자</label>
+                    <input
+                      type="text"
+                      value={footerHostingProvider}
+                      onChange={(e) => setFooterHostingProvider(e.target.value)}
+                      placeholder="예: Cloudflare"
+                      className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+                <p className="mt-4 text-[11px] text-slate-400 leading-relaxed">
+                  값을 비워두면 Footer에 기본 자리표시자 문구(예: "(대표자명)")가 표시됩니다.
+                </p>
               </Card>
 
               <div className="flex items-center justify-end gap-3">

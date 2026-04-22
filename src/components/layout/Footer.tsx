@@ -1,8 +1,12 @@
+import { useEffect, useState } from 'react';
 import { Github, Twitter, Instagram, Building2, FileText, Users, Shield } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { db } from '@/src/firebase';
+import type { FooterSettings } from '@/src/types';
 
-// TODO: 실제 사업자 정보로 교체 필요 (사업자 등록 완료 후)
-const BUSINESS_INFO = {
+// 관리자가 app_settings/main.footer 를 설정하기 전의 기본값
+const DEFAULTS: Required<FooterSettings> = {
   companyName: 'EnglishBites',
   representative: '(대표자명)',
   businessNumber: '(사업자등록번호)',
@@ -14,6 +18,29 @@ const BUSINESS_INFO = {
 };
 
 export const Footer = () => {
+  const [info, setInfo] = useState<Required<FooterSettings>>(DEFAULTS);
+
+  useEffect(() => {
+    const unsub = onSnapshot(
+      doc(db, 'app_settings', 'main'),
+      (snap) => {
+        const footer = (snap.data()?.footer || {}) as FooterSettings;
+        setInfo({
+          companyName: footer.companyName || DEFAULTS.companyName,
+          representative: footer.representative || DEFAULTS.representative,
+          businessNumber: footer.businessNumber || DEFAULTS.businessNumber,
+          mailOrderNumber: footer.mailOrderNumber || DEFAULTS.mailOrderNumber,
+          address: footer.address || DEFAULTS.address,
+          phone: footer.phone || DEFAULTS.phone,
+          email: footer.email || DEFAULTS.email,
+          hostingProvider: footer.hostingProvider || DEFAULTS.hostingProvider,
+        });
+      },
+      (err) => console.warn('footer settings subscription failed:', err)
+    );
+    return () => unsub();
+  }, []);
+
   return (
     <footer className="border-t border-brand-cream-dark/50 bg-brand-cream">
       {/* 상단: 브랜드 + 섹션 링크 */}
@@ -82,18 +109,18 @@ export const Footer = () => {
             <p className="text-[11px] font-black uppercase tracking-widest text-slate-500">사업자 정보</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-2.5">
-            <InfoItem label="상호" value={BUSINESS_INFO.companyName} />
-            <InfoItem label="대표자" value={BUSINESS_INFO.representative} />
-            <InfoItem label="사업자등록번호" value={BUSINESS_INFO.businessNumber} />
-            <InfoItem label="통신판매중개업 신고" value={BUSINESS_INFO.mailOrderNumber} />
-            <InfoItem label="주소" value={BUSINESS_INFO.address} className="sm:col-span-2" />
-            <InfoItem label="호스팅 제공자" value={BUSINESS_INFO.hostingProvider} />
-            <InfoItem label="고객센터" value={BUSINESS_INFO.phone} />
-            <InfoItem label="이메일" value={BUSINESS_INFO.email} />
+            <InfoItem label="상호" value={info.companyName} />
+            <InfoItem label="대표자" value={info.representative} />
+            <InfoItem label="사업자등록번호" value={info.businessNumber} />
+            <InfoItem label="통신판매중개업 신고" value={info.mailOrderNumber} />
+            <InfoItem label="주소" value={info.address} className="sm:col-span-2" />
+            <InfoItem label="호스팅 제공자" value={info.hostingProvider} />
+            <InfoItem label="고객센터" value={info.phone} />
+            <InfoItem label="이메일" value={info.email} />
           </div>
 
           <p className="mt-8 pt-6 border-t border-slate-200/60 text-xs text-slate-400 text-center">
-            © {new Date().getFullYear()} {BUSINESS_INFO.companyName}. All rights reserved.
+            © {new Date().getFullYear()} {info.companyName}. All rights reserved.
           </p>
         </div>
       </div>
