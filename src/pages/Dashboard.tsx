@@ -12,7 +12,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { useEffect, useRef, useState } from 'react';
 import { useSessions } from '../hooks/useSessions';
 import { useTutors } from '../hooks/useTutors';
-import { ScheduleManager } from '../components/Dashboard/ScheduleManager';
 import { PointTransferModal } from '../components/Payment/PointTransferModal';
 import { ProfileEditModal } from '../components/Dashboard/ProfileEditModal';
 import { ConsultationForm } from '../components/Consultation/ConsultationForm';
@@ -872,17 +871,6 @@ export default function Dashboard() {
             </div>
           </Card>
 
-          {/* Schedule Manager */}
-          <Card>
-            <h3 className="font-bold text-slate-900 mb-4 flex items-center gap-2">
-              <Clock size={18} className="text-blue-600" /> 내 수업 가능 시간
-            </h3>
-            <ScheduleManager 
-              userId={firebaseUser.uid} 
-              availability={user?.role === 'student' ? (user?.studentAvailability || []) : (tutors.find(t => t.id === firebaseUser.uid)?.availability || [])} 
-              role={user?.role}
-            />
-          </Card>
         </div>
       </div>
       
