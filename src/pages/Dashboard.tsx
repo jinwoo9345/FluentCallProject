@@ -828,13 +828,10 @@ export default function Dashboard() {
               <span className="text-4xl font-bold">{(user?.credits || 0).toLocaleString()}</span>
               <span className="text-slate-400 mb-1">P</span>
             </div>
-            <div className="grid grid-cols-2 gap-2 mt-6">
-              <Button className="bg-blue-600 hover:bg-blue-500 border-none text-xs py-5 px-0 font-bold">
-                포인트 충전
-              </Button>
-              <Button 
-                variant="outline" 
-                className="border-slate-700 text-slate-300 hover:bg-slate-800 text-xs py-5 px-0 gap-1 font-bold"
+            <div className="mt-6">
+              <Button
+                variant="outline"
+                className="w-full border-slate-700 text-slate-300 hover:bg-slate-800 text-xs py-5 px-0 gap-1 font-bold"
                 onClick={() => setIsTransferModalOpen(true)}
               >
                 <Gift size={14} /> 선물하기
