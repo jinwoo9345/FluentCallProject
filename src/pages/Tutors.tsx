@@ -11,8 +11,6 @@ import { useTutors } from '../hooks/useTutors';
 
 export default function Tutors() {
   const { user, setIsAuthModalOpen, setAuthMode, toggleWishlist } = useAuth();
-  // 가격 구성 세부(회당 단가 + 서비스 이용료)를 볼 수 있는 권한: 관리자 + 튜터만
-  const canSeePriceBreakdown = user?.role === 'admin' || user?.role === 'tutor';
   const { tutors, loading, error } = useTutors();
   const [searchQuery, setSearchQuery] = useState('');
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -127,7 +125,6 @@ export default function Tutors() {
                     key={tutor.id}
                     tutor={tutor as any}
                     index={idx}
-                    canSeePriceBreakdown={canSeePriceBreakdown}
                     isWishlisted={user?.wishlist?.includes(tutor.id)}
                     onClick={() => handleTutorClick(tutor)}
                     onRegister={(t) => handleRegisterClick({ stopPropagation: () => {} } as any, t)}

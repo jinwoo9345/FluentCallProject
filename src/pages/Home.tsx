@@ -181,7 +181,7 @@ export default function Home() {
           <div className="text-center max-w-3xl mx-auto mb-20">
             <h2 className="text-4xl font-black text-slate-900 mb-6 font-display">튜터별 맞춤 수강권</h2>
             <p className="text-lg text-slate-600">
-              각 수강권은 <strong>1:1 매칭 서비스 금액</strong>과 <strong>플랫폼 서비스 이용료</strong>로 구성됩니다.<br />
+              각 수강권은 <strong>모든 비용이 포함된 단일 금액</strong>으로 안내됩니다.<br />
               실제 결제 금액은 선택한 튜터·패키지에 따라 달라지며, 결제 화면에서 확인하실 수 있습니다.
             </p>
           </div>
@@ -196,12 +196,12 @@ export default function Home() {
               <p className="text-slate-500 text-sm mb-8">가볍게 시작하기 좋은 표준 패키지</p>
               <div className="mb-8 space-y-2">
                 <div className="p-5 rounded-2xl bg-white border border-blue-100 shadow-sm">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-blue-600 mb-2">수강권 구성</p>
+                  <p className="text-[10px] font-black uppercase tracking-widest text-blue-600 mb-2">수강권 안내</p>
                   <p className="text-base font-bold text-slate-900 leading-tight">
-                    1:1 매칭 서비스 금액
+                    1:1 매칭 + 운영 서비스 일체 포함
                   </p>
-                  <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
-                    <span className="text-blue-500 font-bold">+</span> 플랫폼 서비스 이용료
+                  <p className="text-xs text-slate-500 mt-1">
+                    회당 금액에 모든 비용이 반영되어 있습니다.
                   </p>
                 </div>
                 <p className="text-[11px] text-slate-400 leading-relaxed">

@@ -11,8 +11,6 @@ type TutorCardVariant = 'full' | 'compact';
 interface TutorCardProps {
   tutor: Tutor & { enrollDisabled?: boolean; disabledMessage?: string };
   variant?: TutorCardVariant;
-  /** 가격 세부 내역(회당 단가 + 이용료) 노출 권한 */
-  canSeePriceBreakdown?: boolean;
   isWishlisted?: boolean;
   /** 리스트 순서 (모션 딜레이 계산용) */
   index?: number;
@@ -29,7 +27,6 @@ interface TutorCardProps {
 export function TutorCard({
   tutor,
   variant = 'full',
-  canSeePriceBreakdown = false,
   isWishlisted = false,
   index = 0,
   onClick,
@@ -62,7 +59,9 @@ export function TutorCard({
   // full variant
   const rating = (Number(tutor.rating) || 5).toFixed(1);
   const reviewCount = tutor.reviewCount || 0;
-  const packagePrice = ((tutor.hourlyRate || 0) * 8 + 69000).toLocaleString();
+  const packageTotal = (tutor.hourlyRate || 0) * 8 + 69000;
+  const packagePrice = packageTotal.toLocaleString();
+  const perSessionPrice = Math.round(packageTotal / 8).toLocaleString();
 
   return (
     <motion.div
@@ -125,11 +124,9 @@ export function TutorCard({
               8회 수강권
             </span>
             <span className="text-lg font-black text-slate-900">{packagePrice}원</span>
-            {canSeePriceBreakdown && (
-              <span className="text-[11px] text-slate-500 block">
-                회당 {(tutor.hourlyRate || 0).toLocaleString()}원 + 서비스 이용료 69,000원
-              </span>
-            )}
+            <span className="text-[11px] text-slate-500 block">
+              회당 약 {perSessionPrice}원
+            </span>
           </div>
           {tutor.enrollDisabled ? (
             <span
