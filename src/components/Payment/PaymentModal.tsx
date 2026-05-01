@@ -388,9 +388,6 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
                               <p className="text-sm font-bold text-slate-900">
                                 {pkgAmount.toLocaleString()}원
                               </p>
-                              <p className="text-[10px] text-slate-500">
-                                수업료 {pkgTutorFee.toLocaleString()} + 이용료 {SERVICE_FEE.toLocaleString()}
-                              </p>
                               <p className="text-[10px] text-slate-400">
                                 회당 약 {per.toLocaleString()}원
                               </p>
@@ -400,8 +397,7 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
                       })}
                     </div>
                     <p className="text-[11px] text-slate-500 mt-3 leading-relaxed">
-                      모든 패키지에 <strong className="text-slate-700">플랫폼 서비스 이용료 {SERVICE_FEE.toLocaleString()}원</strong>이
-                      1회 가산됩니다. 보너스 수업은 추가 비용 없이 무료로 제공됩니다.
+                      회당 금액은 모든 비용이 포함된 금액이며, 보너스 수업은 추가 비용 없이 무료로 제공됩니다.
                     </p>
                   </div>
 
@@ -476,31 +472,19 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
                       <InfoRow label="예금주" value={bankInfo.accountHolder} />
                       <div className="pt-3 border-t border-slate-100">
                         <div className="space-y-3 mb-3">
-                          {/* 1:1 매칭 수업료 */}
+                          {/* 수강권 합계 (수업료 + 서비스 이용료 통합) */}
                           <div className="flex justify-between items-start">
                             <div>
                               <p className="text-sm font-bold text-slate-800">
-                                1:1 매칭 수업료 ({selectedPackage.sessions}회)
+                                {selectedPackage.label} 수강권 ({totalSessions}회)
+                              </p>
+                              <p className="text-[10px] text-slate-500 mt-0.5">
+                                회당 약 {perSessionRate.toLocaleString()}원 · 모든 비용 포함
                               </p>
                             </div>
                             <p className="text-sm font-bold text-slate-900">
-                              {tutorFee.toLocaleString()}원
+                              {packageAmount.toLocaleString()}원
                             </p>
-                          </div>
-
-                          {/* 플랫폼 서비스 + 세부 내역 */}
-                          <div>
-                            <div className="flex justify-between items-start">
-                              <p className="text-sm font-bold text-slate-800">플랫폼 서비스</p>
-                              <p className="text-sm font-bold text-slate-900">
-                                {SERVICE_FEE.toLocaleString()}원
-                              </p>
-                            </div>
-                            <ul className="mt-1 space-y-0.5 text-[10px] text-slate-500 pl-3 leading-relaxed">
-                              <li>· 원어민 튜터 맞춤 매칭</li>
-                              <li>· 수업별 피드백 제공</li>
-                              <li>· 학습 상담 및 커리큘럼 관리</li>
-                            </ul>
                           </div>
 
                           {creditDiscount > 0 && (
