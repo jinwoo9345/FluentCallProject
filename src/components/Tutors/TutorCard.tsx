@@ -61,9 +61,10 @@ export function TutorCard({
   const rating = (Number(tutor.rating) || 5).toFixed(1);
   const reviewCount = tutor.reviewCount || 0;
   const hourlyRate = tutor.hourlyRate || 0;
+  const packageTotal = calcPackageTotal(hourlyRate, 8);
   // 패키지 할인 적용 시 회당 가격 범위 (24회 +2 보너스 = 최저, 8회 = 최고)
   const minPerSession = hourlyRate > 0 ? Math.round(calcPackageTotal(hourlyRate, 24) / 26) : 0;
-  const maxPerSession = hourlyRate > 0 ? Math.round(calcPackageTotal(hourlyRate, 8) / 8) : 0;
+  const maxPerSession = hourlyRate > 0 ? Math.round(packageTotal / 8) : 0;
 
   return (
     <motion.div
@@ -123,13 +124,13 @@ export function TutorCard({
         <div className="mt-6 flex items-center justify-between border-t border-slate-50 pt-4">
           <div>
             <span className="text-[10px] text-slate-400 block uppercase tracking-widest font-bold">
-              회당 수강료
+              8회 수강권
             </span>
-            <span className="text-base font-black text-slate-900 block">
-              {minPerSession.toLocaleString()}원 ~ {maxPerSession.toLocaleString()}원
+            <span className="text-lg font-black text-slate-900 block">
+              {packageTotal.toLocaleString()}원
             </span>
             <span className="text-[11px] text-slate-500 block">
-              패키지 할인 적용 시
+              회당 {minPerSession.toLocaleString()}원 ~ {maxPerSession.toLocaleString()}원
             </span>
           </div>
           {tutor.enrollDisabled ? (
