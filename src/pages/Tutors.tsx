@@ -160,7 +160,7 @@ export default function Tutors() {
             isOpen={isPaymentModalOpen}
             onClose={() => setIsPaymentModalOpen(false)}
             productId={`plan_${selectedTutor.id}`}
-            productName={`${selectedTutor.name} - 베이직 플랜`}
+            productName={selectedTutor.name}
             amount={selectedTutor.hourlyRate}
             tutorId={selectedTutor.id}
             tutorName={selectedTutor.name}

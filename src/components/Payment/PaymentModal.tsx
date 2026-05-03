@@ -319,7 +319,9 @@ export function PaymentModal({ isOpen, onClose, productId, productName, amount, 
                   {/* Product Info */}
                   <div className="bg-blue-50 rounded-2xl p-6 border border-blue-100">
                     <p className="text-sm text-blue-600 font-bold mb-1">선택한 튜터</p>
-                    <h3 className="text-lg font-bold text-slate-900">{productName}</h3>
+                    <h3 className="text-lg font-bold text-slate-900">
+                      {productName} - {selectedPackage.label} 플랜
+                    </h3>
                   </div>
 
                   {/* 통신판매중개자 고지 */}
