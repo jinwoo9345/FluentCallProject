@@ -20,7 +20,6 @@ interface PaymentModalProps {
   onClose: () => void;
   productId: string;
   productName: string;
-  price: string;
   amount: number; // 회당 가격 (결제 시 hourlyRate × sessions + SERVICE_FEE로 합산)
   tutorId?: string;
   tutorName?: string;
@@ -51,7 +50,7 @@ const DEFAULT_BANK = {
   accountHolder: '(예금주 미설정)',
 };
 
-export function PaymentModal({ isOpen, onClose, productId, productName, price, amount, tutorId, tutorName }: PaymentModalProps) {
+export function PaymentModal({ isOpen, onClose, productId, productName, amount, tutorId, tutorName }: PaymentModalProps) {
   const { user } = useAuth();
   const [termsAgreed, setTermsAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -321,9 +320,6 @@ export function PaymentModal({ isOpen, onClose, productId, productName, price, a
                   <div className="bg-blue-50 rounded-2xl p-6 border border-blue-100">
                     <p className="text-sm text-blue-600 font-bold mb-1">선택한 튜터</p>
                     <h3 className="text-lg font-bold text-slate-900">{productName}</h3>
-                    <p className="text-xs text-slate-500 mt-1">
-                      이 튜터가 설정한 <strong className="text-slate-700">8회 기준 수강료 {price}</strong>
-                    </p>
                   </div>
 
                   {/* 통신판매중개자 고지 */}
