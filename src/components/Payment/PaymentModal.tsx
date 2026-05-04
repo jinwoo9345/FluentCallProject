@@ -9,7 +9,7 @@ import { Link } from 'react-router-dom';
 // === Toss Payments (심사 통과 후 사용 예정 — 현재는 주석 처리) ===
 // import { loadTossPayments } from '@tosspayments/payment-sdk';
 import { db, auth } from '../../firebase';
-import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, getDoc, serverTimestamp, runTransaction } from 'firebase/firestore';
 import { useAuth } from '../../contexts/AuthContext';
 import { RefundPolicyContent, TermsContent } from '../policy/PolicyContents';
 import { cn } from '@/src/lib/utils';
@@ -159,27 +159,57 @@ export function PaymentModal({ isOpen, onClose, productId, productName, amount, 
       // 가입 시 고정된 추천인 코드를 자동 사용
       const validatedReferrer = (user?.referredBy || '').trim().toUpperCase();
 
-      await setDoc(doc(db, 'payments', orderId), {
-        orderId,
-        userId: auth.currentUser.uid,
-        tutorId: tutorId || null,                // 매칭된 튜터 uid (알림 수신용)
-        tutorName: tutorName || null,
-        amount: finalAmount,
-        originalAmount: packageAmount,
-        creditsUsed: useCredits ? Math.floor(creditDiscount / CREDIT_VALUE) : 0,
-        productId,
-        productName: fullProductName,
-        packageKey: selectedPackage.key,
-        packageSessions: selectedPackage.sessions,
-        packageBonus: selectedPackage.bonus,
-        totalSessions,
-        status: 'pending',                       // 입금 대기
-        paymentMethod: 'manual_bank_transfer',   // 무통장입금
-        depositorName: depositorName.trim(),     // 입금자명
-        referredBy: validatedReferrer || '',
-        referralRewarded: false,                 // 관리자 승인 시 true 전환
-        bankSnapshot: bankInfo,                  // 안내했던 계좌 정보 스냅샷
-        createdAt: serverTimestamp(),
+      const userRef = doc(db, 'users', auth.currentUser.uid);
+      const paymentRef = doc(db, 'payments', orderId);
+
+      // 트랜잭션으로 (1) 보유 포인트 검증 → (2) 차감 → (3) 결제 doc 생성을 원자적으로 수행.
+      // 동시 다중 주문에서 같은 포인트로 중복 할인되는 문제를 방지한다.
+      await runTransaction(db, async (tx) => {
+        const userSnap = await tx.get(userRef);
+        if (!userSnap.exists()) {
+          throw new Error('사용자 정보를 찾을 수 없습니다. 다시 로그인해주세요.');
+        }
+        const currentCredits = (userSnap.data() as any).credits || 0;
+
+        // 클라이언트 표시값과 서버 실제값이 다를 수 있으므로 서버값 기준으로 재계산
+        const wantCreditsToUse = useCredits
+          ? Math.min(currentCredits, packageAmount) // CREDIT_VALUE = 1
+          : 0;
+
+        if (useCredits && wantCreditsToUse <= 0) {
+          throw new Error('사용 가능한 포인트가 없습니다.');
+        }
+
+        const txFinalAmount = packageAmount - wantCreditsToUse;
+
+        // 포인트 차감 (Firestore rules: ownCreditsDecrementOnly 허용)
+        if (wantCreditsToUse > 0) {
+          tx.update(userRef, { credits: currentCredits - wantCreditsToUse });
+        }
+
+        tx.set(paymentRef, {
+          orderId,
+          userId: auth.currentUser!.uid,
+          tutorId: tutorId || null,                // 매칭된 튜터 uid (알림 수신용)
+          tutorName: tutorName || null,
+          amount: txFinalAmount,
+          originalAmount: packageAmount,
+          creditsUsed: wantCreditsToUse,
+          creditsRefunded: false,                  // 취소 시 환불되면 true 로 전환
+          productId,
+          productName: fullProductName,
+          packageKey: selectedPackage.key,
+          packageSessions: selectedPackage.sessions,
+          packageBonus: selectedPackage.bonus,
+          totalSessions,
+          status: 'pending',                       // 입금 대기
+          paymentMethod: 'manual_bank_transfer',   // 무통장입금
+          depositorName: depositorName.trim(),     // 입금자명
+          referredBy: validatedReferrer || '',
+          referralRewarded: false,                 // 관리자 승인 시 true 전환
+          bankSnapshot: bankInfo,                  // 안내했던 계좌 정보 스냅샷
+          createdAt: serverTimestamp(),
+        });
       });
 
       setSubmittedOrderId(orderId);

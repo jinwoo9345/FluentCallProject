@@ -467,18 +467,53 @@ export default function AdminDashboard() {
     }
   };
 
+  // 결제 취소 — creditsUsed 가 있으면 사용자 포인트 환불 (트랜잭션으로 중복 환불 방지)
   const handleFailPayment = async (p: any) => {
     const reason = window.prompt('실패/취소 사유를 입력해주세요.', '입금 미확인');
     if (reason === null) return;
     try {
-      await updateDoc(doc(db, 'payments', p.id), {
-        status: 'cancelled',
-        failReason: reason.trim() || '관리자에 의한 취소',
-        cancelledAt: serverTimestamp(),
+      const paymentRef = doc(db, 'payments', p.id);
+      let refundedAmount = 0;
+
+      await runTransaction(db, async (tx) => {
+        const paySnap = await tx.get(paymentRef);
+        if (!paySnap.exists()) throw new Error('결제 문서를 찾을 수 없습니다.');
+        const payData = paySnap.data() as any;
+
+        if (payData.status === 'cancelled' || payData.status === 'failed') {
+          throw new Error('이미 취소된 결제입니다.');
+        }
+
+        const usedCredits = Number(payData.creditsUsed || 0);
+        const alreadyRefunded = payData.creditsRefunded === true;
+        const shouldRefund = usedCredits > 0 && !alreadyRefunded && !!payData.userId;
+
+        if (shouldRefund) {
+          tx.update(doc(db, 'users', payData.userId), {
+            credits: increment(usedCredits),
+          });
+          refundedAmount = usedCredits;
+        }
+
+        tx.update(paymentRef, {
+          status: 'cancelled',
+          failReason: reason.trim() || '관리자에 의한 취소',
+          cancelledAt: serverTimestamp(),
+          ...(shouldRefund ? { creditsRefunded: true } : {}),
+        });
       });
+
       setPayments(prev =>
-        prev.map(x => (x.id === p.id ? { ...x, status: 'cancelled', failReason: reason } : x))
+        prev.map(x => (
+          x.id === p.id
+            ? { ...x, status: 'cancelled', failReason: reason, creditsRefunded: refundedAmount > 0 ? true : x.creditsRefunded }
+            : x
+        ))
       );
+
+      if (refundedAmount > 0) {
+        alert(`결제 취소 완료. 사용자에게 ${refundedAmount.toLocaleString()}P 를 환불했습니다.`);
+      }
     } catch (err: any) {
       alert('처리 실패: ' + (err.message || '알 수 없는 오류'));
     }
