@@ -302,11 +302,15 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
                   </button>
                   <button
                     type="button"
-                    className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl bg-[#FEE500] text-[#3c1e1e] font-bold hover:opacity-90 transition-all"
                     onClick={handleKakaoLogin}
+                    aria-label={`카카오 계정으로 ${mode === 'signin' ? '로그인' : '시작하기'}`}
+                    className="w-full flex items-center justify-center hover:opacity-90 transition-opacity"
                   >
-                    <div className="w-5 h-5 flex items-center justify-center bg-[#3c1e1e] rounded-sm text-[#FEE500] text-[10px]">K</div>
-                    카카오 계정으로 {mode === 'signin' ? '로그인' : '시작하기'}
+                    <img
+                      src="/kakao/kakao_login_medium_wide.png"
+                      alt="카카오 로그인"
+                      className="w-full h-auto"
+                    />
                   </button>
                 </div>
 
