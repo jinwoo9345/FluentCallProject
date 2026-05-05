@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Users, UserPlus, CreditCard, MessageSquare, TrendingUp,
   Clock, Shield, Star, School, Settings, Loader2,
-  Eye, CalendarPlus, Building2
+  Eye, CalendarPlus, Building2, Instagram, Twitter, Facebook
 } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -82,6 +82,9 @@ export default function AdminDashboard() {
   const [footerPhone, setFooterPhone] = useState('');
   const [footerEmail, setFooterEmail] = useState('');
   const [footerHostingProvider, setFooterHostingProvider] = useState('');
+  const [footerInstagramUrl, setFooterInstagramUrl] = useState('');
+  const [footerTwitterUrl, setFooterTwitterUrl] = useState('');
+  const [footerFacebookUrl, setFooterFacebookUrl] = useState('');
   const [settingsSaving, setSettingsSaving] = useState(false);
 
   const fetchAdminData = async () => {
@@ -165,6 +168,9 @@ export default function AdminDashboard() {
           setFooterPhone(footer.phone || '');
           setFooterEmail(footer.email || '');
           setFooterHostingProvider(footer.hostingProvider || '');
+          setFooterInstagramUrl(footer.instagramUrl || '');
+          setFooterTwitterUrl(footer.twitterUrl || '');
+          setFooterFacebookUrl(footer.facebookUrl || '');
         }
       } catch (err) {
         console.warn('app_settings fetch failed:', err);
@@ -391,6 +397,9 @@ export default function AdminDashboard() {
             phone: footerPhone.trim(),
             email: footerEmail.trim(),
             hostingProvider: footerHostingProvider.trim(),
+            instagramUrl: footerInstagramUrl.trim(),
+            twitterUrl: footerTwitterUrl.trim(),
+            facebookUrl: footerFacebookUrl.trim(),
           },
           updatedAt: serverTimestamp(),
         },
@@ -1499,6 +1508,59 @@ export default function AdminDashboard() {
                 <p className="mt-4 text-[11px] text-slate-400 leading-relaxed">
                   값을 비워두면 Footer에 기본 자리표시자 문구(예: "(대표자명)")가 표시됩니다.
                 </p>
+              </Card>
+
+              {/* 소셜 미디어 링크 */}
+              <Card className="p-8">
+                <div className="flex items-center gap-3 mb-5">
+                  <div className="h-11 w-11 rounded-2xl bg-pink-50 text-pink-600 flex items-center justify-center">
+                    <Instagram size={22} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-900">소셜 미디어 링크</h3>
+                    <p className="text-sm text-slate-500">
+                      Footer 하단의 SNS 아이콘 클릭 시 이동할 URL입니다. 비워두면 "곧 준비 예정입니다" 팝업이 노출됩니다.
+                    </p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-1 gap-3">
+                  <div>
+                    <label className="flex items-center gap-1.5 text-xs font-bold text-slate-600 mb-1.5">
+                      <Instagram size={12} className="text-pink-500" /> Instagram URL
+                    </label>
+                    <input
+                      type="text"
+                      value={footerInstagramUrl}
+                      onChange={(e) => setFooterInstagramUrl(e.target.value)}
+                      placeholder="예: https://instagram.com/englishbites"
+                      className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="flex items-center gap-1.5 text-xs font-bold text-slate-600 mb-1.5">
+                      <Twitter size={12} className="text-sky-500" /> Twitter URL
+                    </label>
+                    <input
+                      type="text"
+                      value={footerTwitterUrl}
+                      onChange={(e) => setFooterTwitterUrl(e.target.value)}
+                      placeholder="예: https://twitter.com/englishbites"
+                      className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-blue-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="flex items-center gap-1.5 text-xs font-bold text-slate-600 mb-1.5">
+                      <Facebook size={12} className="text-blue-600" /> Facebook URL
+                    </label>
+                    <input
+                      type="text"
+                      value={footerFacebookUrl}
+                      onChange={(e) => setFooterFacebookUrl(e.target.value)}
+                      placeholder="예: https://facebook.com/englishbites"
+                      className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-blue-500"
+                    />
+                  </div>
+                </div>
               </Card>
 
               <div className="flex items-center justify-end gap-3">

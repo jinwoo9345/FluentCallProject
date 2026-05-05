@@ -46,6 +46,9 @@ export interface FooterSettings {
   phone?: string;
   email?: string;
   hostingProvider?: string;
+  instagramUrl?: string;
+  twitterUrl?: string;
+  facebookUrl?: string;
 }
 
 export interface Session {

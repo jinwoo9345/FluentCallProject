@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Github, Twitter, Instagram, Building2, FileText, Users, Shield } from 'lucide-react';
+import { Facebook, Twitter, Instagram, Building2, FileText, Users, Shield } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '@/src/firebase';
@@ -15,10 +15,14 @@ const DEFAULTS: Required<FooterSettings> = {
   phone: '(대표 전화)',
   email: '(대표 이메일)',
   hostingProvider: 'Cloudflare',
+  instagramUrl: '',
+  twitterUrl: '',
+  facebookUrl: '',
 };
 
 export const Footer = () => {
   const [info, setInfo] = useState<Required<FooterSettings>>(DEFAULTS);
+  const [comingSoonOpen, setComingSoonOpen] = useState(false);
 
   useEffect(() => {
     const unsub = onSnapshot(
@@ -34,12 +38,23 @@ export const Footer = () => {
           phone: footer.phone || DEFAULTS.phone,
           email: footer.email || DEFAULTS.email,
           hostingProvider: footer.hostingProvider || DEFAULTS.hostingProvider,
+          instagramUrl: footer.instagramUrl || '',
+          twitterUrl: footer.twitterUrl || '',
+          facebookUrl: footer.facebookUrl || '',
         });
       },
       (err) => console.warn('footer settings subscription failed:', err)
     );
     return () => unsub();
   }, []);
+
+  const handleSocialClick = (url: string) => {
+    if (url && url.trim()) {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } else {
+      setComingSoonOpen(true);
+    }
+  };
 
   return (
     <footer className="border-t border-brand-cream-dark/50 bg-brand-cream">
@@ -71,9 +86,9 @@ export const Footer = () => {
 
           <FooterColumn icon={FileText} title="소셜 미디어">
             <div className="mt-1 flex gap-3">
-              <SocialIconLink href="#" label="Twitter"><Twitter size={18} /></SocialIconLink>
-              <SocialIconLink href="#" label="Instagram"><Instagram size={18} /></SocialIconLink>
-              <SocialIconLink href="#" label="GitHub"><Github size={18} /></SocialIconLink>
+              <SocialIconButton onClick={() => handleSocialClick(info.instagramUrl)} label="Instagram"><Instagram size={18} /></SocialIconButton>
+              <SocialIconButton onClick={() => handleSocialClick(info.twitterUrl)} label="Twitter"><Twitter size={18} /></SocialIconButton>
+              <SocialIconButton onClick={() => handleSocialClick(info.facebookUrl)} label="Facebook"><Facebook size={18} /></SocialIconButton>
             </div>
           </FooterColumn>
         </div>
@@ -124,6 +139,34 @@ export const Footer = () => {
           </p>
         </div>
       </div>
+
+      {comingSoonOpen && (
+        <div
+          className="fixed inset-0 z-[300] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4"
+          onClick={() => setComingSoonOpen(false)}
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl bg-white shadow-2xl overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-6 text-center">
+              <div className="mx-auto h-12 w-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mb-4">
+                <FileText size={20} />
+              </div>
+              <h3 className="text-lg font-bold text-slate-900">곧 준비 예정입니다</h3>
+              <p className="mt-2 text-sm text-slate-500">
+                소셜 미디어 채널을 준비 중입니다.<br />조금만 기다려주세요.
+              </p>
+              <button
+                onClick={() => setComingSoonOpen(false)}
+                className="mt-6 w-full rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold py-3 transition-colors"
+              >
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </footer>
   );
 };
@@ -155,15 +198,16 @@ function FooterLink({ to, children }: { to: string; children: React.ReactNode })
   );
 }
 
-function SocialIconLink({ href, label, children }: { href: string; label: string; children: React.ReactNode }) {
+function SocialIconButton({ onClick, label, children }: { onClick: () => void; label: string; children: React.ReactNode }) {
   return (
-    <a
-      href={href}
+    <button
+      type="button"
+      onClick={onClick}
       aria-label={label}
       className="h-9 w-9 rounded-lg bg-white border border-slate-200 text-slate-500 hover:text-blue-600 hover:border-blue-200 transition-colors flex items-center justify-center"
     >
       {children}
-    </a>
+    </button>
   );
 }
 
