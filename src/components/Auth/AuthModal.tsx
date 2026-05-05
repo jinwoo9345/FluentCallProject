@@ -295,7 +295,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
                   <button
                     type="button"
                     onClick={() => handleSocialLogin(googleProvider)}
-                    className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl border border-slate-200 bg-white text-slate-700 font-bold hover:bg-slate-50 transition-all"
+                    className="w-full aspect-[600/90] flex items-center justify-center gap-3 px-4 rounded-xl border border-slate-200 bg-white text-slate-700 font-bold hover:bg-slate-50 transition-all"
                   >
                     <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5" />
                     구글 계정으로 {mode === 'signin' ? '로그인' : '시작하기'}
