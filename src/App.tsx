@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, useSearchParams } from 'react-router-dom';
 import { Navbar } from './components/layout/Navbar';
 import { Footer } from './components/layout/Footer';
+import { ScrollToTop } from './components/layout/ScrollToTop';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AuthModal } from './components/Auth/AuthModal';
 import Home from './pages/Home';
@@ -161,6 +162,7 @@ function AppContent() {
 
   return (
     <div className="flex min-h-screen flex-col bg-white font-sans text-slate-900 antialiased">
+      <ScrollToTop />
       <Navbar />
       <main className="flex-1">
         <Routes>
