@@ -295,7 +295,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
                   <button
                     type="button"
                     onClick={() => handleSocialLogin(googleProvider)}
-                    className="w-[300px] h-[45px] mx-auto flex items-center justify-center gap-2 px-4 rounded-md border border-slate-200 bg-white text-slate-700 text-sm font-bold hover:bg-slate-50 transition-all"
+                    className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl border border-slate-200 bg-white text-slate-700 font-bold hover:bg-slate-50 transition-all"
                   >
                     <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5" />
                     구글 계정으로 {mode === 'signin' ? '로그인' : '시작하기'}
@@ -304,14 +304,14 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
                     type="button"
                     onClick={handleKakaoLogin}
                     aria-label={`카카오 계정으로 ${mode === 'signin' ? '로그인' : '시작하기'}`}
-                    className="block mx-auto hover:opacity-90 transition-opacity"
+                    className="w-full hover:opacity-90 transition-opacity"
                   >
                     <img
-                      src="/kakao/kakao_login_medium_wide.png"
+                      src="/kakao/kakao_login_large_wide.png"
                       alt="카카오 로그인"
-                      width={300}
-                      height={45}
-                      className="block"
+                      width={600}
+                      height={90}
+                      className="w-full h-auto block"
                     />
                   </button>
                 </div>
