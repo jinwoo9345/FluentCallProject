@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Users, UserPlus, CreditCard, MessageSquare, TrendingUp,
   Clock, Shield, Star, School, Settings, Loader2,
-  Eye, CalendarPlus, Building2, Instagram, Twitter, Facebook
+  Eye, CalendarPlus, Building2, Instagram, Twitter, Facebook,
+  ExternalLink
 } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -198,6 +199,48 @@ export default function AdminDashboard() {
     fetchAdminData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, isAuthReady]);
+
+  // EB-app(운영툴) SSO 진입: 본인 ID 토큰 → 토큰 브리지 → Custom Token → 새 탭 열기
+  const [openingEbApp, setOpeningEbApp] = useState(false);
+  const handleOpenEbApp = async () => {
+    if (openingEbApp) return;
+    const ebAppUrl = (import.meta.env.VITE_EB_APP_URL || '').trim();
+    if (!ebAppUrl) {
+      alert('운영툴 URL이 설정되지 않았습니다. (VITE_EB_APP_URL 환경변수 필요)');
+      return;
+    }
+    if (!firebaseUser) {
+      alert('로그인이 필요합니다.');
+      return;
+    }
+    setOpeningEbApp(true);
+    try {
+      const idToken = await firebaseUser.getIdToken(/* forceRefresh */ true);
+      const res = await fetch('/api/eb-app/sso', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken })
+      });
+      const data = (await res.json().catch(() => ({}))) as { ebAppToken?: string; message?: string };
+      if (!res.ok) {
+        alert(data?.message || `SSO 토큰 발급 실패 (status ${res.status})`);
+        return;
+      }
+      const ebAppToken = data.ebAppToken;
+      if (!ebAppToken) {
+        alert('SSO 토큰이 응답에 없습니다.');
+        return;
+      }
+      const sep = ebAppUrl.includes('#') ? '&' : '#';
+      const url = `${ebAppUrl}${sep}token=${encodeURIComponent(ebAppToken)}`;
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } catch (err: any) {
+      console.error('운영툴 진입 실패:', err);
+      alert('운영툴 진입 중 오류가 발생했습니다: ' + (err?.message || err));
+    } finally {
+      setOpeningEbApp(false);
+    }
+  };
 
   const handleToggleConsultStatus = async (c: any) => {
     const nextStatus = c.status === 'completed' ? 'pending' : 'completed';
@@ -696,8 +739,24 @@ export default function AdminDashboard() {
           <h1 className="text-3xl font-bold text-slate-900">관리자 대시보드</h1>
           <p className="mt-2 text-slate-600">EnglishBites 전체 서비스 현황을 실시간으로 관리합니다.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={fetchAdminData} className="text-xs">새로고침</Button>
+          <Button
+            variant="outline"
+            onClick={handleOpenEbApp}
+            disabled={openingEbApp}
+            className="text-xs text-blue-700 hover:text-blue-800 hover:bg-blue-50 border-blue-200 inline-flex items-center gap-1"
+          >
+            {openingEbApp ? (
+              <>
+                <Loader2 size={14} className="animate-spin" /> 진입 중...
+              </>
+            ) : (
+              <>
+                <ExternalLink size={14} /> 운영툴 열기
+              </>
+            )}
+          </Button>
           <Button
             variant="outline"
             onClick={handlePurgeAllCredits}

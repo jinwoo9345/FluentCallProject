@@ -3,7 +3,7 @@ import {
   Calendar, Clock, ChevronRight, Award, BookOpen,
   User as UserIcon, Settings, School, Sparkles, Bell, DollarSign,
   Heart, CreditCard, Share2, Copy, Check, Gift, Loader2,
-  Star, MessageSquare,
+  Star, MessageSquare, ExternalLink,
 } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -50,6 +50,48 @@ export default function Dashboard() {
   const [myTutorDoc, setMyTutorDoc] = useState<any | null>(null);
   const [rateInput, setRateInput] = useState('');
   const [rateSaving, setRateSaving] = useState(false);
+
+  // 강사 EB-app(운영툴) SSO 진입
+  const [openingEbApp, setOpeningEbApp] = useState(false);
+  const handleOpenEbApp = async () => {
+    if (openingEbApp) return;
+    const ebAppUrl = (import.meta.env.VITE_EB_APP_URL || '').trim();
+    if (!ebAppUrl) {
+      alert('운영툴 URL이 설정되지 않았습니다. (VITE_EB_APP_URL 환경변수 필요)');
+      return;
+    }
+    if (!firebaseUser) {
+      alert('로그인이 필요합니다.');
+      return;
+    }
+    setOpeningEbApp(true);
+    try {
+      const idToken = await firebaseUser.getIdToken(true);
+      const res = await fetch('/api/eb-app/sso', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken }),
+      });
+      const data = (await res.json().catch(() => ({}))) as { ebAppToken?: string; message?: string };
+      if (!res.ok) {
+        alert(data?.message || `SSO 토큰 발급 실패 (status ${res.status})`);
+        return;
+      }
+      const ebAppToken = data.ebAppToken;
+      if (!ebAppToken) {
+        alert('SSO 토큰이 응답에 없습니다.');
+        return;
+      }
+      const sep = ebAppUrl.includes('#') ? '&' : '#';
+      const url = `${ebAppUrl}${sep}token=${encodeURIComponent(ebAppToken)}`;
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } catch (err: any) {
+      console.error('운영툴 진입 실패:', err);
+      alert('운영툴 진입 중 오류가 발생했습니다: ' + (err?.message || err));
+    } finally {
+      setOpeningEbApp(false);
+    }
+  };
 
   // Safety: Ensure user and wishlist exist before filtering
   const wishlistedTutors = tutors.filter(t => user?.wishlist?.includes(t.id) || false);
@@ -741,6 +783,26 @@ export default function Dashboard() {
               </div>
             </div>
           </Card>
+
+          {/* 튜터 전용 — EB-app 운영툴 진입 카드 */}
+          {user?.role === 'tutor' && (
+            <Card className="p-5">
+              <h3 className="font-bold text-slate-900 mb-3 flex items-center gap-2">
+                <ExternalLink size={18} className="text-blue-600" /> 운영툴
+              </h3>
+              <p className="text-xs text-slate-500 mb-3 leading-relaxed">
+                EB-app 운영툴에서 본인 수업·학생 데이터를 조회할 수 있습니다.
+              </p>
+              <Button
+                size="sm"
+                className="w-full"
+                onClick={handleOpenEbApp}
+                disabled={openingEbApp}
+              >
+                {openingEbApp ? '여는 중...' : '운영툴 열기'}
+              </Button>
+            </Card>
+          )}
 
           {/* 튜터 전용 — 내 수업료 카드 */}
           {user?.role === 'tutor' && myTutorDoc && (

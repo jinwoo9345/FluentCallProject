@@ -13,6 +13,10 @@ firebase-blueprint.json
 GEMINI.md
 prompt.txt
 referral.txt
+HANDOFF_EB_APP_PHASE3.md
+
+# EB-app 운영툴은 별도 GitHub 레포(englishbite-book)로 관리 — 메인 레포에서 제외
+/EB-app/
 
 # 예시 이미지·목업 (로컬 참고용 · 커밋 제외)
 image/
