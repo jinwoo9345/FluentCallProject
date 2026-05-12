@@ -103,13 +103,10 @@ export const Footer = () => {
             </div>
             <div className="flex-1">
               <p className="text-[11px] font-black uppercase tracking-widest text-amber-700 mb-1.5">
-                통신판매중개자 고지
+                서비스 플랫폼 안내
               </p>
               <p className="text-[12px] text-slate-600 leading-relaxed">
-                본 사이트는 <strong className="text-slate-800">통신판매중개자</strong>이며, 통신판매의 당사자가 아닙니다.
-                튜터가 등록한 상품·거래정보 및 가격, 수업 내용 등 거래와 관련된 일체의 의무와 책임은{' '}
-                <strong className="text-slate-800">각 튜터(판매자)</strong>에게 있습니다.
-                EnglishBites는 회원과 튜터 간의 원활한 거래를 중개하며, 중개 과정에서 발생한 문제에 대해 성실히 조정·중재할 책임을 다합니다.
+                본 사이트는 외국인 튜터와 회원을 연결하는 서비스 플랫폼으로, 사이트 내에서 제공되는 모든 강의에 대한 결제, 환불 및 민원 처리는 <strong className="text-slate-800">잉글리시바이트</strong>에서 책임지고 운영합니다.
               </p>
             </div>
           </div>
@@ -133,6 +130,10 @@ export const Footer = () => {
             <InfoItem label="고객센터" value={info.phone} />
             <InfoItem label="이메일" value={info.email} />
           </div>
+
+          <p className="mt-4 text-[9px] text-slate-400 leading-relaxed">
+            해당 사이트내에서 결제되는 강의에 대한 환불 및 민원의 책임은 '잉글리시바이트'에서 진행합니다. 민원담당자: [형상욱], 연락처: 010-6558-1040
+          </p>
 
           <p className="mt-8 pt-6 border-t border-slate-200/60 text-xs text-slate-400 text-center">
             © {new Date().getFullYear()} {info.companyName}. All rights reserved.
