@@ -46,41 +46,36 @@ export function PromotionPopup() {
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 24, scale: 0.95 }}
           transition={{ type: 'spring', stiffness: 260, damping: 22 }}
-          className="fixed bottom-5 right-5 z-[80] w-[300px] max-w-[calc(100vw-2rem)]"
+          className="fixed bottom-4 right-4 z-[80] w-[220px] max-w-[calc(100vw-1.5rem)]"
         >
-          <div className="relative rounded-2xl shadow-2xl shadow-blue-900/30 bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 text-white overflow-hidden border border-white/10">
+          <div className="relative rounded-xl shadow-xl shadow-blue-900/30 bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-900 text-white overflow-hidden border border-white/10">
             {/* 글로우 */}
-            <div className="pointer-events-none absolute -top-10 -right-10 h-32 w-32 bg-amber-400/20 rounded-full blur-2xl" />
+            <div className="pointer-events-none absolute -top-6 -right-6 h-20 w-20 bg-amber-400/20 rounded-full blur-2xl" />
 
             <button
               type="button"
               onClick={handleClose}
               aria-label="팝업 닫기"
-              className="absolute top-2 right-2 z-10 h-7 w-7 rounded-full bg-white/10 hover:bg-white/20 text-white/80 hover:text-white flex items-center justify-center transition-colors"
+              className="absolute top-1.5 right-1.5 z-10 h-5 w-5 rounded-full bg-white/10 hover:bg-white/20 text-white/80 hover:text-white flex items-center justify-center transition-colors"
             >
-              <X size={14} />
+              <X size={11} />
             </button>
 
             <Link
               to="/events"
-              className="block p-5 pr-9 group"
+              className="block p-3 pr-7 group"
             >
-              <div className="flex items-center gap-2 mb-2">
-                <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest bg-amber-400 text-amber-950 px-2 py-0.5 rounded-full">
-                  <Flame size={11} /> 진행 중
-                </span>
-                <span className="text-[10px] font-bold text-blue-200 uppercase tracking-widest">
-                  플랫폼 이벤트
-                </span>
-              </div>
-              <p className="text-sm font-black leading-snug text-white">
-                30명 선착순 정상가 프로모션
+              <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-widest bg-amber-400 text-amber-950 px-1.5 py-0.5 rounded-full mb-1.5">
+                <Flame size={9} /> 진행 중
+              </span>
+              <p className="text-[12px] font-black leading-snug text-white">
+                30명 선착순 프로모션
               </p>
-              <p className="mt-1 text-[11px] text-blue-100/90 leading-relaxed">
-                선착순 30명 마감 후엔 모든 수강권이 10% 인상됩니다.
+              <p className="mt-0.5 text-[10px] text-blue-100/90 leading-snug">
+                마감 후 전 수강권 10% 인상
               </p>
-              <span className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-amber-300 group-hover:text-amber-200">
-                이벤트 자세히 보기 <ChevronRight size={13} className="group-hover:translate-x-0.5 transition-transform" />
+              <span className="mt-2 inline-flex items-center gap-0.5 text-[10px] font-bold text-amber-300 group-hover:text-amber-200">
+                자세히 <ChevronRight size={10} className="group-hover:translate-x-0.5 transition-transform" />
               </span>
             </Link>
           </div>
