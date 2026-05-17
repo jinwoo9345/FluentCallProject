@@ -117,32 +117,29 @@ export function TutorCard({
 
         <p className="mt-4 flex-1 text-sm text-slate-600 line-clamp-2">{tutor.bio}</p>
 
-        <div className="mt-6 flex items-center justify-between border-t border-slate-50 pt-4">
-          <div>
+        <div className="mt-6 flex items-center justify-between gap-3 border-t border-slate-50 pt-4">
+          <div className="min-w-0">
             <span className="text-[10px] text-slate-400 block uppercase tracking-widest font-bold">
               8회 수강권
             </span>
             <span className="text-lg font-black text-slate-900 block">
               {packageTotal.toLocaleString()}원
             </span>
-            <span className="text-[11px] text-slate-500 block">
-              모든 비용 포함 · 16회/24회 패키지는 결제 화면에서 선택
-            </span>
           </div>
           {tutor.enrollDisabled ? (
             <span
               onClick={(e) => e.stopPropagation()}
-              className="inline-flex items-center gap-1 px-4 py-2 rounded-xl text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200 cursor-not-allowed"
+              className="inline-flex items-center gap-1 px-4 py-2 rounded-xl text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200 cursor-not-allowed whitespace-nowrap"
             >
               {tutor.disabledMessage || '현재 대기 중'}
             </span>
           ) : (
             <Button
               size="sm"
-              className="gap-2 px-6"
+              className="gap-1.5 px-4 text-sm whitespace-nowrap flex-shrink-0"
               onClick={(e) => { e.stopPropagation(); onRegister?.(tutor); }}
             >
-              <CreditCard size={16} />
+              <CreditCard size={14} />
               등록하기
             </Button>
           )}
