@@ -13,35 +13,16 @@ import { doc, setDoc, getDoc, serverTimestamp, runTransaction } from 'firebase/f
 import { useAuth } from '../../contexts/AuthContext';
 import { RefundPolicyContent, TermsContent } from '../policy/PolicyContents';
 import { cn } from '@/src/lib/utils';
-import { SERVICE_FEE } from '../../constants';
+import { PACKAGES, PackageKey } from '../../constants';
 
 interface PaymentModalProps {
   isOpen: boolean;
   onClose: () => void;
   productId: string;
   productName: string;
-  amount: number; // 회당 가격 (결제 시 hourlyRate × sessions + SERVICE_FEE로 합산)
   tutorId?: string;
   tutorName?: string;
 }
-
-type PackageKey = '8' | '16' | '24';
-
-/**
- * 결제 금액 = 회당 가격(hourlyRate) × sessions + SERVICE_FEE(69,000원)
- * 보너스 수업(+1, +2)은 무료 추가 제공.
- */
-const PACKAGES: {
-  key: PackageKey;
-  label: string;
-  sessions: number;
-  bonus: number;
-  tag?: string;
-}[] = [
-  { key: '8',  label: '베이직',   sessions: 8,  bonus: 0 },
-  { key: '16', label: '스탠다드', sessions: 16, bonus: 1, tag: '+1회 무료' },
-  { key: '24', label: '프리미엄', sessions: 24, bonus: 2, tag: '+2회 무료 · 가장 인기' },
-];
 
 // 계좌 정보 기본값 (app_settings/main 에서 덮어씀)
 const DEFAULT_BANK = {
@@ -50,7 +31,7 @@ const DEFAULT_BANK = {
   accountHolder: '(예금주 미설정)',
 };
 
-export function PaymentModal({ isOpen, onClose, productId, productName, amount, tutorId, tutorName }: PaymentModalProps) {
+export function PaymentModal({ isOpen, onClose, productId, productName, tutorId, tutorName }: PaymentModalProps) {
   const { user } = useAuth();
   const [termsAgreed, setTermsAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -58,7 +39,7 @@ export function PaymentModal({ isOpen, onClose, productId, productName, amount, 
   // === Toss 클라이언트 키 로드 — 심사 통과 후 복구 (주석 유지) ===
   // const [serverConfig, setServerConfig] = useState<any>(null);
   const [useCredits, setUseCredits] = useState(false);
-  const [packageKey, setPackageKey] = useState<PackageKey>('8');
+  const [packageKey, setPackageKey] = useState<PackageKey>('basic');
   const [depositorName, setDepositorName] = useState('');
   const [bankInfo, setBankInfo] = useState(DEFAULT_BANK);
   const [copiedField, setCopiedField] = useState<string | null>(null);
@@ -66,9 +47,7 @@ export function PaymentModal({ isOpen, onClose, productId, productName, amount, 
 
   const selectedPackage = PACKAGES.find(p => p.key === packageKey)!;
   const totalSessions = selectedPackage.sessions + selectedPackage.bonus;
-  const tutorFee = amount * selectedPackage.sessions; // 회당 가격 × 기본 수업 수
-  const packageAmount = tutorFee + SERVICE_FEE;       // + 서비스 이용료
-  const perSessionRate = Math.round(packageAmount / totalSessions);
+  const packageAmount = selectedPackage.price;
 
   // Point discount logic: 1 point = 1 won
   const CREDIT_VALUE = 1;
@@ -282,7 +261,7 @@ export function PaymentModal({ isOpen, onClose, productId, productName, amount, 
     setDepositorName('');
     setTermsAgreed(false);
     setUseCredits(false);
-    setPackageKey('8');
+    setPackageKey('basic');
     onClose();
   };
 
@@ -373,10 +352,7 @@ export function PaymentModal({ isOpen, onClose, productId, productName, amount, 
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       {PACKAGES.map(pkg => {
-                        const pkgTutorFee = amount * pkg.sessions;
-                        const pkgAmount = pkgTutorFee + SERVICE_FEE;
                         const total = pkg.sessions + pkg.bonus;
-                        const per = Math.round(pkgAmount / total);
                         const isSelected = packageKey === pkg.key;
                         return (
                           <button
@@ -412,12 +388,9 @@ export function PaymentModal({ isOpen, onClose, productId, productName, amount, 
                             <p className="text-[10px] text-slate-500 mt-0.5">
                               총 {total}회 수업
                             </p>
-                            <div className="mt-3 pt-3 border-t border-slate-100 space-y-0.5">
+                            <div className="mt-3 pt-3 border-t border-slate-100">
                               <p className="text-sm font-bold text-slate-900">
-                                {pkgAmount.toLocaleString()}원
-                              </p>
-                              <p className="text-[10px] text-slate-400">
-                                회당 약 {per.toLocaleString()}원
+                                {pkg.price.toLocaleString()}원
                               </p>
                             </div>
                           </button>
@@ -425,7 +398,7 @@ export function PaymentModal({ isOpen, onClose, productId, productName, amount, 
                       })}
                     </div>
                     <p className="text-[11px] text-slate-500 mt-3 leading-relaxed">
-                      회당 금액은 모든 비용이 포함된 금액이며, 보너스 수업은 추가 비용 없이 무료로 제공됩니다.
+                      표시된 금액은 모든 비용이 포함된 총 결제 금액이며, 보너스 수업은 추가 비용 없이 무료로 제공됩니다.
                     </p>
                   </div>
 
@@ -500,14 +473,14 @@ export function PaymentModal({ isOpen, onClose, productId, productName, amount, 
                       <InfoRow label="예금주" value={bankInfo.accountHolder} />
                       <div className="pt-3 border-t border-slate-100">
                         <div className="space-y-3 mb-3">
-                          {/* 수강권 합계 (수업료 + 서비스 이용료 통합) */}
+                          {/* 수강권 합계 (모든 비용 포함된 단일 금액) */}
                           <div className="flex justify-between items-start">
                             <div>
                               <p className="text-sm font-bold text-slate-800">
                                 {selectedPackage.label} 수강권 ({totalSessions}회)
                               </p>
                               <p className="text-[10px] text-slate-500 mt-0.5">
-                                회당 약 {perSessionRate.toLocaleString()}원 · 모든 비용 포함
+                                모든 비용 포함 · VAT 포함
                               </p>
                             </div>
                             <p className="text-sm font-bold text-slate-900">

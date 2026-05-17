@@ -25,8 +25,7 @@ export function RefundPolicyContent({ compact = false }: PolicyContentProps) {
     <div className={rootClass(compact)}>
       {!compact && (
         <p className="text-lg font-medium text-slate-800 bg-blue-50 p-6 rounded-2xl border border-blue-100">
-          본 서비스는 <strong>통신판매중개자</strong>로서 튜터와 학습자를 연결하는 플랫폼이며, 수업의 직접 제공 주체는 각 튜터입니다.
-          본 환불 정책은 플랫폼 차원의 표준 가이드라인이며, 실제 환불 이행 및 책임은 튜터(판매자)와 협의하여 진행됩니다.
+          본 환불 정책은 EnglishBites 수강권 결제 및 수업 이용 전반에 적용되는 표준 가이드라인입니다.
           서비스 이용 전 아래 내용을 반드시 확인해주시기 바랍니다.
         </p>
       )}
@@ -36,22 +35,26 @@ export function RefundPolicyContent({ compact = false }: PolicyContentProps) {
         <ul className={listClass(compact)}>
           <li>모든 수업은 1:1 원어민 회화로 진행됩니다.</li>
           <li>수업 시간은 25~30분이며, 강사와 협의를 통해 조정 가능합니다.</li>
-          <li>수업 일정은 사전에 협의된 시간을 기준으로 진행됩니다.</li>
+          <li>수업 일정은 사전 협의된 시간을 기준으로 진행됩니다.</li>
         </ul>
       </section>
 
       <section>
-        <h2 className={sectionTitle(compact)}>2. 결제 및 이용 횟수</h2>
+        <h2 className={sectionTitle(compact)}>2. 결제 및 상품 구성</h2>
         <ul className={listClass(compact)}>
           <li>상품 구성: 8회 / 16회(+1회) / 24회(+2회)</li>
           <li>모든 수업은 선결제 후 이용 가능합니다.</li>
-          <li>프로모션, 할인, 이벤트는 별도 조건에 따라 적용됩니다.</li>
+          <li>프로모션, 할인, 이벤트는 별도 조건에 따라 적용될 수 있습니다.</li>
         </ul>
       </section>
 
       <section>
         <h2 className={sectionTitle(compact)}>3. 환불 정책</h2>
-        <p className={`${paragraphClass(compact)} mb-2`}>환불 금액은 아래 기준에 따라 산정됩니다.</p>
+
+        <p className={`${paragraphClass(compact)} ${compact ? 'mt-1' : 'mt-2'} font-bold text-slate-800`}>
+          ✅ 환불 금액 산정 방식
+        </p>
+        <p className={`${paragraphClass(compact)} mb-2`}>환불 금액은 아래 기준에 따라 계산됩니다.</p>
         <div
           className={
             compact
@@ -60,104 +63,97 @@ export function RefundPolicyContent({ compact = false }: PolicyContentProps) {
           }
         >
           <p className={compact ? 'text-[11px] font-bold text-slate-900 text-center' : 'font-bold text-slate-900 text-center'}>
-            환불금 = 총 결제금액 − (정가 기준 1회 수업료 × 이용 횟수) − 환불 수수료
+            환불금 = 총 결제금액 − (정상가 기준 1회 수업료 × 이용 횟수) − 실제 발생한 결제 수수료(PG·카드 등)
           </p>
         </div>
-        <p className={`${paragraphClass(compact)} ${compact ? 'mt-2' : 'mt-4'} font-bold text-slate-800`}>세부 기준</p>
         <ul className={listClass(compact)}>
-          <li><strong>수업 시작 전:</strong> 전액 환불 가능 (단, 결제 수수료는 제외될 수 있습니다)</li>
-          <li><strong>일부 수업 이용 후:</strong> 이용한 수업은 정가 기준 단가로 계산되며, 잔여 금액에서 환불 처리됩니다.</li>
-          <li><strong>환불 수수료:</strong> 환불 시 총 결제금액의 <span className="text-red-600 font-bold">최대 10% 이내</span>에서 부과될 수 있습니다.</li>
+          <li>환불 시 이용한 수업은 할인 적용 전 정상가 기준 단가로 계산됩니다.</li>
+          <li>프로모션 및 이벤트 혜택이 적용된 상품은 혜택이 회수될 수 있습니다.</li>
+          <li>결제 수수료에는 PG 결제 수수료, 카드 결제 수수료, 부가세(VAT) 등 실제 결제 과정에서 발생한 비용이 포함될 수 있습니다.</li>
+          <li>결제 방식(카드, 간편결제, 계좌이체 등)에 따라 실제 공제 금액은 달라질 수 있습니다.</li>
         </ul>
+
+        <p className={`${paragraphClass(compact)} ${compact ? 'mt-3' : 'mt-6'} font-bold text-slate-800`}>
+          ✅ 환불 예시 (8회 상품 기준)
+        </p>
         <div
           className={
             compact
               ? 'mt-2 p-2 text-[11px] bg-slate-50 rounded text-slate-600'
-              : 'mt-4 p-4 text-sm bg-slate-50 rounded-xl'
+              : 'mt-2 p-4 text-sm bg-slate-50 rounded-xl'
           }
         >
-          <span className="font-bold">예시)</span> 179,000원 / 8회 수업 구매 후 4회 이용한 경우<br />
-          · 1회 정가: 179,000 ÷ 8 = 22,375원<br />
-          · 사용 금액: 22,375 × 4 = 89,500원<br />
-          → 환불금: 179,000 − 89,500 − (환불 수수료 최대 10%)<br />
-          <span className="text-[10px] text-slate-400">※ 실제 결제 금액은 선택한 튜터가 설정한 수강료에 따라 달라집니다.</span>
+          <p className="font-bold text-slate-800">8회 상품: 179,000원 결제</p>
+          <p className="mt-1">· 정상가 기준 1회 수업료: 22,375원 (179,000원 ÷ 8회)</p>
+          <p className={`${compact ? 'mt-2' : 'mt-3'} font-bold text-slate-800`}>예시) 3회 수업 후 환불 요청 시</p>
+          <p className="mt-1">· 이용 수업 차감: 22,375원 × 3회 = 67,125원</p>
+          <p className="mt-1">· 환불 예정 금액: 179,000원 − 67,125원 − 실제 결제 수수료 = 최종 환불 금액</p>
         </div>
-      </section>
 
-      <section>
-        <h2 className={sectionTitle(compact)}>4. 환불 공제 및 제한 사항</h2>
-        <p className={`${paragraphClass(compact)} mb-2`}>다음의 경우 환불 금액 산정 시 반영될 수 있습니다.</p>
+        <p className={`${paragraphClass(compact)} ${compact ? 'mt-3' : 'mt-6'} font-bold text-slate-800`}>
+          ✅ 세부 환불 기준
+        </p>
+        <p className={`${paragraphClass(compact)} ${compact ? 'mt-1' : 'mt-2'} font-bold text-slate-700`}>① 수업 시작 전</p>
         <ul className={listClass(compact)}>
-          <li><strong>할인 또는 프로모션 적용 상품:</strong> 할인 전 정가 기준으로 사용 금액이 계산됩니다.</li>
-          <li><strong>친구 초대 할인 등 이벤트 적용 시:</strong> 혜택 금액이 환불 금액에서 차감될 수 있습니다.</li>
-          <li><strong>결제 수수료(카드, PG사 등):</strong> 환불 시 제외될 수 있습니다.</li>
-          <li className="text-slate-500">※ 모든 공제 기준은 본 정책에 따라 적용됩니다.</li>
+          <li>실제 발생한 PG 및 카드 결제 수수료를 제외한 금액 환불 가능</li>
+        </ul>
+        <p className={`${paragraphClass(compact)} ${compact ? 'mt-2' : 'mt-3'} font-bold text-slate-700`}>② 수업 일부 이용 후</p>
+        <ul className={listClass(compact)}>
+          <li>이용한 수업은 정상가 기준 단가로 계산됩니다.</li>
+          <li>사용한 수업 횟수 차감 후 잔여 금액 기준 환불됩니다.</li>
+          <li>환불 가능 금액이 0원 이하일 경우 환불이 불가능할 수 있습니다.</li>
+          <li>전체 수업의 70% 이상 이용 시 환불 가능 금액이 없을 수 있습니다.</li>
         </ul>
       </section>
 
       <section>
-        <h2 className={sectionTitle(compact)}>5. 수업 취소 및 노쇼 정책</h2>
+        <h2 className={sectionTitle(compact)}>4. 수업 취소 및 노쇼 정책</h2>
         <ul className={listClass(compact)}>
-          <li><strong>수업 시작 3시간 전까지 취소 시:</strong> 횟수 차감 없음</li>
-          <li><strong>수업 시작 3시간 이내 취소 시:</strong> 1회 차감</li>
-          <li><strong>사전 연락 없이 불참(노쇼) 시:</strong> 1회 차감</li>
-          <li>반복 노쇼 발생 시 서비스 이용이 제한될 수 있습니다.</li>
+          <li><strong>수업 시작 3시간 전 취소:</strong> 횟수 차감 없음</li>
+          <li><strong>수업 시작 3시간 이내 취소:</strong> 1회 차감</li>
+          <li><strong>사전 연락 없는 불참(노쇼):</strong> 1회 차감</li>
+          <li>반복적인 노쇼 발생 시 서비스 이용이 제한될 수 있습니다.</li>
         </ul>
       </section>
 
       <section>
-        <h2 className={sectionTitle(compact)}>6. 강사 변경 정책</h2>
+        <h2 className={sectionTitle(compact)}>5. 강사 변경 정책</h2>
         <ul className={listClass(compact)}>
-          <li>강사와의 수업이 맞지 않을 경우 변경 희망 상의 후 강사 변경이 가능합니다.</li>
+          <li>수업 진행 중 강사 변경 요청이 가능합니다.</li>
+          <li>운영팀 협의 후 진행됩니다.</li>
         </ul>
       </section>
 
       <section>
-        <h2 className={sectionTitle(compact)}>7. 서비스 문제 발생 시</h2>
-        <p className={`${paragraphClass(compact)} mb-2`}>다음의 경우 전액 또는 일부 환불이 가능합니다.</p>
+        <h2 className={sectionTitle(compact)}>6. 서비스 문제 발생 시</h2>
+        <p className={`${paragraphClass(compact)} mb-2`}>다음의 경우 환불 또는 보상이 제공될 수 있습니다.</p>
         <ul className={listClass(compact)}>
-          <li>강사 사정으로 수업 진행이 불가능한 경우</li>
-          <li>서비스 제공이 어려운 상황이 발생한 경우</li>
+          <li>강사 사정으로 수업 진행이 어려운 경우</li>
+          <li>운영상 문제로 정상적인 서비스 제공이 어려운 경우</li>
         </ul>
       </section>
 
       <section>
-        <h2 className={sectionTitle(compact)}>8. 이용 기간</h2>
+        <h2 className={sectionTitle(compact)}>7. 이용 기간</h2>
         <ul className={listClass(compact)}>
-          <li>구매일 기준 유효기간이 적용됩니다. (8회 기준 2개월)</li>
-          <li>유효기간 경과 시 수업은 소멸되거나 내부 정책에 따라 연장될 수 있습니다.</li>
+          <li>8회 기준 이용 기간은 구매일로부터 2개월입니다.</li>
+          <li>이용 기간 경과 후 미사용 수업은 자동 종료될 수 있습니다.</li>
+          <li>내부 운영 정책에 따라 기간 연장이 가능할 수 있습니다.</li>
         </ul>
       </section>
 
       <section>
-        <h2 className={sectionTitle(compact)}>9. 환불 처리</h2>
+        <h2 className={sectionTitle(compact)}>8. 정책 목적</h2>
         <ul className={listClass(compact)}>
-          <li>환불 요청은 지정된 채널을 통해 접수해야 합니다.</li>
-          <li>환불은 접수일 기준 영업일 3~7일 이내 처리됩니다.</li>
-        </ul>
-      </section>
-
-      <section>
-        <h2 className={sectionTitle(compact)}>10. 서비스의 성격 및 책임 범위</h2>
-        <ul className={listClass(compact)}>
-          <li>본 서비스는 강사와 회원을 연결하는 중개 서비스입니다.</li>
-          <li>수업은 강사와 회원 간에 진행되며, 회사는 수업 내용 자체에 대한 직접적인 책임을 지지 않습니다.</li>
-          <li>단, 서비스 품질 유지를 위해 중재 및 관리 역할을 수행할 수 있습니다.</li>
-        </ul>
-      </section>
-
-      <section>
-        <h2 className={sectionTitle(compact)}>11. 정책 목적 및 동의</h2>
-        <ul className={listClass(compact)}>
-          <li>본 정책은 공정한 환불 기준 제공, 수업 운영의 안정성 확보, 이용자와 운영자 간 분쟁 최소화를 목적으로 합니다.</li>
-          <li>회원은 결제 진행 시 본 이용약관 및 환불 정책에 동의한 것으로 간주됩니다.</li>
-          <li>본 정책은 관련 법령 및 소비자 보호 기준을 준수합니다.</li>
+          <li>공정한 환불 기준 제공</li>
+          <li>안정적인 수업 운영</li>
+          <li>이용자와 운영자 간 분쟁 최소화</li>
         </ul>
       </section>
 
       {!compact && (
         <div className="pt-12 border-t border-slate-100 flex justify-between items-center text-sm text-slate-400">
-          <span>최종 수정일: 2026년 5월 1일</span>
+          <span>최종 수정일: 2026년 5월 17일</span>
           <span>EnglishBites 운영팀</span>
         </div>
       )}

@@ -40,15 +40,16 @@ export default function ReferralProgram() {
       {/* 본문 */}
       <section className="pb-24">
         <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 space-y-8">
-          {/* 수강료 안내 — 튜터별 맞춤 금액 */}
+          {/* 수강료 안내 — 통일 가격제 */}
           <Card className="p-10 border-l-4 border-l-blue-600 shadow-sm">
             <p className="text-xs font-black uppercase tracking-widest text-blue-600 mb-2">수강료</p>
             <div className="flex items-baseline gap-2">
-              <span className="text-4xl font-black text-slate-900">튜터별 맞춤 금액</span>
+              <span className="text-4xl font-black text-slate-900">통일된 수강권 가격</span>
             </div>
             <p className="mt-3 text-sm text-slate-500 leading-relaxed">
-              각 튜터가 자신의 경력·전공에 따라 <strong className="text-slate-700">회당 가격</strong>을 직접 설정합니다.
-              최종 결제 금액은 선택한 튜터의 수강료와 수강권(8/16/24회)에 따라 달라집니다.
+              모든 튜터에게 동일한 수강권 가격이 적용됩니다.
+              수강권은 <strong className="text-slate-700">8회 179,000원 · 16+1회 329,000원 · 24+2회 419,000원</strong>으로 구성되며,
+              표시 금액에는 모든 비용이 포함되어 있습니다.
             </p>
           </Card>
 
@@ -107,7 +108,7 @@ export default function ReferralProgram() {
                 <div className="h-2 w-2 rounded-full bg-amber-400 mt-2 flex-shrink-0" />
                 <p className="leading-relaxed">
                   추천받은 친구는 별도의 할인 없이
-                  <strong className="text-slate-900"> 선택한 튜터가 설정한 정상 수강료</strong>로 결제됩니다.
+                  <strong className="text-slate-900"> 정상 수강권 가격</strong>으로 결제됩니다.
                 </p>
               </li>
               <li className="flex gap-4">

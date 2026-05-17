@@ -6,6 +6,7 @@ import {
 import { Tutor } from '../../types';
 import { Button } from '../ui/Button';
 import { useAuth } from '../../contexts/AuthContext';
+import { DEFAULT_PACKAGE } from '../../constants';
 import { db } from '../../firebase';
 import {
   collection, query, where, onSnapshot, addDoc, updateDoc, deleteDoc,
@@ -56,8 +57,7 @@ function StarRow({ rating, size = 14, interactive = false, onChange }: {
 export function TutorDetailModal({ isOpen, onClose, tutor, onRegister }: TutorDetailModalProps) {
   const { user, firebaseUser, toggleWishlist } = useAuth();
   const isWishlisted = user?.wishlist?.includes(tutor.id);
-  const packageTotal = (tutor.hourlyRate || 0) * 8 + 69000;
-  const perSessionPrice = Math.round(packageTotal / 8);
+  const packageTotal = DEFAULT_PACKAGE.price;
 
   const [reviews, setReviews] = useState<TutorReview[]>([]);
   const [reviewsLoading, setReviewsLoading] = useState(true);
@@ -306,7 +306,7 @@ export function TutorDetailModal({ isOpen, onClose, tutor, onRegister }: TutorDe
                     {packageTotal.toLocaleString()}원
                   </p>
                   <p className="text-[11px] text-slate-500 mt-1">
-                    회당 약 {perSessionPrice.toLocaleString()}원 · 모든 비용 포함
+                    모든 비용 포함 · VAT 포함
                   </p>
                   <p className="text-[11px] text-slate-400 mt-0.5">16회 · 24회 패키지는 결제 화면에서 선택</p>
                 </div>

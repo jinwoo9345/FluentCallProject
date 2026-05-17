@@ -161,7 +161,6 @@ export default function Tutors() {
             onClose={() => setIsPaymentModalOpen(false)}
             productId={`plan_${selectedTutor.id}`}
             productName={selectedTutor.name}
-            amount={selectedTutor.hourlyRate}
             tutorId={selectedTutor.id}
             tutorName={selectedTutor.name}
           />

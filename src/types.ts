@@ -16,7 +16,8 @@ export interface Tutor {
   bio: string;
   longBio?: string;
   reviews?: Review[];
-  hourlyRate: number;
+  /** @deprecated 통일 가격제로 전환되어 더 이상 사용하지 않습니다. 기존 문서 호환을 위해 필드만 유지합니다. */
+  hourlyRate?: number;
   availability: string[]; // e.g., ["Mon 10:00", "Tue 14:00"]
   languages: string[];
   tier?: string;

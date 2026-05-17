@@ -3,8 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Users, UserPlus, CreditCard, MessageSquare, TrendingUp,
   Clock, Shield, Star, School, Settings, Loader2,
-  Eye, CalendarPlus, Building2, Instagram, Twitter, Facebook,
-  ExternalLink
+  Eye, CalendarPlus, Building2, Instagram, Twitter, Facebook
 } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -200,48 +199,6 @@ export default function AdminDashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, isAuthReady]);
 
-  // EB-app(운영툴) SSO 진입: 본인 ID 토큰 → 토큰 브리지 → Custom Token → 새 탭 열기
-  const [openingEbApp, setOpeningEbApp] = useState(false);
-  const handleOpenEbApp = async () => {
-    if (openingEbApp) return;
-    const ebAppUrl = (import.meta.env.VITE_EB_APP_URL || '').trim();
-    if (!ebAppUrl) {
-      alert('운영툴 URL이 설정되지 않았습니다. (VITE_EB_APP_URL 환경변수 필요)');
-      return;
-    }
-    if (!firebaseUser) {
-      alert('로그인이 필요합니다.');
-      return;
-    }
-    setOpeningEbApp(true);
-    try {
-      const idToken = await firebaseUser.getIdToken(/* forceRefresh */ true);
-      const res = await fetch('/api/eb-app/sso', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idToken })
-      });
-      const data = (await res.json().catch(() => ({}))) as { ebAppToken?: string; message?: string };
-      if (!res.ok) {
-        alert(data?.message || `SSO 토큰 발급 실패 (status ${res.status})`);
-        return;
-      }
-      const ebAppToken = data.ebAppToken;
-      if (!ebAppToken) {
-        alert('SSO 토큰이 응답에 없습니다.');
-        return;
-      }
-      const sep = ebAppUrl.includes('#') ? '&' : '#';
-      const url = `${ebAppUrl}${sep}token=${encodeURIComponent(ebAppToken)}`;
-      window.open(url, '_blank', 'noopener,noreferrer');
-    } catch (err: any) {
-      console.error('운영툴 진입 실패:', err);
-      alert('운영툴 진입 중 오류가 발생했습니다: ' + (err?.message || err));
-    } finally {
-      setOpeningEbApp(false);
-    }
-  };
-
   const handleToggleConsultStatus = async (c: any) => {
     const nextStatus = c.status === 'completed' ? 'pending' : 'completed';
     try {
@@ -287,7 +244,6 @@ export default function AdminDashboard() {
         specialties: [],
         bio: app.introduction || '',
         longBio: app.experience || '',
-        hourlyRate: 0,
         availability: [],
         languages: ['English'],
         location: '',
@@ -741,22 +697,6 @@ export default function AdminDashboard() {
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={fetchAdminData} className="text-xs">새로고침</Button>
-          <Button
-            variant="outline"
-            onClick={handleOpenEbApp}
-            disabled={openingEbApp}
-            className="text-xs text-blue-700 hover:text-blue-800 hover:bg-blue-50 border-blue-200 inline-flex items-center gap-1"
-          >
-            {openingEbApp ? (
-              <>
-                <Loader2 size={14} className="animate-spin" /> 진입 중...
-              </>
-            ) : (
-              <>
-                <ExternalLink size={14} /> 운영툴 열기
-              </>
-            )}
-          </Button>
           <Button
             variant="outline"
             onClick={handlePurgeAllCredits}
@@ -1308,12 +1248,8 @@ export default function AdminDashboard() {
                       </div>
                     </div>
                     <div className="mt-4 pt-4 border-t border-slate-100">
-                      <p className="text-sm font-bold text-slate-900">
-                        {tutor.hourlyRate?.toLocaleString() || 0}원 <span className="text-xs text-slate-500">/ 회</span>
-                      </p>
                       <p className="text-[11px] text-slate-500">
-                        8회 기준 {((tutor.hourlyRate || 0) * 8 + 69000).toLocaleString()}원
-                        <span className="text-slate-400"> (서비스 이용료 +69,000원 포함)</span>
+                        강사 지급은 수강권별 일정액으로 정산됩니다.
                       </p>
                       <div className="flex flex-wrap gap-1 mt-2">
                         {tutor.specialties?.map((s: string, i: number) => (
@@ -2090,7 +2026,6 @@ function TutorEditModal({
   const [form, setForm] = useState({
     name: tutor.name || '',
     location: tutor.location || '',
-    hourlyRate: tutor.hourlyRate || 0,
     tier: tutor.tier || '',
     bio: tutor.bio || '',
     longBio: tutor.longBio || '',
@@ -2110,7 +2045,6 @@ function TutorEditModal({
     onSave({
       name: form.name.trim(),
       location: form.location.trim(),
-      hourlyRate: Number(form.hourlyRate) || 0,
       tier: form.tier.trim(),
       bio: form.bio.trim(),
       longBio: form.longBio.trim(),
@@ -2146,24 +2080,11 @@ function TutorEditModal({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <EditField label="이름 *" value={form.name} onChange={v => setForm({ ...form, name: v })} />
               <EditField label="지역" value={form.location} onChange={v => setForm({ ...form, location: v })} placeholder="예: 미국 서부" />
-              <EditField
-                label="회당 수강료 (원) *"
-                type="number"
-                value={String(form.hourlyRate)}
-                onChange={v => setForm({ ...form, hourlyRate: Number(v) })}
-                placeholder="예: 15000"
-              />
-              {form.hourlyRate > 0 && (
-                <p className="-mt-3 text-[11px] text-slate-500">
-                  8회 기준 결제 금액 예상:{' '}
-                  <strong className="text-slate-800">
-                    {(Number(form.hourlyRate) * 8 + 69000).toLocaleString()}원
-                  </strong>
-                  {' '}(회당 {Number(form.hourlyRate).toLocaleString()}원 × 8회 + 서비스 이용료 69,000원)
-                </p>
-              )}
               <EditField label="티어 / 등급" value={form.tier} onChange={v => setForm({ ...form, tier: v })} placeholder="예: Premium" />
             </div>
+            <p className="text-[11px] text-slate-500 leading-relaxed">
+              수강권 가격은 모든 강사에 동일하게 적용되며, 강사 정산은 수강권별 일정액으로 별도 지급됩니다.
+            </p>
 
             <EditField
               label="전공 분야 (쉼표로 구분)"

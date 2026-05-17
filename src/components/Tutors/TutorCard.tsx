@@ -5,7 +5,7 @@ import { Button } from '../ui/Button';
 import { Skeleton } from '../ui/Skeleton';
 import { cn } from '@/src/lib/utils';
 import { Tutor } from '../../types';
-import { calcPackageTotal } from '../../constants';
+import { DEFAULT_PACKAGE } from '../../constants';
 
 type TutorCardVariant = 'full' | 'compact';
 
@@ -60,11 +60,7 @@ export function TutorCard({
   // full variant
   const rating = (Number(tutor.rating) || 5).toFixed(1);
   const reviewCount = tutor.reviewCount || 0;
-  const hourlyRate = tutor.hourlyRate || 0;
-  const packageTotal = calcPackageTotal(hourlyRate, 8);
-  // 패키지 할인 적용 시 회당 가격 범위 (24회 +2 보너스 = 최저, 8회 = 최고)
-  const minPerSession = hourlyRate > 0 ? Math.round(calcPackageTotal(hourlyRate, 24) / 26) : 0;
-  const maxPerSession = hourlyRate > 0 ? Math.round(packageTotal / 8) : 0;
+  const packageTotal = DEFAULT_PACKAGE.price;
 
   return (
     <motion.div
@@ -130,7 +126,7 @@ export function TutorCard({
               {packageTotal.toLocaleString()}원
             </span>
             <span className="text-[11px] text-slate-500 block">
-              회당 {minPerSession.toLocaleString()}원 ~ {maxPerSession.toLocaleString()}원
+              모든 비용 포함 · 16회/24회 패키지는 결제 화면에서 선택
             </span>
           </div>
           {tutor.enrollDisabled ? (
