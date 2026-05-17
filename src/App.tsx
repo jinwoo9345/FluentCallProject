@@ -13,6 +13,7 @@ import TermsOfService from './pages/TermsOfService';
 import PaymentSuccess from './pages/PaymentSuccess';
 import PaymentFail from './pages/PaymentFail';
 import ReferralProgram from './pages/ReferralProgram';
+import Events from './pages/Events';
 import ConsultationRequest from './pages/ConsultationRequest';
 import About from './pages/About';
 import Reviews from './pages/Reviews';
@@ -175,6 +176,7 @@ function AppContent() {
           <Route path="/payment/success" element={<PaymentSuccess />} />
           <Route path="/payment/fail" element={<PaymentFail />} />
           <Route path="/referral" element={<ReferralProgram />} />
+          <Route path="/events" element={<Events />} />
           <Route path="/consultation" element={<ConsultationRequest />} />
           <Route path="/about" element={<About />} />
           <Route path="/reviews" element={<Reviews />} />

@@ -2,7 +2,7 @@ import { Link, useLocation } from 'react-router-dom';
 import {
   User, Calendar, Menu, X, LogOut, Shield, ChevronDown,
   BookOpen, GraduationCap, Users,
-  Sparkles, Gift, CalendarPlus, MessageCircle,
+  Sparkles, Megaphone, CalendarPlus, MessageCircle,
   Star, HelpCircle, Newspaper,
 } from 'lucide-react';
 import { useState } from 'react';
@@ -35,7 +35,7 @@ export const Navbar = () => {
       items: [
         { name: '프로그램 소개', path: '/about', icon: Sparkles, description: '서비스 목적과 차별점', accent: 'text-blue-600 bg-blue-50' },
         { name: '튜터 소개', path: '/tutors', icon: Users, description: '검증된 원어민 튜터 프로필', accent: 'text-indigo-600 bg-indigo-50' },
-        { name: '친구 추천 혜택', path: '/referral', icon: Gift, description: '친구 초대 시 20,000P 즉시 지급', accent: 'text-pink-600 bg-pink-50' },
+        { name: '이벤트', path: '/events', icon: Megaphone, description: '현재 진행 중인 이벤트 모아보기', accent: 'text-pink-600 bg-pink-50' },
       ],
     },
     {

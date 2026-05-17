@@ -17,6 +17,10 @@ import { Pagination, usePaginated } from '../ui/Pagination';
 import { cn } from '@/src/lib/utils';
 import { BoardComments } from './BoardComments';
 import { relativeTime, fullTime } from './boardUtils';
+import {
+  RichContentEditor, RichContentView, plainTextPreview,
+  extractImageUrls, deleteStorageImagesByUrl,
+} from '../ui/RichContent';
 
 const PAGE_SIZE = 10;
 
@@ -124,7 +128,10 @@ export function BoardPage({
   const handleDelete = async (post: BoardPost) => {
     if (!confirm('이 글을 삭제하시겠어요? 삭제된 글은 복구할 수 없습니다.')) return;
     try {
+      const urls = extractImageUrls(post.content || '');
       await deleteDoc(doc(db, collectionName, post.id));
+      // Storage 이미지는 best-effort 정리
+      deleteStorageImagesByUrl(urls);
       if (selectedId === post.id) setSelectedId(null);
     } catch (err: any) {
       alert('삭제 실패: ' + (err.message || '알 수 없는 오류'));
@@ -333,7 +340,7 @@ function PostRow({
             </h3>
             <p className="mt-1.5 text-sm text-slate-500 line-clamp-2 leading-relaxed">
               {canViewContent
-                ? post.content
+                ? plainTextPreview(post.content, 200)
                 : '비공개 글입니다. 작성자와 관리자만 내용을 확인할 수 있어요.'}
             </p>
 
@@ -469,8 +476,8 @@ function BoardDetail({
           {/* 본문 */}
           <div className="p-8 sm:p-10">
             {canViewContent ? (
-              <article className="prose prose-slate max-w-none text-slate-700 leading-[1.8] whitespace-pre-wrap text-[15px]">
-                {post.content}
+              <article className="max-w-none">
+                <RichContentView content={post.content} />
               </article>
             ) : (
               <div className="rounded-2xl border-2 border-dashed border-amber-200 bg-amber-50/60 p-10 text-center">
@@ -640,12 +647,12 @@ function BoardWriteModal({
             <label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-2">
               내용 <span className="text-red-500">*</span>
             </label>
-            <textarea
+            <RichContentEditor
               value={content}
-              onChange={(e) => setContent(e.target.value)}
-              rows={10}
+              onChange={setContent}
+              storagePathPrefix={`board/${userId}`}
               placeholder="구체적인 상황과 질문을 남겨주시면 정확한 답변을 받을 수 있어요."
-              className="w-full rounded-xl border border-slate-200 p-4 text-sm leading-relaxed outline-none focus:border-blue-500 resize-y"
+              rows={10}
             />
           </div>
 

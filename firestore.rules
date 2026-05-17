@@ -202,6 +202,13 @@ service cloud.firestore {
         || (isSignedIn() && resource.data.userId == request.auth.uid);
     }
 
+    // 이벤트 (프로모션·친구추천 등)
+    // 모든 방문자 조회 가능, 작성/수정/삭제는 관리자만
+    match /events/{eventId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
+    }
+
     // 결제 내역
     // create: 본인 결제 생성 시 status는 pending 고정, amount는 양의 정수
     // update: 관리자만 가능 (status/amount/referralRewarded 등 금전 관련 필드 보호)

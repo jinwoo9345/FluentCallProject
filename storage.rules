@@ -1,0 +1,35 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn()
+        && firestore.exists(/databases/(default)/documents/users/$(request.auth.uid))
+        && firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function isImage() {
+      return request.resource.contentType.matches('image/.*')
+        && request.resource.size < 5 * 1024 * 1024;  // 5MB 제한
+    }
+
+    // 이벤트 본문 이미지 — 관리자만 업로드
+    match /events/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin() && isImage();
+    }
+
+    // 게시판 본문 이미지 — 본인 폴더에만 업로드 가능 (관리자는 전체)
+    match /board/{uid}/{allPaths=**} {
+      allow read: if true;
+      allow create, update: if isImage() && (
+        (isSignedIn() && request.auth.uid == uid) || isAdmin()
+      );
+      allow delete: if isAdmin()
+        || (isSignedIn() && request.auth.uid == uid);
+    }
+  }
+}

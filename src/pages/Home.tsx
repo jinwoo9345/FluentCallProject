@@ -4,6 +4,7 @@ import { ChevronDown, Check, ArrowRight } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Link } from 'react-router-dom';
 import { TutorFinderModal } from '../components/Consultation/TutorFinderModal';
+import { PromotionPopup } from '../components/layout/PromotionPopup';
 
 type FaqItem = {
   q: string;
@@ -364,6 +365,7 @@ export default function Home() {
       </section>
       
       <TutorFinderModal isOpen={isTutorFinderOpen} onClose={() => setIsTutorFinderOpen(false)} />
+      <PromotionPopup />
     </div>
   );
 }
