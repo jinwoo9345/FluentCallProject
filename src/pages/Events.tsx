@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Megaphone, Sparkles, Flame, Gift, PlusCircle, Pencil, Trash2, X, Loader2, Check,
   ArrowLeft, ChevronRight, ExternalLink,
@@ -28,6 +28,8 @@ type EventDoc = {
   badgeAccent?: 'red' | 'blue' | 'amber' | 'emerald' | 'violet';
   ctaLabel?: string;
   ctaLink?: string;
+  /** 설정 시 카드 클릭이 상세 모달 대신 이 경로로 바로 이동 (예: 친구추천 → /referral) */
+  directLink?: string;
   isActive: boolean;
   order: number;
   createdAt?: any;
@@ -74,10 +76,10 @@ const FALLBACK_EVENTS: EventDoc[] = [
     title: '친구 추천하고 20,000P 받기',
     summary:
       '친구가 결제를 완료하면 추천인에게 20,000포인트(=20,000원)가 즉시 지급됩니다. 다음 결제 시 자동 할인.',
-    content:
-      '내 추천 코드를 친구에게 공유하고, 친구가 결제를 완료하면 추천인에게 20,000포인트가 즉시 지급됩니다.\n\n· 1포인트 = 1원으로, 다음 결제 시 자동 차감되어 최대 20,000원 할인\n· 친구 본인은 정상 수강권 가격으로 결제하지만, 포인트를 친구와 나눠 쓸 수도 있습니다\n· 초대 횟수 무제한\n\n추천 코드는 내 강의실(대시보드)에서 확인하실 수 있습니다.',
+    content: '',
     badge: '추천 보상',
     badgeAccent: 'blue',
+    directLink: '/referral',
     isActive: true,
     order: 2,
   },
@@ -85,6 +87,7 @@ const FALLBACK_EVENTS: EventDoc[] = [
 
 export default function Events() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const isAdmin = user?.role === 'admin';
 
   const [docs, setDocs] = useState<EventDoc[] | null>(null);
@@ -212,7 +215,18 @@ export default function Events() {
                 event={e}
                 index={idx}
                 canManage={isAdmin && !e.id.startsWith('fallback-')}
-                onOpen={() => setSelectedId(e.id)}
+                onOpen={() => {
+                  // directLink가 설정된 이벤트는 상세 모달 대신 해당 페이지로 바로 이동
+                  if (e.directLink) {
+                    if (e.directLink.startsWith('http')) {
+                      window.open(e.directLink, '_blank', 'noopener,noreferrer');
+                    } else {
+                      navigate(e.directLink);
+                    }
+                    return;
+                  }
+                  setSelectedId(e.id);
+                }}
                 onEdit={() => handleEdit(e)}
                 onDelete={() => handleDelete(e)}
               />
@@ -424,6 +438,7 @@ function EventEditorModal({
   const [badgeAccent, setBadgeAccent] = useState<EventDoc['badgeAccent']>(initial?.badgeAccent || 'blue');
   const [ctaLabel, setCtaLabel] = useState(initial?.ctaLabel || '');
   const [ctaLink, setCtaLink] = useState(initial?.ctaLink || '');
+  const [directLink, setDirectLink] = useState(initial?.directLink || '');
   const [isActive, setIsActive] = useState(initial?.isActive ?? true);
   const [order, setOrder] = useState<number>(initial?.order ?? 10);
   const [saving, setSaving] = useState(false);
@@ -437,8 +452,9 @@ function EventEditorModal({
       alert('카드에 표시될 요약을 입력해주세요.');
       return;
     }
-    if (!content.trim()) {
-      alert('상세 본문을 입력해주세요.');
+    // directLink가 설정된 경우 상세 본문은 표시되지 않으므로 검증을 완화한다.
+    if (!directLink.trim() && !content.trim()) {
+      alert('상세 본문을 입력하거나, 카드 클릭 시 이동할 링크(상세 페이지 직접 이동)를 지정해주세요.');
       return;
     }
     setSaving(true);
@@ -451,6 +467,7 @@ function EventEditorModal({
         badgeAccent: badgeAccent || 'blue',
         ctaLabel: ctaLabel.trim() || null,
         ctaLink: ctaLink.trim() || null,
+        directLink: directLink.trim() || null,
         isActive,
         order: Number(order) || 10,
         updatedAt: serverTimestamp(),
@@ -593,6 +610,22 @@ function EventEditorModal({
                   className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-500"
                 />
               </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-black uppercase tracking-widest text-slate-500 mb-2">
+                카드 클릭 시 바로 이동할 링크 (선택)
+              </label>
+              <input
+                type="text"
+                value={directLink}
+                onChange={(e) => setDirectLink(e.target.value)}
+                placeholder="예: /referral (지정 시 상세 모달 대신 해당 페이지로 직접 이동)"
+                className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-500"
+              />
+              <p className="text-[10px] text-slate-400 mt-1">
+                값이 있으면 사용자가 카드를 클릭할 때 이 페이지로 바로 이동하고, 위 상세 본문/CTA는 사용되지 않습니다.
+              </p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
