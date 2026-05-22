@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   X, Check, ExternalLink, CreditCard, AlertCircle, Ticket, Gift, Award,
@@ -6,14 +6,17 @@ import {
 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Link } from 'react-router-dom';
-// === Toss Payments (심사 통과 후 사용 예정 — 현재는 주석 처리) ===
-// import { loadTossPayments } from '@tosspayments/payment-sdk';
+// === Toss Payments v2 결제위젯 SDK ===
+// 심사 통과 전이라도 테스트 키로 위젯 전체 흐름을 검증할 수 있다.
+import { loadTossPayments } from '@tosspayments/tosspayments-sdk';
 import { db, auth } from '../../firebase';
 import { doc, setDoc, getDoc, serverTimestamp, runTransaction } from 'firebase/firestore';
 import { useAuth } from '../../contexts/AuthContext';
 import { RefundPolicyContent, TermsContent } from '../policy/PolicyContents';
 import { cn } from '@/src/lib/utils';
 import { PACKAGES, PackageKey } from '../../constants';
+
+type PaymentMethodTab = 'bank' | 'toss';
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -36,14 +39,22 @@ export function PaymentModal({ isOpen, onClose, productId, productName, tutorId,
   const [termsAgreed, setTermsAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  // === Toss 클라이언트 키 로드 — 심사 통과 후 복구 (주석 유지) ===
-  // const [serverConfig, setServerConfig] = useState<any>(null);
   const [useCredits, setUseCredits] = useState(false);
   const [packageKey, setPackageKey] = useState<PackageKey>('basic');
   const [depositorName, setDepositorName] = useState('');
   const [bankInfo, setBankInfo] = useState(DEFAULT_BANK);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [submittedOrderId, setSubmittedOrderId] = useState<string | null>(null);
+
+  // === 결제수단 탭 (무통장입금 ↔ 토스 결제위젯) ===
+  const [paymentTab, setPaymentTab] = useState<PaymentMethodTab>('bank');
+
+  // === Toss v2 위젯 상태 ===
+  const [tossClientKey, setTossClientKey] = useState('');
+  const [tossReady, setTossReady] = useState(false);
+  const widgetsRef = useRef<any>(null);
+  const paymentMethodWidgetRef = useRef<any>(null);
+  const agreementWidgetRef = useRef<any>(null);
 
   const selectedPackage = PACKAGES.find(p => p.key === packageKey)!;
   const totalSessions = selectedPackage.sessions + selectedPackage.bonus;
@@ -55,24 +66,25 @@ export function PaymentModal({ isOpen, onClose, productId, productName, tutorId,
   const creditDiscount = useCredits ? Math.min(availableCredits * CREDIT_VALUE, packageAmount) : 0;
   const finalAmount = packageAmount - creditDiscount;
 
-  // === Toss 클라이언트 키 (심사 통과 후 복구용 — 주석 처리) ===
-  // const clientKey = serverConfig?.tossClientKey || ((import.meta as any).env.VITE_TOSS_CLIENT_KEY || '').trim();
-
   useEffect(() => {
     if (!isOpen) return;
 
-    // === Toss config 로드 (심사 통과 후 복구용 — 주석 처리) ===
-    // const loadConfig = async (retries = 2) => {
-    //   try {
-    //     const url = `/api/config?t=${Date.now()}`;
-    //     const res = await fetch(url, { cache: 'no-store', headers: { Accept: 'application/json' } });
-    //     const data = await res.json();
-    //     setServerConfig(data);
-    //   } catch (err) {
-    //     if (retries > 0) setTimeout(() => loadConfig(retries - 1), 1000);
-    //   }
-    // };
-    // loadConfig();
+    // Toss 클라이언트 키 로드 (서버 /api/config — VITE_TOSS_CLIENT_KEY 가 비어도 graceful fallback)
+    (async (retries = 2) => {
+      try {
+        const url = `/api/config?t=${Date.now()}`;
+        const res = await fetch(url, { cache: 'no-store', headers: { Accept: 'application/json' } });
+        const data: any = await res.json();
+        const key = (data?.tossClientKey || '').trim();
+        // 빌드 시 주입된 VITE_TOSS_CLIENT_KEY 도 fallback 으로 시도
+        const envKey = ((import.meta as any).env?.VITE_TOSS_CLIENT_KEY || '').trim();
+        setTossClientKey(key || envKey || '');
+      } catch (err) {
+        if (retries > 0) setTimeout(() => (async () => {})(), 1000);
+        const envKey = ((import.meta as any).env?.VITE_TOSS_CLIENT_KEY || '').trim();
+        setTossClientKey(envKey);
+      }
+    })();
 
     // 계좌 정보를 Firestore app_settings/main 에서 실시간 로드
     (async () => {
@@ -96,6 +108,77 @@ export function PaymentModal({ isOpen, onClose, productId, productName, tutorId,
       setDepositorName(user.realName || user.name || '');
     }
   }, [isOpen, user]);
+
+  // === Toss 위젯 라이프사이클 ===
+  // 모달이 열려있고, '카드·간편결제' 탭이 활성화되었으며, 클라이언트 키와 로그인 사용자가 있을 때만 초기화.
+  useEffect(() => {
+    if (!isOpen) return;
+    if (paymentTab !== 'toss') return;
+    if (!tossClientKey) return;
+    if (!auth.currentUser) return;
+
+    let cancelled = false;
+    setTossReady(false);
+
+    (async () => {
+      try {
+        const tossPayments = await loadTossPayments(tossClientKey);
+        // customerKey 는 UUID 류로 안전하게. uid 그대로 노출하지 않고 prefix 추가.
+        const customerKey = `eb_${auth.currentUser!.uid}`;
+        const widgets = tossPayments.widgets({ customerKey });
+
+        await widgets.setAmount({ currency: 'KRW', value: finalAmount });
+
+        const paymentMethodWidget = await widgets.renderPaymentMethods({
+          selector: '#toss-payment-method',
+          variantKey: 'DEFAULT',
+        });
+        // variantKey 미지정 시 어드민 기본 국문 약관 UI 가 렌더링됨.
+        // 별도 variantKey 약관을 어드민에 만들었다면 { variantKey: '<키>' } 로 지정.
+        const agreementWidget = await widgets.renderAgreement({
+          selector: '#toss-agreement',
+        });
+
+        if (cancelled) {
+          try { await paymentMethodWidget.destroy(); } catch {}
+          try { await agreementWidget.destroy(); } catch {}
+          return;
+        }
+
+        widgetsRef.current = widgets;
+        paymentMethodWidgetRef.current = paymentMethodWidget;
+        agreementWidgetRef.current = agreementWidget;
+        setTossReady(true);
+      } catch (err: any) {
+        console.error('[Toss] widget init failed:', err);
+        if (!cancelled) {
+          setError(err?.message || '결제 위젯 초기화에 실패했습니다.');
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      setTossReady(false);
+      // 다음 마운트에서 새 위젯 인스턴스를 만들 수 있도록 정리
+      const pm = paymentMethodWidgetRef.current;
+      const ag = agreementWidgetRef.current;
+      paymentMethodWidgetRef.current = null;
+      agreementWidgetRef.current = null;
+      widgetsRef.current = null;
+      try { pm?.destroy?.(); } catch {}
+      try { ag?.destroy?.(); } catch {}
+    };
+  }, [isOpen, paymentTab, tossClientKey]);
+
+  // 금액(패키지/포인트) 변경 시 위젯의 결제금액 동기화
+  useEffect(() => {
+    const widgets = widgetsRef.current;
+    if (!widgets || !tossReady) return;
+    widgets.setAmount({ currency: 'KRW', value: finalAmount }).catch((err: any) => {
+      console.warn('[Toss] setAmount failed:', err);
+    });
+  }, [finalAmount, tossReady]);
 
   const copyToClipboard = async (text: string, field: string) => {
     try {
@@ -200,60 +283,100 @@ export function PaymentModal({ isOpen, onClose, productId, productName, tutorId,
     }
   };
 
-  /* ===================================================================
-   * === 토스페이먼츠 결제 (심사 통과 후 복구용 · 현재 미사용 · 주석 처리) ===
-   *
-   * const handleTossPayment = async () => {
-   *   if (!termsAgreed) return;
-   *   if (!clientKey) {
-   *     setError('결제 설정을 찾을 수 없습니다. 페이지를 새로고침 해주세요.');
-   *     return;
-   *   }
-   *
-   *   const validatedReferrer = (user?.referredBy || '').trim().toUpperCase();
-   *   setLoading(true); setError('');
-   *
-   *   try {
-   *     const tossPayments = await loadTossPayments(clientKey);
-   *     const orderId = `order_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-   *     const fullProductName = `${productName} — ${selectedPackage.label} ${selectedPackage.sessions}회${selectedPackage.bonus > 0 ? ` +${selectedPackage.bonus}회` : ''}`;
-   *
-   *     if (auth.currentUser) {
-   *       await setDoc(doc(db, 'payments', orderId), {
-   *         orderId,
-   *         userId: auth.currentUser.uid,
-   *         amount: finalAmount,
-   *         originalAmount: packageAmount,
-   *         creditsUsed: useCredits ? Math.floor(creditDiscount / CREDIT_VALUE) : 0,
-   *         productId,
-   *         productName: fullProductName,
-   *         packageKey: selectedPackage.key,
-   *         packageSessions: selectedPackage.sessions,
-   *         packageBonus: selectedPackage.bonus,
-   *         totalSessions,
-   *         status: 'pending',
-   *         paymentMethod: 'toss_card',
-   *         referredBy: validatedReferrer || '',
-   *         createdAt: serverTimestamp(),
-   *       });
-   *     }
-   *
-   *     await tossPayments.requestPayment('카드', {
-   *       amount: finalAmount,
-   *       orderId,
-   *       orderName: fullProductName,
-   *       customerName: user?.name || '회원',
-   *       successUrl: `${window.location.origin}/payment/success`,
-   *       failUrl: `${window.location.origin}/payment/fail`,
-   *     });
-   *   } catch (err: any) {
-   *     console.error('Toss Payment Error:', err);
-   *     setError(err.message || '결제 진행 중 오류가 발생했습니다.');
-   *   } finally {
-   *     setLoading(false);
-   *   }
-   * };
-   * ================================================================== */
+  // === 토스 결제위젯 결제 요청 ===
+  // 결제 요청 전에 (1) 포인트 트랜잭션 차감 + (2) pending 결제 doc 생성 → (3) widgets.requestPayment Redirect.
+  // 성공 시 /payment/success 로 paymentKey/orderId/amount 가 쿼리로 전달되며, 거기서 confirm API 호출.
+  const handleTossPayment = async () => {
+    if (!termsAgreed) {
+      setError('약관에 동의해주세요.');
+      return;
+    }
+    if (!auth.currentUser) {
+      setError('로그인 후 이용해주세요.');
+      return;
+    }
+    if (!tossClientKey) {
+      setError('결제 설정을 불러올 수 없습니다. 잠시 후 다시 시도해주세요.');
+      return;
+    }
+    const widgets = widgetsRef.current;
+    if (!widgets || !tossReady) {
+      setError('결제 위젯이 아직 준비되지 않았습니다.');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+
+    try {
+      const orderId = `order_${crypto.randomUUID().replace(/-/g, '')}`;
+      const fullProductName = `${productName} — ${selectedPackage.label} ${selectedPackage.sessions}회${
+        selectedPackage.bonus > 0 ? ` +${selectedPackage.bonus}회` : ''
+      }`;
+      const validatedReferrer = (user?.referredBy || '').trim().toUpperCase();
+
+      const userRef = doc(db, 'users', auth.currentUser.uid);
+      const paymentRef = doc(db, 'payments', orderId);
+
+      // 트랜잭션: 포인트 검증·차감 + pending 결제 doc 생성
+      let txFinalAmount = finalAmount;
+      await runTransaction(db, async (tx) => {
+        const userSnap = await tx.get(userRef);
+        if (!userSnap.exists()) {
+          throw new Error('사용자 정보를 찾을 수 없습니다. 다시 로그인해주세요.');
+        }
+        const currentCredits = (userSnap.data() as any).credits || 0;
+        const wantCreditsToUse = useCredits ? Math.min(currentCredits, packageAmount) : 0;
+        if (useCredits && wantCreditsToUse <= 0) {
+          throw new Error('사용 가능한 포인트가 없습니다.');
+        }
+        txFinalAmount = packageAmount - wantCreditsToUse;
+
+        if (wantCreditsToUse > 0) {
+          tx.update(userRef, { credits: currentCredits - wantCreditsToUse });
+        }
+
+        tx.set(paymentRef, {
+          orderId,
+          userId: auth.currentUser!.uid,
+          tutorId: tutorId || null,
+          tutorName: tutorName || null,
+          amount: txFinalAmount,
+          originalAmount: packageAmount,
+          creditsUsed: wantCreditsToUse,
+          creditsRefunded: false,
+          productId,
+          productName: fullProductName,
+          packageKey: selectedPackage.key,
+          packageSessions: selectedPackage.sessions,
+          packageBonus: selectedPackage.bonus,
+          totalSessions,
+          status: 'pending',
+          paymentMethod: 'toss_widget',
+          referredBy: validatedReferrer || '',
+          referralRewarded: false,
+          createdAt: serverTimestamp(),
+        });
+      });
+
+      // 위젯의 결제금액과 실제 차감 후 금액이 다를 수 있어 한 번 더 동기화
+      await widgets.setAmount({ currency: 'KRW', value: txFinalAmount });
+
+      await widgets.requestPayment({
+        orderId,
+        orderName: fullProductName,
+        successUrl: `${window.location.origin}/payment/success`,
+        failUrl: `${window.location.origin}/payment/fail?orderId=${orderId}`,
+        customerEmail: user?.email || undefined,
+        customerName: user?.realName || user?.name || '회원',
+      });
+      // Redirect 방식이라 여기 이후 코드는 일반적으로 실행되지 않음
+    } catch (err: any) {
+      console.error('[Toss] payment request failed:', err);
+      setError(err?.message || '결제 요청 중 오류가 발생했습니다.');
+      setLoading(false);
+    }
+  };
 
   const resetAndClose = () => {
     setSubmittedOrderId(null);
@@ -448,14 +571,43 @@ export function PaymentModal({ isOpen, onClose, productId, productName, tutorId,
                     )}
                   </div>
 
+                  {/* 결제수단 선택 탭 */}
+                  <div className="grid grid-cols-2 gap-2 p-1.5 rounded-2xl bg-slate-100">
+                    <button
+                      type="button"
+                      onClick={() => setPaymentTab('bank')}
+                      className={cn(
+                        'py-3 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2',
+                        paymentTab === 'bank'
+                          ? 'bg-white text-slate-900 shadow-sm'
+                          : 'text-slate-500 hover:text-slate-700'
+                      )}
+                    >
+                      <Banknote size={16} /> 무통장입금
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPaymentTab('toss')}
+                      className={cn(
+                        'py-3 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2',
+                        paymentTab === 'toss'
+                          ? 'bg-white text-slate-900 shadow-sm'
+                          : 'text-slate-500 hover:text-slate-700'
+                      )}
+                    >
+                      <CreditCard size={16} /> 카드·간편결제
+                      <span className="text-[9px] font-black uppercase tracking-wider bg-blue-600 text-white px-1.5 py-0.5 rounded-full">
+                        Toss
+                      </span>
+                    </button>
+                  </div>
+
                   {/* 무통장입금 안내 */}
+                  {paymentTab === 'bank' && (
                   <div className="rounded-2xl p-6 border-2 border-green-200 bg-green-50/60">
                     <div className="flex items-center gap-2 mb-4">
                       <Banknote className="text-green-600" size={22} />
                       <span className="font-bold text-slate-900">무통장입금 안내</span>
-                      <span className="ml-auto text-[10px] font-black uppercase tracking-widest bg-green-600 text-white px-2 py-0.5 rounded-full">
-                        현재 결제 수단
-                      </span>
                     </div>
 
                     <div className="bg-white rounded-xl p-5 border border-green-100 space-y-3">
@@ -525,6 +677,73 @@ export function PaymentModal({ isOpen, onClose, productId, productName, tutorId,
                       </p>
                     </div>
                   </div>
+                  )}
+
+                  {/* 토스 결제위젯 영역 */}
+                  {paymentTab === 'toss' && (
+                    <div className="rounded-2xl p-6 border-2 border-blue-200 bg-blue-50/40">
+                      <div className="flex items-center gap-2 mb-4">
+                        <CreditCard className="text-blue-600" size={22} />
+                        <span className="font-bold text-slate-900">카드·간편결제</span>
+                      </div>
+
+                      {/* 클라이언트 키 미설정 안내 */}
+                      {!tossClientKey && (
+                        <div className="mb-3 p-4 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800 leading-relaxed">
+                          결제 위젯 설정이 아직 적용되지 않았습니다. 잠시 후 다시 시도해주세요.
+                          <br />
+                          <span className="text-[11px] text-amber-700">
+                            (관리자 안내: <code className="font-mono">VITE_TOSS_CLIENT_KEY</code> · <code className="font-mono">TOSS_SECRET_KEY</code> 환경변수가 비어 있을 수 있습니다.)
+                          </span>
+                        </div>
+                      )}
+
+                      {/* 결제수단 위젯 (토스 SDK가 렌더링) */}
+                      <div id="toss-payment-method" className="min-h-[180px] bg-white rounded-xl" />
+
+                      {/* 약관 위젯 (토스 SDK가 렌더링) */}
+                      <div id="toss-agreement" className="mt-3" />
+
+                      {/* 금액 요약 */}
+                      <div className="mt-4 bg-white rounded-xl p-4 border border-blue-100">
+                        <div className="space-y-2">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <p className="text-sm font-bold text-slate-800">
+                                {selectedPackage.label} 수강권 ({totalSessions}회)
+                              </p>
+                              <p className="text-[10px] text-slate-500 mt-0.5">
+                                모든 비용 포함 · VAT 포함
+                              </p>
+                            </div>
+                            <p className="text-sm font-bold text-slate-900">
+                              {packageAmount.toLocaleString()}원
+                            </p>
+                          </div>
+                          {creditDiscount > 0 && (
+                            <div className="flex justify-between text-amber-600 font-bold text-sm">
+                              <span>포인트 사용</span>
+                              <span>− {creditDiscount.toLocaleString()}원</span>
+                            </div>
+                          )}
+                          <div className="pt-3 border-t border-blue-100 flex items-end justify-between">
+                            <p className="text-xs text-slate-500">
+                              총 결제 금액
+                              <span className="ml-1 text-[10px] text-slate-400">(VAT 포함)</span>
+                            </p>
+                            <p className="text-2xl font-black text-slate-900">
+                              {finalAmount.toLocaleString()}원
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <p className="text-[11px] text-slate-500 mt-3 leading-relaxed">
+                        결제 진행 시 안전을 위해 토스페이먼츠의 결제창이 새로 열립니다.
+                        결제 완료 후 자동으로 수강권이 활성화됩니다.
+                      </p>
+                    </div>
+                  )}
 
                   {/* 약관 및 환불정책 */}
                   <div className="space-y-4">
@@ -584,22 +803,45 @@ export function PaymentModal({ isOpen, onClose, productId, productName, tutorId,
 
                     <div className="flex justify-between items-center mb-4 px-2">
                       <span className="text-sm text-slate-500">
-                        입금하실 금액
+                        {paymentTab === 'bank' ? '입금하실 금액' : '결제 금액'}
                         <span className="ml-1 text-[10px] text-slate-400">(VAT 포함)</span>
                       </span>
                       <span className="text-2xl font-black text-slate-900">{finalAmount.toLocaleString()}원</span>
                     </div>
 
-                    <Button
-                      className="w-full py-6 rounded-2xl gap-2 text-lg shadow-lg"
-                      onClick={handleManualPayment}
-                      disabled={loading || !termsAgreed || !depositorName.trim()}
-                    >
-                      {loading ? '주문 접수 중...' : <><Banknote size={20} /> 주문 접수 (입금 완료 예정)</>}
-                    </Button>
-                    <p className="text-[11px] text-slate-400 text-center mt-2">
-                      버튼을 누르면 주문이 접수됩니다. 안내된 계좌로 입금 후 관리자 확인을 기다려주세요.
-                    </p>
+                    {paymentTab === 'bank' ? (
+                      <>
+                        <Button
+                          className="w-full py-6 rounded-2xl gap-2 text-lg shadow-lg"
+                          onClick={handleManualPayment}
+                          disabled={loading || !termsAgreed || !depositorName.trim()}
+                        >
+                          {loading ? '주문 접수 중...' : <><Banknote size={20} /> 주문 접수 (입금 완료 예정)</>}
+                        </Button>
+                        <p className="text-[11px] text-slate-400 text-center mt-2">
+                          버튼을 누르면 주문이 접수됩니다. 안내된 계좌로 입금 후 관리자 확인을 기다려주세요.
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <Button
+                          className="w-full py-6 rounded-2xl gap-2 text-lg shadow-lg"
+                          onClick={handleTossPayment}
+                          disabled={loading || !termsAgreed || !tossReady || !tossClientKey}
+                        >
+                          {loading
+                            ? '결제 진행 중...'
+                            : !tossClientKey
+                              ? '결제 위젯 설정 대기'
+                              : !tossReady
+                                ? '결제 위젯 준비 중...'
+                                : <><CreditCard size={20} /> {finalAmount.toLocaleString()}원 결제하기</>}
+                        </Button>
+                        <p className="text-[11px] text-slate-400 text-center mt-2">
+                          결제 진행 시 토스페이먼츠의 안전한 결제창이 열립니다.
+                        </p>
+                      </>
+                    )}
                   </div>
                 </div>
               )}

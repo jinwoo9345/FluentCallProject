@@ -22,3 +22,9 @@ PRD.md
 # 예시 이미지·목업 (로컬 참고용 · 커밋 제외)
 image/
 
+# 토스페이먼츠 공식 샘플 (로컬 참고용 · 커밋 제외)
+TossPayment/
+
+# 토스 연동 진행 메모 (로컬 작업용 · 커밋 제외)
+TOSS_INTEGRATION_PROGRESS.md
+
