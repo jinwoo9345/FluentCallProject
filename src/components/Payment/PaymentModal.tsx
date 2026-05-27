@@ -123,8 +123,10 @@ export function PaymentModal({ isOpen, onClose, productId, productName, tutorId,
     (async () => {
       try {
         const tossPayments = await loadTossPayments(tossClientKey);
-        // customerKey 는 UUID 류로 안전하게. uid 그대로 노출하지 않고 prefix 추가.
-        const customerKey = `eb_${auth.currentUser!.uid}`;
+        // customerKey 규격: 영문/숫자/-_=.@ 만 허용, 2~50자.
+        // 카카오 OAuth 사용자는 uid 가 'kakao:<id>' 형태라 콜론을 _ 로 치환해야 함.
+        const sanitizedUid = (auth.currentUser!.uid || '').replace(/[^a-zA-Z0-9\-_=.@]/g, '_');
+        const customerKey = `eb_${sanitizedUid}`.slice(0, 50);
         const widgets = tossPayments.widgets({ customerKey });
 
         await widgets.setAmount({ currency: 'KRW', value: finalAmount });
