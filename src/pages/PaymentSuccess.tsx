@@ -29,21 +29,33 @@ export default function PaymentSuccess() {
   const amount = searchParams.get('amount');
 
   useEffect(() => {
-    const confirmPayment = async () => {
+    if (!paymentKey || !orderId || amount == null) {
+      setError('필수 결제 정보가 누락되었습니다.');
+      setLoading(false);
+      return;
+    }
+
+    // 토스 결제창에서 redirect 되어 돌아온 직후에는 Firebase Auth 가 localStorage 에서
+    // 인증 상태를 비동기로 복원하는 중이라 auth.currentUser 가 잠시 null 일 수 있다.
+    // onAuthStateChanged 의 첫 발화를 기다린 뒤 confirm 호출.
+    const unsubscribe = auth.onAuthStateChanged(async (user) => {
+      unsubscribe();
+
+      if (!user) {
+        setError('사용자 인증 정보가 없습니다. 다시 로그인 후 시도해주세요.');
+        setLoading(false);
+        return;
+      }
+
       try {
-        const idToken = await auth.currentUser?.getIdToken();
-        const userId = auth.currentUser?.uid;
-        if (!userId) {
-          setError('사용자 인증 정보가 없습니다. 다시 로그인 후 시도해주세요.');
-          setLoading(false);
-          return;
-        }
+        const idToken = await user.getIdToken();
+        const userId = user.uid;
 
         const response = await fetch('/api/payments/confirm', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: idToken ? `Bearer ${idToken}` : '',
+            Authorization: `Bearer ${idToken}`,
           },
           body: JSON.stringify({ paymentKey, orderId, amount }),
         });
@@ -58,11 +70,11 @@ export default function PaymentSuccess() {
         setPaymentData(data);
 
         // pending → completed 로 결제 doc 갱신 + 추천인 보상 (중복 처리 방지)
-        const pendingPaymentDoc = await getDoc(doc(db, 'payments', orderId!));
+        const pendingPaymentDoc = await getDoc(doc(db, 'payments', orderId));
         if (pendingPaymentDoc.exists()) {
           const pData = pendingPaymentDoc.data() as any;
           if (pData.status !== 'completed') {
-            await paymentService.recordPayment(orderId!, {
+            await paymentService.recordPayment(orderId, {
               paymentKey,
               method: data.method,
               receiptUrl: data.receipt?.url || null,
@@ -78,14 +90,9 @@ export default function PaymentSuccess() {
       } finally {
         setLoading(false);
       }
-    };
+    });
 
-    if (paymentKey && orderId && amount) {
-      confirmPayment();
-    } else {
-      setError('필수 결제 정보가 누락되었습니다.');
-      setLoading(false);
-    }
+    return () => unsubscribe();
   }, [paymentKey, orderId, amount]);
 
   if (loading) {
