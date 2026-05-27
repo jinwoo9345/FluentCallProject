@@ -134,9 +134,11 @@ export function RefundPolicyContent({ compact = false }: PolicyContentProps) {
       </section>
 
       <section>
-        <h2 className={sectionTitle(compact)}>7. 이용 기간</h2>
+        <h2 className={sectionTitle(compact)}>7. 이용 기간 (서비스 제공기간)</h2>
         <ul className={listClass(compact)}>
-          <li>8회 기준 이용 기간은 구매일로부터 2개월입니다.</li>
+          <li>8회 수강권: 결제일로부터 <strong>최대 2달</strong></li>
+          <li>16회(+1회) 수강권: 결제일로부터 <strong>최대 3달</strong></li>
+          <li>24회(+2회) 수강권: 결제일로부터 <strong>최대 4달</strong></li>
           <li>이용 기간 경과 후 미사용 수업은 자동 종료될 수 있습니다.</li>
           <li>내부 운영 정책에 따라 기간 연장이 가능할 수 있습니다.</li>
         </ul>

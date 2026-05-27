@@ -18,14 +18,16 @@ export interface PackageInfo {
   sessions: number;
   bonus: number;
   price: number;
+  /** 결제일로부터 수강권을 사용할 수 있는 최대 기간(개월). 토스 PG 심사에서 상품 구매페이지에 명시 필요. */
+  durationMonths: number;
   /** 강사 일정액 지급(관리자 전용 · UI 비공개) */
   tutorPayout: number;
 }
 
 export const PACKAGES: PackageInfo[] = [
-  { key: 'basic',    label: '베이직',   sessions: 8,  bonus: 0, price: PACKAGE_PRICES.basic,    tutorPayout: 120700 },
-  { key: 'standard', label: '스탠다드', sessions: 16, bonus: 1, price: PACKAGE_PRICES.standard, tutorPayout: 221700 },
-  { key: 'premium',  label: '프리미엄', sessions: 24, bonus: 2, price: PACKAGE_PRICES.premium,  tutorPayout: 282400 },
+  { key: 'basic',    label: '베이직',   sessions: 8,  bonus: 0, price: PACKAGE_PRICES.basic,    durationMonths: 2, tutorPayout: 120700 },
+  { key: 'standard', label: '스탠다드', sessions: 16, bonus: 1, price: PACKAGE_PRICES.standard, durationMonths: 3, tutorPayout: 221700 },
+  { key: 'premium',  label: '프리미엄', sessions: 24, bonus: 2, price: PACKAGE_PRICES.premium,  durationMonths: 4, tutorPayout: 282400 },
 ];
 
 /** 기본 노출용 수강권(8회). 카드·상세 모달에서 대표 금액으로 사용. */

@@ -522,6 +522,21 @@ export function PaymentModal({ isOpen, onClose, productId, productName, tutorId,
                         );
                       })}
                     </div>
+                    {/* 서비스 제공기간 안내 (토스 PG 심사 요건: 상품 구매페이지에 명확히 표기) */}
+                    <div className="mt-3 p-3 rounded-xl bg-amber-50 border border-amber-200">
+                      <p className="text-xs font-bold text-amber-900 leading-relaxed">
+                        위 상품의 최대 이용기간은{' '}
+                        <span className="text-amber-700 underline underline-offset-2">
+                          {selectedPackage.durationMonths}달
+                        </span>
+                        입니다.
+                      </p>
+                      <p className="text-[10px] text-amber-700/80 mt-1 leading-relaxed">
+                        결제일로부터 {selectedPackage.durationMonths}달 이내에 전 회차를 사용해주세요.
+                        기간 경과 후 남은 수업은 자동 종료될 수 있습니다.
+                      </p>
+                    </div>
+
                     <p className="text-[11px] text-slate-500 mt-3 leading-relaxed">
                       표시된 금액은 모든 비용이 포함된 총 결제 금액이며, 보너스 수업은 추가 비용 없이 무료로 제공됩니다.
                     </p>
