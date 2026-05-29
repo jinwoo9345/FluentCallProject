@@ -65,6 +65,13 @@ function AppContent() {
           const pendingConsultationId = localStorage.getItem('pendingConsultationId');
           const pendingReferral = localStorage.getItem('pendingReferralCode') || '';
 
+          // 카카오 redirect 흐름에서 가입 모달의 약관 동의 상태를 읽음
+          let pendingConsent: { agreedToTerms?: boolean; agreedToPrivacy?: boolean; marketingOptIn?: boolean } = {};
+          try {
+            const raw = localStorage.getItem('pendingConsent');
+            if (raw) pendingConsent = JSON.parse(raw);
+          } catch {}
+
           // Ensure user document exists or update existing info
           const userRef = doc(db, 'users', user.uid);
           const userSnap = await getDoc(userRef);
@@ -87,6 +94,7 @@ function AppContent() {
               }
             }
 
+            const marketingOptIn = !!pendingConsent.marketingOptIn;
             await setDoc(userRef, {
               uid: user.uid,
               name: kakaoName,
@@ -99,8 +107,13 @@ function AppContent() {
               discountBalance: 0,
               createdAt: serverTimestamp(),
               avatar: `https://picsum.photos/seed/${user.uid}/200/200`,
-              hasCompletedConsultation: !!pendingConsultationId
+              hasCompletedConsultation: !!pendingConsultationId,
+              agreedToTermsAt: serverTimestamp(),
+              agreedToPrivacyAt: serverTimestamp(),
+              marketingOptIn,
+              marketingOptInAt: marketingOptIn ? serverTimestamp() : null,
             });
+            localStorage.removeItem('pendingConsent');
 
             // 추천 코드 인덱스 문서 생성 (공개 조회용 · 이름 스냅샷 포함)
             try {

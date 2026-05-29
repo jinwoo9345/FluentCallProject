@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Mail, Lock, User as UserIcon, GraduationCap, School, AtSign } from 'lucide-react';
+import { X, Mail, Lock, User as UserIcon, GraduationCap, School, AtSign, Check, ExternalLink } from 'lucide-react';
 import { auth, db, googleProvider } from '../../firebase';
 import {
   createUserWithEmailAndPassword,
@@ -40,6 +40,28 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  // 가입 시 약관 동의 (필수: 이용약관 + 개인정보 / 선택: 마케팅 수신)
+  const [agreeTerms, setAgreeTerms] = useState(false);
+  const [agreePrivacy, setAgreePrivacy] = useState(false);
+  const [agreeMarketing, setAgreeMarketing] = useState(false);
+  const agreeAll = agreeTerms && agreePrivacy && agreeMarketing;
+  const requiredConsentOk = agreeTerms && agreePrivacy;
+
+  const toggleAll = (next: boolean) => {
+    setAgreeTerms(next);
+    setAgreePrivacy(next);
+    setAgreeMarketing(next);
+  };
+
+  // 모드 전환 시 동의 상태 리셋
+  useEffect(() => {
+    if (mode === 'signin') {
+      setAgreeTerms(false);
+      setAgreePrivacy(false);
+      setAgreeMarketing(false);
+    }
+  }, [mode]);
+
   const resetFields = () => {
     setPassword('');
     setPasswordConfirm('');
@@ -48,7 +70,18 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
     setTutorQualifications('');
     setTutorIntroduction('');
     setReferralInput('');
+    setAgreeTerms(false);
+    setAgreePrivacy(false);
+    setAgreeMarketing(false);
     setError('');
+  };
+
+  const ensureRequiredConsent = (): boolean => {
+    if (mode === 'signup' && !requiredConsentOk) {
+      setError('이용약관 및 개인정보 수집·이용에 동의해주세요.');
+      return false;
+    }
+    return true;
   };
 
   // 입력된 추천인 코드가 유효한지 검증하고 정규화된 코드 반환
@@ -65,6 +98,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
 
   const handleSocialLogin = async (provider: any) => {
     setError('');
+    if (!ensureRequiredConsent()) return;
     setLoading(true);
     try {
       // 신규 가입 시에만 사용될 추천인 코드를 미리 검증
@@ -92,6 +126,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
 
   const handleKakaoLogin = () => {
     setError('');
+    if (!ensureRequiredConsent()) return;
     try {
       const Kakao = (window as any).Kakao;
       const KAKAO_KEY = (import.meta as any).env.VITE_KAKAO_JS_KEY;
@@ -106,6 +141,19 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
         } else {
           throw new Error('VITE_KAKAO_JS_KEY 설정이 누락되었습니다. Settings 메뉴를 확인해주세요.');
         }
+      }
+
+      // 카카오는 redirect 흐름이라 동의값을 localStorage 에 임시 저장해서 App.tsx 의 유저 생성 시점에 반영
+      if (mode === 'signup') {
+        localStorage.setItem(
+          'pendingConsent',
+          JSON.stringify({
+            agreedToTerms: agreeTerms,
+            agreedToPrivacy: agreePrivacy,
+            marketingOptIn: agreeMarketing,
+            ts: Date.now(),
+          })
+        );
       }
 
       const redirectUri = `${window.location.origin}/dashboard`;
@@ -138,6 +186,10 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
         discountBalance: 0,
         createdAt: serverTimestamp(),
         avatar: `https://picsum.photos/seed/${user.uid}/200/200`,
+        agreedToTermsAt: serverTimestamp(),
+        agreedToPrivacyAt: serverTimestamp(),
+        marketingOptIn: agreeMarketing,
+        marketingOptInAt: agreeMarketing ? serverTimestamp() : null,
       });
 
       // 추천 코드 인덱스 문서 생성 (공개 조회용)
@@ -160,6 +212,10 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
     setError('');
 
     if (mode === 'signup') {
+      if (!requiredConsentOk) {
+        setError('이용약관 및 개인정보 수집·이용에 동의해주세요.');
+        return;
+      }
       if (password !== passwordConfirm) {
         setError('비밀번호가 서로 일치하지 않습니다.');
         return;
@@ -216,6 +272,10 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
           discountBalance: 0,
           createdAt: serverTimestamp(),
           avatar: `https://picsum.photos/seed/${user.uid}/200/200`,
+          agreedToTermsAt: serverTimestamp(),
+          agreedToPrivacyAt: serverTimestamp(),
+          marketingOptIn: agreeMarketing,
+          marketingOptInAt: agreeMarketing ? serverTimestamp() : null,
         };
 
         if (role === 'tutor') {
@@ -290,12 +350,26 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
               </div>
 
               <div className="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
+                {mode === 'signup' && (
+                  <ConsentPanel
+                    agreeTerms={agreeTerms}
+                    agreePrivacy={agreePrivacy}
+                    agreeMarketing={agreeMarketing}
+                    agreeAll={agreeAll}
+                    onToggleTerms={() => setAgreeTerms(v => !v)}
+                    onTogglePrivacy={() => setAgreePrivacy(v => !v)}
+                    onToggleMarketing={() => setAgreeMarketing(v => !v)}
+                    onToggleAll={() => toggleAll(!agreeAll)}
+                  />
+                )}
+
                 {/* Social Login Buttons */}
                 <div className="space-y-3">
                   <button
                     type="button"
                     onClick={() => handleSocialLogin(googleProvider)}
-                    className="w-full aspect-[600/90] flex items-center justify-center gap-3 px-4 rounded-xl border border-slate-200 bg-white text-slate-700 font-bold hover:bg-slate-50 transition-all"
+                    disabled={mode === 'signup' && !requiredConsentOk}
+                    className="w-full aspect-[600/90] flex items-center justify-center gap-3 px-4 rounded-xl border border-slate-200 bg-white text-slate-700 font-bold hover:bg-slate-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5" />
                     구글 계정으로 {mode === 'signin' ? '로그인' : '시작하기'}
@@ -303,8 +377,9 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
                   <button
                     type="button"
                     onClick={handleKakaoLogin}
+                    disabled={mode === 'signup' && !requiredConsentOk}
                     aria-label={`카카오 계정으로 ${mode === 'signin' ? '로그인' : '시작하기'}`}
-                    className="w-full hover:opacity-90 transition-opacity"
+                    className="w-full hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <img
                       src="/kakao/kakao_login_large_wide.png"
@@ -314,6 +389,11 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
                       className="w-full h-auto block"
                     />
                   </button>
+                  {mode === 'signup' && !requiredConsentOk && (
+                    <p className="text-[11px] text-slate-500 text-center">
+                      소셜 가입을 진행하려면 위 필수 약관에 동의해주세요.
+                    </p>
+                  )}
                 </div>
 
                 {mode === 'signup' && (
@@ -502,7 +582,11 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
                     </div>
                   )}
 
-                  <Button type="submit" className="w-full py-4 rounded-xl" disabled={loading}>
+                  <Button
+                    type="submit"
+                    className="w-full py-4 rounded-xl"
+                    disabled={loading || (mode === 'signup' && !requiredConsentOk)}
+                  >
                     {loading ? '처리 중...' : mode === 'signin' ? '로그인' : role === 'tutor' ? '강사 신청 제출' : '회원가입 완료'}
                   </Button>
 
@@ -530,5 +614,104 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
         </div>
       )}
     </AnimatePresence>
+  );
+}
+
+interface ConsentPanelProps {
+  agreeTerms: boolean;
+  agreePrivacy: boolean;
+  agreeMarketing: boolean;
+  agreeAll: boolean;
+  onToggleTerms: () => void;
+  onTogglePrivacy: () => void;
+  onToggleMarketing: () => void;
+  onToggleAll: () => void;
+}
+
+function ConsentPanel({
+  agreeTerms,
+  agreePrivacy,
+  agreeMarketing,
+  agreeAll,
+  onToggleTerms,
+  onTogglePrivacy,
+  onToggleMarketing,
+  onToggleAll,
+}: ConsentPanelProps) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
+      <button
+        type="button"
+        onClick={onToggleAll}
+        className="w-full flex items-center gap-3 pb-3 border-b border-slate-200"
+      >
+        <CheckBox checked={agreeAll} />
+        <span className="text-sm font-bold text-slate-900">전체 동의</span>
+      </button>
+      <div className="space-y-2 pt-3">
+        <ConsentRow
+          checked={agreeTerms}
+          onToggle={onToggleTerms}
+          label="(필수) 이용약관 동의"
+          href="/terms-of-service"
+        />
+        <ConsentRow
+          checked={agreePrivacy}
+          onToggle={onTogglePrivacy}
+          label="(필수) 개인정보 수집·이용 동의"
+          href="/privacy-policy"
+        />
+        <ConsentRow
+          checked={agreeMarketing}
+          onToggle={onToggleMarketing}
+          label="(선택) 마케팅 정보 수신 동의"
+        />
+      </div>
+    </div>
+  );
+}
+
+function ConsentRow({
+  checked,
+  onToggle,
+  label,
+  href,
+}: {
+  checked: boolean;
+  onToggle: () => void;
+  label: string;
+  href?: string;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <button type="button" onClick={onToggle} className="flex items-center gap-2.5 flex-1 text-left">
+        <CheckBox checked={checked} small />
+        <span className="text-[12px] text-slate-700">{label}</span>
+      </button>
+      {href && (
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-[11px] text-blue-600 hover:underline flex items-center gap-0.5 flex-shrink-0"
+        >
+          보기 <ExternalLink size={11} />
+        </a>
+      )}
+    </div>
+  );
+}
+
+function CheckBox({ checked, small = false }: { checked: boolean; small?: boolean }) {
+  const size = small ? 'h-4 w-4' : 'h-5 w-5';
+  const iconSize = small ? 12 : 14;
+  return (
+    <span
+      className={`${size} rounded-md flex items-center justify-center flex-shrink-0 border ${
+        checked ? 'bg-blue-600 border-blue-600 text-white' : 'bg-white border-slate-300 text-transparent'
+      }`}
+    >
+      <Check size={iconSize} strokeWidth={3} />
+    </span>
   );
 }
