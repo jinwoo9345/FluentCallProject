@@ -10,7 +10,7 @@ import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { useAuth } from '../contexts/AuthContext';
 import { db } from '../firebase';
-import { collection, query, getDocs, getDoc, orderBy, where, doc, updateDoc, writeBatch, increment, addDoc, serverTimestamp, deleteDoc, setDoc, runTransaction } from 'firebase/firestore';
+import { collection, query, getDocs, getDoc, orderBy, where, doc, updateDoc, writeBatch, increment, addDoc, serverTimestamp, deleteDoc, setDoc, runTransaction, onSnapshot } from 'firebase/firestore';
 import { cn } from '@/src/lib/utils';
 import { Pagination, usePaginated } from '../components/ui/Pagination';
 import { SessionRegisterSection } from '../components/Dashboard/SessionRegisterSection';
@@ -138,17 +138,9 @@ export default function AdminDashboard() {
       }
       setTutors(tutorList);
 
-      // 5. Fetch Sessions (전체 - 일정 관리 탭 + 카운터용)
-      let sessionList: any[] = [];
-      let upcomingCount = 0;
-      try {
-        const sessionSnap = await getDocs(query(collection(db, 'sessions'), orderBy('startTime', 'desc')));
-        sessionList = sessionSnap.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
-        upcomingCount = sessionList.filter(s => s.status === 'upcoming').length;
-      } catch (err) {
-        console.warn('sessions fetch failed:', err);
-      }
-      setAllSessions(sessionList);
+      // 5. Sessions 은 별도 useEffect 에서 onSnapshot 으로 실시간 구독 (한 번만 가져오면
+      //    다른 관리자가 등록한 세션이 갱신 안 되므로 분리). upcomingCount 도 그쪽에서 계산.
+      const upcomingCount = 0;
 
       // 6. Fetch Tutor Applications
       let appsList: any[] = [];
@@ -187,12 +179,13 @@ export default function AdminDashboard() {
         console.warn('app_settings fetch failed:', err);
       }
 
-      setStats({
+      // upcomingSessions 는 별도 sessions 구독에서 채우므로 prev 유지
+      setStats((prev) => ({
         users: userSnap.size,
         revenue: totalRevenue,
-        upcomingSessions: upcomingCount,
-        pendingConsults: pendingCount
-      });
+        upcomingSessions: prev.upcomingSessions,
+        pendingConsults: pendingCount,
+      }));
     } catch (err) {
       console.error('Error fetching admin data:', err);
     } finally {
@@ -209,6 +202,26 @@ export default function AdminDashboard() {
     fetchAdminData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, isAuthReady]);
+
+  // 전체 sessions 실시간 구독 — 다른 관리자가 등록한 세션도 즉시 반영
+  useEffect(() => {
+    if (!isAuthReady || user?.role !== 'admin') return;
+    const q = query(collection(db, 'sessions'), orderBy('startTime', 'desc'));
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+        setAllSessions(list);
+        // upcoming 카운트 stats 도 동기화
+        setStats((prev) => ({
+          ...prev,
+          upcomingSessions: list.filter((s) => s.status === 'upcoming').length,
+        }));
+      },
+      (err) => console.error('[AdminDashboard] sessions subscription failed:', err)
+    );
+    return () => unsub();
+  }, [isAuthReady, user?.role]);
 
   const handleToggleConsultStatus = async (c: any) => {
     const nextStatus = c.status === 'completed' ? 'pending' : 'completed';
