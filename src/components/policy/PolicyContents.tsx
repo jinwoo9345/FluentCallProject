@@ -274,3 +274,185 @@ export function TermsContent({ compact = false }: PolicyContentProps) {
     </div>
   );
 }
+
+export function PrivacyPolicyContent({ compact = false }: PolicyContentProps) {
+  return (
+    <div className={rootClass(compact)}>
+      {!compact && (
+        <p className="text-lg font-medium text-slate-800 bg-blue-50 p-6 rounded-2xl border border-blue-100">
+          English Bites(이하 "회사")는 이용자의 개인정보를 중요시하며, 「개인정보 보호법」 등 관련 법령을 준수합니다.
+          회사는 본 개인정보처리방침을 통하여 이용자가 제공한 개인정보가 어떠한 용도와 방식으로 이용되고 있으며,
+          개인정보 보호를 위해 어떠한 조치를 취하고 있는지 안내드립니다.
+        </p>
+      )}
+
+      <section>
+        <h2 className={sectionTitle(compact)}>1. 수집하는 개인정보 항목</h2>
+        <p className={`${paragraphClass(compact)} mb-2`}>
+          회사는 서비스 제공을 위하여 다음과 같은 개인정보를 수집할 수 있습니다.
+        </p>
+
+        <p className={`${paragraphClass(compact)} ${compact ? 'mt-2' : 'mt-3'} font-bold text-slate-700`}>
+          ① 회원가입 및 상담 신청 시
+        </p>
+        <ul className={listClass(compact)}>
+          <li>이름</li>
+          <li>연락처(휴대전화 번호)</li>
+          <li>이메일 주소</li>
+          <li>카카오톡 ID 또는 메신저 정보(선택)</li>
+        </ul>
+
+        <p className={`${paragraphClass(compact)} ${compact ? 'mt-2' : 'mt-3'} font-bold text-slate-700`}>
+          ② 수업 예약 및 결제 시
+        </p>
+        <ul className={listClass(compact)}>
+          <li>예약 정보</li>
+          <li>결제 정보</li>
+          <li>환불 계좌 정보(환불 요청 시)</li>
+        </ul>
+        <p className={`${paragraphClass(compact)} ${compact ? 'mt-1' : 'mt-2'} italic text-slate-500`}>
+          ※ 카드결제 시 카드 정보는 PG사(예: 토스페이먼츠)를 통하여 처리되며, 회사는 이용자의 카드번호 등
+          민감한 금융정보를 저장하지 않습니다.
+        </p>
+
+        <p className={`${paragraphClass(compact)} ${compact ? 'mt-2' : 'mt-3'} font-bold text-slate-700`}>
+          ③ 서비스 이용 과정에서 자동 수집
+        </p>
+        <ul className={listClass(compact)}>
+          <li>IP 주소</li>
+          <li>접속 로그</li>
+          <li>쿠키(Cookie)</li>
+          <li>기기 정보</li>
+          <li>서비스 이용 기록</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2 className={sectionTitle(compact)}>2. 개인정보 수집 및 이용 목적</h2>
+        <p className={`${paragraphClass(compact)} mb-2`}>
+          회사는 수집한 개인정보를 다음 목적을 위해 이용합니다.
+        </p>
+        <ol className={
+          compact
+            ? 'list-decimal pl-4 space-y-1 text-[11px] text-slate-600 leading-relaxed'
+            : 'list-decimal pl-5 space-y-2 text-slate-600 leading-relaxed'
+        }>
+          <li>회원 식별 및 본인 확인</li>
+          <li>수업 예약 및 튜터 매칭 진행</li>
+          <li>결제 확인 및 환불 처리</li>
+          <li>고객 문의 응대 및 민원 처리</li>
+          <li>서비스 품질 개선 및 운영 관리</li>
+          <li>법령상 의무 이행</li>
+        </ol>
+      </section>
+
+      <section>
+        <h2 className={sectionTitle(compact)}>3. 개인정보 보유 및 이용기간</h2>
+        <p className={`${paragraphClass(compact)} mb-2`}>
+          회사는 개인정보 수집·이용 목적이 달성된 후에는 해당 정보를 지체 없이 파기합니다.
+          다만, 관계 법령에 따라 일정 기간 보관이 필요한 경우 아래와 같이 보관합니다.
+        </p>
+        <ul className={listClass(compact)}>
+          <li>계약 또는 청약철회 등에 관한 기록: <strong>5년</strong></li>
+          <li>대금결제 및 재화·서비스 공급 기록: <strong>5년</strong></li>
+          <li>소비자 불만 또는 분쟁처리 기록: <strong>3년</strong></li>
+          <li>접속기록(통신비밀보호법): <strong>3개월</strong></li>
+        </ul>
+      </section>
+
+      <section>
+        <h2 className={sectionTitle(compact)}>4. 개인정보 제3자 제공</h2>
+        <p className={`${paragraphClass(compact)} mb-2`}>
+          회사는 원칙적으로 이용자의 개인정보를 외부에 제공하지 않습니다.
+          다만, 원활한 수업 진행을 위해 튜터 매칭 및 수업 운영에 필요한 최소한의 정보가 담당 튜터에게 제공될 수 있습니다.
+        </p>
+        <p className={`${paragraphClass(compact)} ${compact ? 'mt-1' : 'mt-2'} font-bold text-slate-700`}>제공 항목 예시</p>
+        <ul className={listClass(compact)}>
+          <li>이름(닉네임 포함 가능)</li>
+          <li>수업 일정</li>
+          <li>학습 목적 또는 요청사항</li>
+        </ul>
+        <p className={`${paragraphClass(compact)} ${compact ? 'mt-2' : 'mt-3'}`}>
+          회사는 법령에 특별한 규정이 있는 경우를 제외하고 이용자의 동의 없이 개인정보를 제3자에게 제공하지 않습니다.
+        </p>
+      </section>
+
+      <section>
+        <h2 className={sectionTitle(compact)}>5. 개인정보 처리 위탁</h2>
+        <p className={`${paragraphClass(compact)} mb-2`}>
+          회사는 원활한 서비스 제공을 위하여 일부 업무를 외부 업체에 위탁할 수 있습니다.
+        </p>
+        <p className={`${paragraphClass(compact)} ${compact ? 'mt-1' : 'mt-2'} font-bold text-slate-700`}>예시</p>
+        <ul className={listClass(compact)}>
+          <li>결제 처리(PG): 토스페이먼츠</li>
+          <li>클라우드 서버 및 데이터 저장</li>
+          <li>고객 상담 및 알림 서비스</li>
+        </ul>
+        <p className={`${paragraphClass(compact)} ${compact ? 'mt-2' : 'mt-3'}`}>
+          회사는 위탁계약 시 개인정보 보호 관련 법령을 준수하도록 관리·감독합니다.
+        </p>
+      </section>
+
+      <section>
+        <h2 className={sectionTitle(compact)}>6. 개인정보 파기 절차 및 방법</h2>
+        <p className={`${paragraphClass(compact)} mb-2`}>
+          회사는 개인정보 보유기간 경과 또는 처리 목적 달성 시 지체 없이 해당 정보를 파기합니다.
+        </p>
+        <ul className={listClass(compact)}>
+          <li><strong>전자적 파일:</strong> 복구 불가능한 방식으로 영구 삭제</li>
+          <li><strong>종이 문서:</strong> 분쇄 또는 소각</li>
+        </ul>
+      </section>
+
+      <section>
+        <h2 className={sectionTitle(compact)}>7. 이용자의 권리</h2>
+        <p className={`${paragraphClass(compact)} mb-2`}>이용자는 언제든지 다음 권리를 행사할 수 있습니다.</p>
+        <ul className={listClass(compact)}>
+          <li>개인정보 열람 요청</li>
+          <li>개인정보 수정 요청</li>
+          <li>개인정보 삭제 요청</li>
+          <li>처리 정지 요청</li>
+        </ul>
+        <p className={`${paragraphClass(compact)} ${compact ? 'mt-2' : 'mt-3'}`}>
+          문의는 아래 개인정보 보호 책임자 연락처를 통해 가능합니다.
+        </p>
+      </section>
+
+      <section>
+        <h2 className={sectionTitle(compact)}>8. 개인정보 보호 책임자</h2>
+        <div
+          className={
+            compact
+              ? 'bg-slate-50 p-3 rounded-lg border border-slate-100'
+              : 'bg-slate-50 p-6 rounded-2xl border border-slate-100'
+          }
+        >
+          <ul className={
+            compact
+              ? 'space-y-1 text-[11px] text-slate-700 leading-relaxed'
+              : 'space-y-2 text-slate-700 leading-relaxed'
+          }>
+            <li><strong className="text-slate-900">상호명:</strong> English Bites</li>
+            <li><strong className="text-slate-900">대표자:</strong> 형상욱</li>
+            <li><strong className="text-slate-900">이메일:</strong> englishbiteshsu@gmail.com</li>
+            <li><strong className="text-slate-900">연락처:</strong> 010-6558-1040</li>
+          </ul>
+        </div>
+      </section>
+
+      <section>
+        <h2 className={sectionTitle(compact)}>9. 개인정보처리방침 변경</h2>
+        <p className={paragraphClass(compact)}>
+          본 개인정보처리방침은 시행일로부터 적용되며, 관련 법령 및 회사 정책에 따라 변경될 수 있습니다.
+        </p>
+      </section>
+
+      {!compact && (
+        <div className="pt-12 border-t border-slate-100 flex justify-between items-center text-sm text-slate-400">
+          <span>시행일: 2026년 5월 28일</span>
+          <span>EnglishBites 운영팀</span>
+        </div>
+      )}
+    </div>
+  );
+}

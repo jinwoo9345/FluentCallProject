@@ -81,6 +81,7 @@ export const Footer = () => {
           <FooterColumn icon={Shield} title="고객 지원">
             <FooterLink to="/terms-of-service">이용약관</FooterLink>
             <FooterLink to="/refund-policy">환불 정책</FooterLink>
+            <FooterLink to="/privacy-policy">개인정보처리방침</FooterLink>
             <FooterLink to="/consultation">상담 채널</FooterLink>
           </FooterColumn>
 
