@@ -100,6 +100,21 @@ export interface TutorApplication {
   reviewedAt?: any;
 }
 
+/** 사용자가 자신의 달력에 직접 입력하는 개인 일정 (수업과는 별개) */
+export interface PersonalEvent {
+  id?: string;
+  ownerId: string;        // 일정 소유자 (학생 또는 강사 uid)
+  ownerName?: string;     // 표시용 (관리자 집계 화면에서 사용)
+  title: string;
+  notes?: string;
+  startTime: any;         // Firestore Timestamp
+  endTime?: any;          // Firestore Timestamp (선택)
+  allDay?: boolean;
+  color?: 'blue' | 'green' | 'amber' | 'rose' | 'violet' | 'slate';
+  createdAt?: any;
+  updatedAt?: any;
+}
+
 export interface Consultation {
   id?: string;
   name: string;

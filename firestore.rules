@@ -84,6 +84,7 @@ service cloud.firestore {
     }
 
     // 수업 세션 - 관리자만 쓰기 가능, 본인/튜터/관리자만 읽기
+    // (read 규칙이 list 쿼리에도 적용됨 — 적절히 필터된 쿼리만 허용)
     match /sessions/{sessionId} {
       allow read: if isSignedIn() && (
         resource.data.userId == request.auth.uid
@@ -91,6 +92,25 @@ service cloud.firestore {
         || isAdmin()
       );
       allow create, update, delete: if isAdmin();
+    }
+
+    // 개인 일정 - 소유자만 CRUD, 관리자는 전체 읽기
+    // 사용자가 자신의 달력에 직접 입력하는 일정 (수업과 무관)
+    match /personal_events/{eventId} {
+      allow read: if isSignedIn() && (
+        resource.data.ownerId == request.auth.uid
+        || isAdmin()
+      );
+      allow create: if isSignedIn()
+        && request.resource.data.ownerId == request.auth.uid
+        && request.resource.data.title is string
+        && request.resource.data.title.size() > 0
+        && request.resource.data.title.size() <= 200;
+      allow update: if isSignedIn()
+        && resource.data.ownerId == request.auth.uid
+        && request.resource.data.ownerId == request.auth.uid;
+      allow delete: if isAdmin()
+        || (isSignedIn() && resource.data.ownerId == request.auth.uid);
     }
 
     // 상담 신청 - 비로그인 create 허용

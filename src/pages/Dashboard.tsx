@@ -1,4 +1,4 @@
-import { Fragment } from 'react';
+import { Fragment, useMemo } from 'react';
 import {
   Calendar, Clock, ChevronRight, Award, BookOpen,
   User as UserIcon, Settings, School, Sparkles, Bell, DollarSign,
@@ -12,6 +12,11 @@ import { useAuth } from '../contexts/AuthContext';
 import { useEffect, useRef, useState } from 'react';
 import { useSessions } from '../hooks/useSessions';
 import { useTutors } from '../hooks/useTutors';
+import { usePersonalEvents } from '../hooks/usePersonalEvents';
+import { ScheduleCalendar, type CalendarEvent } from '../components/Schedule/ScheduleCalendar';
+import { EventDetailModal } from '../components/Schedule/EventDetailModal';
+import { AddPersonalEventModal } from '../components/Schedule/AddPersonalEventModal';
+import type { PersonalEvent, UserRole } from '../types';
 import { PointTransferModal } from '../components/Payment/PointTransferModal';
 import { ProfileEditModal } from '../components/Dashboard/ProfileEditModal';
 import { ConsultationForm } from '../components/Consultation/ConsultationForm';
@@ -28,6 +33,7 @@ type TabType = 'sessions' | 'payments' | 'consultations';
 export default function Dashboard() {
   const { user, firebaseUser, loading: authLoading, isAuthReady } = useAuth();
   const { sessions, loading: sessionsLoading } = useSessions(firebaseUser?.uid, user?.role);
+  const { events: personalEvents } = usePersonalEvents(firebaseUser?.uid);
   const { tutors, loading: tutorsLoading } = useTutors();
   
   const [activeTab, setActiveTab] = useState<TabType>('sessions');
@@ -401,7 +407,7 @@ export default function Dashboard() {
                     activeTab === t ? "bg-white text-blue-600 shadow-sm" : "text-slate-500 hover:text-slate-700"
                   )}
                 >
-                  {t === 'sessions' ? '수업 일정' : t === 'payments' ? '결제 내역' : '상담 내역'}
+                  {t === 'sessions' ? '일정' : t === 'payments' ? '결제 내역' : '상담 내역'}
                 </button>
               ))}
             </div>
@@ -412,7 +418,14 @@ export default function Dashboard() {
               ) : (
                 <>
                   {activeTab === 'sessions' && (
-                    <SessionsPanel sessions={sessions} tutors={tutors} />
+                    <SessionsPanel
+                      sessions={sessions}
+                      personalEvents={personalEvents}
+                      tutors={tutors}
+                      ownerId={firebaseUser?.uid || ''}
+                      ownerName={user?.name || ''}
+                      userRole={user?.role}
+                    />
                   )}
 
                   {activeTab === 'payments' && (
@@ -872,7 +885,16 @@ function toDateSafe(ts: any): Date | null {
   }
 }
 
-function SessionsPanel({ sessions, tutors }: { sessions: any[]; tutors: any[] }) {
+function SessionsPanel({
+  sessions, personalEvents, tutors, ownerId, ownerName, userRole,
+}: {
+  sessions: any[];
+  personalEvents: PersonalEvent[];
+  tutors: any[];
+  ownerId: string;
+  ownerName: string;
+  userRole: UserRole | undefined;
+}) {
   const now = Date.now();
 
   const { upcoming, past } = (() => {
@@ -885,19 +907,9 @@ function SessionsPanel({ sessions, tutors }: { sessions: any[]; tutors: any[] })
       }
       const d = toDateSafe(s.startTime);
       const isFuture = d ? d.getTime() > now : false;
-      if (s.status === 'completed' || !isFuture) {
-        pt.push(s);
-      } else {
-        up.push(s);
-      }
+      if (s.status === 'completed' || !isFuture) pt.push(s);
+      else up.push(s);
     }
-    // 다가오는: 가까운 시간 순 (오름차순)
-    up.sort((a, b) => {
-      const da = toDateSafe(a.startTime)?.getTime() || 0;
-      const db = toDateSafe(b.startTime)?.getTime() || 0;
-      return da - db;
-    });
-    // 지난: 최근 순 (내림차순)
     pt.sort((a, b) => {
       const da = toDateSafe(a.startTime)?.getTime() || 0;
       const db = toDateSafe(b.startTime)?.getTime() || 0;
@@ -908,41 +920,77 @@ function SessionsPanel({ sessions, tutors }: { sessions: any[]; tutors: any[] })
 
   const pastPage = usePaginated(past, SESSIONS_PAGE_SIZE);
 
+  // 모달 상태
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
+
+  // 캘린더 이벤트 — 다가오는 수업 + 본인 개인 일정 (지난 수업은 캘린더에 표시 X)
+  const calendarEvents = useMemo<CalendarEvent[]>(() => {
+    const list: CalendarEvent[] = [];
+    for (const s of upcoming) {
+      const d = toDateSafe(s.startTime);
+      if (!d) continue;
+      const tutor = tutors.find((t) => t.id === s.tutorId);
+      const title =
+        userRole === 'tutor'
+          ? `${s.userName || '학생'} 수업`
+          : `${tutor?.name || s.tutorName || '강사'} 수업`;
+      const end = s.duration ? new Date(d.getTime() + s.duration * 60000) : undefined;
+      list.push({
+        id: s.id,
+        kind: 'lesson',
+        title,
+        start: d,
+        end,
+        color: 'blue',
+        raw: s,
+      });
+    }
+    for (const ev of personalEvents) {
+      const d = toDateSafe(ev.startTime);
+      if (!d) continue;
+      const endD = toDateSafe(ev.endTime);
+      list.push({
+        id: ev.id!,
+        kind: 'personal',
+        title: ev.title,
+        start: d,
+        end: endD || undefined,
+        color: (ev.color as any) || 'green',
+        raw: ev,
+      });
+    }
+    return list;
+  }, [upcoming, personalEvents, tutors, userRole]);
+
+  const isOwnedPersonal =
+    selectedEvent?.kind === 'personal' && selectedEvent.raw?.ownerId === ownerId;
+
   return (
     <div className="space-y-8">
-      {/* 다가오는 수업 */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <h3 className="text-sm font-black uppercase tracking-widest text-blue-600">
-              다가오는 수업
-            </h3>
-            <span className="text-[10px] font-black uppercase tracking-widest bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
-              {upcoming.length}
-            </span>
-          </div>
-        </div>
+      {/* 달력 */}
+      <ScheduleCalendar
+        events={calendarEvents}
+        onAddEvent={() => setAddOpen(true)}
+        onSelectEvent={setSelectedEvent}
+        caption={
+          userRole === 'tutor' ? '담당 학생 수업 + 내 개인 일정' : '내 수업 + 개인 일정'
+        }
+      />
 
-        {upcoming.length === 0 ? (
-          <Card className="p-10 text-center border-dashed">
-            <div className="mx-auto h-12 w-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mb-3">
-              <Calendar size={22} />
-            </div>
-            <p className="text-sm font-bold text-slate-700 mb-1">예정된 수업이 없습니다</p>
-            <p className="text-xs text-slate-500">
-              강사와 수업 일정을 협의하신 뒤 관리자에게 전달해 주세요. 관리자가 등록하면 이 곳에 자동으로 표시됩니다.
-            </p>
-          </Card>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {upcoming.map((s) => (
-              <Fragment key={s.id}>
-                <UpcomingSessionCard session={s} tutors={tutors} />
-              </Fragment>
-            ))}
+      {/* 빈 상태 안내 (수업도 일정도 모두 비어있을 때만) */}
+      {upcoming.length === 0 && personalEvents.length === 0 && (
+        <Card className="p-8 text-center border-dashed">
+          <div className="mx-auto h-12 w-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mb-3">
+            <Calendar size={22} />
           </div>
-        )}
-      </div>
+          <p className="text-sm font-bold text-slate-700 mb-1">아직 등록된 일정이 없어요</p>
+          <p className="text-xs text-slate-500">
+            상단의 <strong>내 일정</strong> 버튼으로 개인 일정을 추가하거나,
+            관리자와 협의해 수업을 등록받으세요.
+          </p>
+        </Card>
+      )}
 
       {/* 완료된/지난 수업 */}
       <div>
@@ -978,74 +1026,22 @@ function SessionsPanel({ sessions, tutors }: { sessions: any[]; tutors: any[] })
           </div>
         )}
       </div>
+
+      {/* 모달 */}
+      {selectedEvent && (
+        <EventDetailModal
+          event={selectedEvent}
+          canEdit={!!isOwnedPersonal}
+          onClose={() => setSelectedEvent(null)}
+        />
+      )}
+      <AddPersonalEventModal
+        open={addOpen}
+        ownerId={ownerId}
+        ownerName={ownerName}
+        onClose={() => setAddOpen(false)}
+      />
     </div>
-  );
-}
-
-function UpcomingSessionCard({ session, tutors }: { session: any; tutors: any[] }) {
-  const d = toDateSafe(session.startTime);
-  const tutor = tutors.find((t) => t.id === session.tutorId);
-  const weekday = d ? WEEKDAY_KR[d.getDay()] : '-';
-  const dateStr = d ? d.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' }) : '일정 미정';
-  const timeStr = d ? d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' }) : '--:--';
-  const now = Date.now();
-  const diffMin = d ? Math.floor((d.getTime() - now) / 60000) : 0;
-  const isSoon = diffMin > 0 && diffMin <= 60;
-
-  return (
-    <Card className="relative overflow-hidden border border-blue-100 hover:border-blue-300 hover:shadow-lg transition-all p-0">
-      <div className="absolute -top-16 -right-16 h-40 w-40 rounded-full bg-blue-100/40 blur-2xl pointer-events-none" />
-      <div className="relative p-5">
-        <div className="flex items-center gap-2 mb-3">
-          <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest bg-blue-600 text-white px-2 py-1 rounded-full">
-            <Calendar size={10} /> 예정
-          </span>
-          {isSoon && (
-            <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-widest bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full animate-pulse">
-              곧 시작
-            </span>
-          )}
-        </div>
-
-        <p className="text-[11px] font-bold text-slate-500 tracking-widest uppercase mb-1">
-          {weekday}요일
-        </p>
-        <p className="text-2xl font-black text-slate-900 leading-tight">{dateStr}</p>
-        <p className="mt-1 text-3xl font-black text-blue-600 tracking-tight">
-          {timeStr}
-        </p>
-
-        <div className="mt-5 pt-4 border-t border-slate-100 flex items-center gap-3">
-          <img
-            src={tutor?.avatar || `https://picsum.photos/seed/${session.tutorId}/100/100`}
-            alt={tutor?.name || '강사'}
-            className="h-11 w-11 rounded-2xl object-cover border border-slate-100"
-            referrerPolicy="no-referrer"
-          />
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">강사</p>
-            <p className="font-bold text-slate-900 truncate">
-              {tutor?.name || session.tutorName || '강사'}
-            </p>
-          </div>
-          <div className="text-right flex-shrink-0">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">수업</p>
-            <p className="text-sm font-black text-slate-900">{session.duration || 25}분</p>
-          </div>
-        </div>
-
-        {session.meetingLink && (
-          <a
-            href={session.meetingLink}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-4 block w-full text-center py-3 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-500 transition-colors"
-          >
-            수업 입장하기
-          </a>
-        )}
-      </div>
-    </Card>
   );
 }
 

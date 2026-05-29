@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Users, UserPlus, CreditCard, MessageSquare, TrendingUp,
   Clock, Shield, Star, School, Settings, Loader2,
-  Eye, CalendarPlus, Building2, Instagram, Twitter, Facebook
+  Eye, CalendarPlus, Building2, Instagram, Twitter, Facebook,
+  CalendarDays, X,
 } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -13,6 +14,8 @@ import { collection, query, getDocs, getDoc, orderBy, where, doc, updateDoc, wri
 import { cn } from '@/src/lib/utils';
 import { Pagination, usePaginated } from '../components/ui/Pagination';
 import { SessionRegisterSection } from '../components/Dashboard/SessionRegisterSection';
+import { ScheduleCalendar, type CalendarEvent } from '../components/Schedule/ScheduleCalendar';
+import { EventDetailModal } from '../components/Schedule/EventDetailModal';
 
 const PAGE_SIZES = {
   consultations: 15,
@@ -49,7 +52,7 @@ function formatTS(ts: any, variant: 'date' | 'datetime' = 'date'): string {
 
 export default function AdminDashboard() {
   const { user, firebaseUser, isAuthReady } = useAuth();
-  const [activeTab, setActiveTab] = useState<'overview' | 'consultations' | 'tutors' | 'tutor_apps' | 'payments' | 'users' | 'settings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'schedule' | 'consultations' | 'tutors' | 'tutor_apps' | 'payments' | 'users' | 'settings'>('overview');
   const [userSearch, setUserSearch] = useState('');
   const [creditDelta, setCreditDelta] = useState<Record<string, string>>({});
   
@@ -58,6 +61,11 @@ export default function AdminDashboard() {
   const [payments, setPayments] = useState<any[]>([]);
   const [tutors, setTutors] = useState<any[]>([]);
   const [usersList, setUsersList] = useState<any[]>([]);
+  const [allSessions, setAllSessions] = useState<any[]>([]);
+  // 일정 관리 탭 필터
+  const [scheduleTutorFilter, setScheduleTutorFilter] = useState<string>(''); // tutorId
+  const [scheduleStudentFilter, setScheduleStudentFilter] = useState<string>(''); // userId
+  const [adminSelectedEvent, setAdminSelectedEvent] = useState<CalendarEvent | null>(null);
   const [loading, setLoading] = useState(true);
   const [detailConsult, setDetailConsult] = useState<any | null>(null);
   const [detailUser, setDetailUser] = useState<any | null>(null);
@@ -130,14 +138,17 @@ export default function AdminDashboard() {
       }
       setTutors(tutorList);
 
-      // 5. Fetch Upcoming Sessions
+      // 5. Fetch Sessions (전체 - 일정 관리 탭 + 카운터용)
+      let sessionList: any[] = [];
       let upcomingCount = 0;
       try {
-        const sessionSnap = await getDocs(query(collection(db, 'sessions'), where('status', '==', 'upcoming')));
-        upcomingCount = sessionSnap.size;
+        const sessionSnap = await getDocs(query(collection(db, 'sessions'), orderBy('startTime', 'desc')));
+        sessionList = sessionSnap.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+        upcomingCount = sessionList.filter(s => s.status === 'upcoming').length;
       } catch (err) {
         console.warn('sessions fetch failed:', err);
       }
+      setAllSessions(sessionList);
 
       // 6. Fetch Tutor Applications
       let appsList: any[] = [];
@@ -650,6 +661,7 @@ export default function AdminDashboard() {
   // 여기부터는 일반 값 계산 + 조건부 early return 허용
   const navItems = [
     { id: 'overview', label: '현황판', icon: TrendingUp },
+    { id: 'schedule', label: '일정 관리', icon: CalendarDays, count: stats.upcomingSessions },
     { id: 'consultations', label: '상담 내역', icon: MessageSquare, count: stats.pendingConsults },
     { id: 'payments', label: '결제 관리', icon: CreditCard },
     { id: 'users', label: '유저 관리', icon: Users },
@@ -820,6 +832,22 @@ export default function AdminDashboard() {
                   </Card>
                 </div>
               </div>
+            </motion.div>
+          )}
+
+          {activeTab === 'schedule' && (
+            <motion.div key="schedule" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
+              <AdminScheduleSection
+                sessions={allSessions}
+                tutors={tutors}
+                users={usersList}
+                tutorFilter={scheduleTutorFilter}
+                studentFilter={scheduleStudentFilter}
+                onTutorFilterChange={setScheduleTutorFilter}
+                onStudentFilterChange={setScheduleStudentFilter}
+                onSelectEvent={setAdminSelectedEvent}
+                onRegisterForUser={(u) => { setDetailUserMode('session'); setDetailUser(u); }}
+              />
             </motion.div>
           )}
 
@@ -1848,6 +1876,15 @@ export default function AdminDashboard() {
         )}
       </AnimatePresence>
 
+      {/* 관리자 일정 상세 모달 (read-only) */}
+      {adminSelectedEvent && (
+        <EventDetailModal
+          event={adminSelectedEvent}
+          canEdit={false}
+          onClose={() => setAdminSelectedEvent(null)}
+        />
+      )}
+
       {/* 튜터 정보 수정 모달 */}
       <AnimatePresence>
         {editTutor && (
@@ -2154,6 +2191,181 @@ function EditField({
         onChange={e => onChange(e.target.value)}
         className="w-full rounded-xl border border-slate-200 px-4 py-3 text-base outline-none focus:border-blue-500"
       />
+    </div>
+  );
+}
+
+// ────────────────────────────────────────────────────────────────────
+// 관리자 일정 집계 섹션 — 전체 sessions 기반 캘린더 + 강사/학생 필터
+// ────────────────────────────────────────────────────────────────────
+interface AdminScheduleSectionProps {
+  sessions: any[];
+  tutors: any[];
+  users: any[];
+  tutorFilter: string;
+  studentFilter: string;
+  onTutorFilterChange: (id: string) => void;
+  onStudentFilterChange: (id: string) => void;
+  onSelectEvent: (event: CalendarEvent | null) => void;
+  onRegisterForUser: (user: any) => void;
+}
+
+function AdminScheduleSection({
+  sessions, tutors, users, tutorFilter, studentFilter,
+  onTutorFilterChange, onStudentFilterChange, onSelectEvent, onRegisterForUser,
+}: AdminScheduleSectionProps) {
+  const filteredSessions = useMemo(() => {
+    return sessions.filter((s) => {
+      if (s.status === 'cancelled') return false;
+      if (tutorFilter && s.tutorId !== tutorFilter) return false;
+      if (studentFilter && s.userId !== studentFilter) return false;
+      return true;
+    });
+  }, [sessions, tutorFilter, studentFilter]);
+
+  const calendarEvents = useMemo<CalendarEvent[]>(() => {
+    const list: CalendarEvent[] = [];
+    for (const s of filteredSessions) {
+      const d: Date | null = s.startTime?.toDate
+        ? s.startTime.toDate()
+        : s.startTime
+          ? new Date(s.startTime)
+          : null;
+      if (!d || isNaN(d.getTime())) continue;
+      const tutor = tutors.find((t) => t.id === s.tutorId);
+      const title = `${tutor?.name || s.tutorName || '강사'} · ${s.userName || '학생'}`;
+      const end = s.duration ? new Date(d.getTime() + s.duration * 60000) : undefined;
+      list.push({
+        id: s.id,
+        kind: 'lesson',
+        title,
+        start: d,
+        end,
+        color:
+          s.status === 'completed' ? 'slate'
+          : 'blue',
+        raw: s,
+      });
+    }
+    return list;
+  }, [filteredSessions, tutors]);
+
+  const upcomingFiltered = useMemo(
+    () => filteredSessions.filter(s => s.status === 'upcoming'),
+    [filteredSessions]
+  );
+
+  // 학생 선택 시 빠른 액션용
+  const selectedStudent = users.find((u) => u.id === studentFilter);
+
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-bold text-slate-900">일정 관리</h2>
+          <p className="text-xs text-slate-500 mt-1">
+            전체 강사·학생 수업 일정을 한 화면에서 확인하고 조율합니다.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          <span className="text-[10px] font-black uppercase tracking-widest bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
+            예정 {upcomingFiltered.length}건
+          </span>
+          <span className="text-[10px] font-black uppercase tracking-widest bg-slate-100 text-slate-600 px-2 py-1 rounded-full">
+            필터 결과 {filteredSessions.length}건
+          </span>
+        </div>
+      </div>
+
+      {/* 필터 */}
+      <Card className="p-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-bold text-slate-600 mb-1.5">강사 필터</label>
+            <div className="flex gap-2 items-center">
+              <select
+                value={tutorFilter}
+                onChange={(e) => onTutorFilterChange(e.target.value)}
+                className="flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-500 bg-white"
+              >
+                <option value="">전체 강사</option>
+                {tutors.map((t) => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+              {tutorFilter && (
+                <button
+                  onClick={() => onTutorFilterChange('')}
+                  className="h-9 w-9 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50 flex items-center justify-center"
+                  title="필터 해제"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-600 mb-1.5">학생 필터</label>
+            <div className="flex gap-2 items-center">
+              <select
+                value={studentFilter}
+                onChange={(e) => onStudentFilterChange(e.target.value)}
+                className="flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm outline-none focus:border-blue-500 bg-white"
+              >
+                <option value="">전체 학생</option>
+                {users
+                  .filter((u) => u.role !== 'admin')
+                  .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+                  .map((u) => (
+                    <option key={u.id} value={u.id}>{u.name || u.email}</option>
+                  ))}
+              </select>
+              {studentFilter && (
+                <button
+                  onClick={() => onStudentFilterChange('')}
+                  className="h-9 w-9 rounded-xl border border-slate-200 text-slate-500 hover:bg-slate-50 flex items-center justify-center"
+                  title="필터 해제"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {selectedStudent && (
+          <div className="mt-4 pt-4 border-t border-slate-100 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <div className="h-9 w-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                <Users size={16} />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-slate-900">{selectedStudent.name}</p>
+                <p className="text-[11px] text-slate-500">{selectedStudent.email}</p>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              onClick={() => onRegisterForUser(selectedStudent)}
+              className="gap-1.5"
+            >
+              <CalendarPlus size={14} /> 이 학생 수업 등록
+            </Button>
+          </div>
+        )}
+      </Card>
+
+      {/* 캘린더 */}
+      <ScheduleCalendar
+        events={calendarEvents}
+        caption="전체 일정 (관리자)"
+        onSelectEvent={onSelectEvent}
+      />
+
+      <p className="text-[11px] text-slate-400 text-center">
+        일정 등록·수정은 회원 상세 페이지의 <strong>수업 등록</strong> 패널에서 처리됩니다.
+        위 필터에서 학생을 선택하면 빠른 등록 진입점이 노출됩니다.
+      </p>
     </div>
   );
 }
