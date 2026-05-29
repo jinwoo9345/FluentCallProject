@@ -64,6 +64,40 @@ export function SessionRegisterSection({ userId, userName, userEmail, tutors, au
     meetingLink: '',
   });
 
+  // 이 학생이 결제 완료한 강사 ID 집합 → 드롭다운 제한
+  const [paidTutorIds, setPaidTutorIds] = useState<Set<string>>(new Set());
+  const [paidLoaded, setPaidLoaded] = useState(false);
+  // 결제 내역 없는 학생도 등록 가능한 override (관리자 판단)
+  const [overrideEligibility, setOverrideEligibility] = useState(false);
+
+  useEffect(() => {
+    if (!userId) return;
+    setPaidLoaded(false);
+    (async () => {
+      try {
+        // 복합 인덱스 회피 위해 userId 만으로 필터, status 는 클라이언트에서
+        const snap = await getDocs(
+          query(collection(db, 'payments'), where('userId', '==', userId))
+        );
+        const ids = new Set<string>();
+        snap.docs.forEach((d) => {
+          const data = d.data() as any;
+          if (data.status === 'completed' && data.tutorId) ids.add(data.tutorId);
+        });
+        setPaidTutorIds(ids);
+      } catch (err) {
+        console.warn('paid tutors fetch failed:', err);
+      } finally {
+        setPaidLoaded(true);
+      }
+    })();
+  }, [userId]);
+
+  const eligibleTutors = useMemo(
+    () => (overrideEligibility ? tutors : tutors.filter((t) => paidTutorIds.has(t.id))),
+    [tutors, paidTutorIds, overrideEligibility]
+  );
+
   const fetchSessions = async () => {
     setLoading(true);
     try {
@@ -202,14 +236,45 @@ export function SessionRegisterSection({ userId, userName, userEmail, tutors, au
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div className="sm:col-span-2">
-              <label className="block text-xs font-bold text-slate-600 mb-1.5">
-                <School size={12} className="inline mr-1" /> 강사
+              <label className="block text-xs font-bold text-slate-600 mb-1.5 flex items-center justify-between">
+                <span>
+                  <School size={12} className="inline mr-1" /> 강사
+                  <span className="ml-1 text-[10px] font-normal text-slate-400">
+                    (이 학생이 결제 완료한 강사만 표시)
+                  </span>
+                </span>
+                {paidLoaded && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOverrideEligibility((v) => !v);
+                      setForm((f) => ({ ...f, tutorId: '' }));
+                    }}
+                    className={cn(
+                      'text-[10px] font-bold px-2 py-0.5 rounded-full transition-colors',
+                      overrideEligibility
+                        ? 'bg-amber-100 text-amber-700 hover:bg-amber-200'
+                        : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                    )}
+                    title="결제 내역과 무관하게 전체 강사에서 선택"
+                  >
+                    {overrideEligibility ? '✓ 전체 강사' : '전체 강사 보기'}
+                  </button>
+                )}
               </label>
-              <TutorPicker
-                tutors={tutors}
-                selectedId={form.tutorId}
-                onSelect={(id) => setForm({ ...form, tutorId: id })}
-              />
+              {paidLoaded && eligibleTutors.length === 0 && !overrideEligibility ? (
+                <div className="rounded-xl border border-dashed border-amber-200 bg-amber-50/60 px-3 py-3 text-[11px] text-amber-700 leading-relaxed">
+                  이 학생은 결제 완료된 수강권이 없습니다.
+                  무통장입금이라면 관리자 승인 후 가능합니다. 임시로 등록하려면
+                  오른쪽 위 <strong>전체 강사 보기</strong> 토글을 사용하세요.
+                </div>
+              ) : (
+                <TutorPicker
+                  tutors={eligibleTutors}
+                  selectedId={form.tutorId}
+                  onSelect={(id) => setForm({ ...form, tutorId: id })}
+                />
+              )}
             </div>
 
             <div>
