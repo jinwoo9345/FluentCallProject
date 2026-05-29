@@ -16,6 +16,7 @@ import { Pagination, usePaginated } from '../components/ui/Pagination';
 import { SessionRegisterSection } from '../components/Dashboard/SessionRegisterSection';
 import { ScheduleCalendar, type CalendarEvent } from '../components/Schedule/ScheduleCalendar';
 import { EventDetailModal } from '../components/Schedule/EventDetailModal';
+import { AdminSessionRegisterModal } from '../components/Schedule/AdminSessionRegisterModal';
 
 const PAGE_SIZES = {
   consultations: 15,
@@ -66,6 +67,7 @@ export default function AdminDashboard() {
   const [scheduleTutorFilter, setScheduleTutorFilter] = useState<string>(''); // tutorId
   const [scheduleStudentFilter, setScheduleStudentFilter] = useState<string>(''); // userId
   const [adminSelectedEvent, setAdminSelectedEvent] = useState<CalendarEvent | null>(null);
+  const [adminRegisterOpen, setAdminRegisterOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [detailConsult, setDetailConsult] = useState<any | null>(null);
   const [detailUser, setDetailUser] = useState<any | null>(null);
@@ -860,6 +862,7 @@ export default function AdminDashboard() {
                 onStudentFilterChange={setScheduleStudentFilter}
                 onSelectEvent={setAdminSelectedEvent}
                 onRegisterForUser={(u) => { setDetailUserMode('session'); setDetailUser(u); }}
+                onQuickRegister={() => setAdminRegisterOpen(true)}
               />
             </motion.div>
           )}
@@ -1900,6 +1903,14 @@ export default function AdminDashboard() {
         />
       )}
 
+      {/* 관리자 수업 등록 모달 (일정 관리 탭 빠른 등록) */}
+      <AdminSessionRegisterModal
+        open={adminRegisterOpen}
+        tutors={tutors}
+        adminId={firebaseUser?.uid || ''}
+        onClose={() => setAdminRegisterOpen(false)}
+      />
+
       {/* 튜터 정보 수정 모달 */}
       <AnimatePresence>
         {editTutor && (
@@ -2223,11 +2234,13 @@ interface AdminScheduleSectionProps {
   onStudentFilterChange: (id: string) => void;
   onSelectEvent: (event: CalendarEvent | null) => void;
   onRegisterForUser: (user: any) => void;
+  onQuickRegister: () => void;
 }
 
 function AdminScheduleSection({
   sessions, tutors, users, tutorFilter, studentFilter,
   onTutorFilterChange, onStudentFilterChange, onSelectEvent, onRegisterForUser,
+  onQuickRegister,
 }: AdminScheduleSectionProps) {
   const filteredSessions = useMemo(() => {
     return sessions.filter((s) => {
@@ -2295,13 +2308,20 @@ function AdminScheduleSection({
             전체 강사·학생 수업 일정을 한 화면에서 확인하고 조율합니다.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2 text-xs">
+        <div className="flex flex-wrap items-center gap-2">
           <span className="text-[10px] font-black uppercase tracking-widest bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
             예정 {upcomingFiltered.length}건
           </span>
           <span className="text-[10px] font-black uppercase tracking-widest bg-slate-100 text-slate-600 px-2 py-1 rounded-full">
             필터 결과 {filteredSessions.length}건
           </span>
+          <Button
+            size="sm"
+            onClick={onQuickRegister}
+            className="gap-1.5"
+          >
+            <CalendarPlus size={14} /> 수업 등록
+          </Button>
         </div>
       </div>
 

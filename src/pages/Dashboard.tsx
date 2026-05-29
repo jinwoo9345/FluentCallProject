@@ -17,6 +17,7 @@ import { ScheduleCalendar, type CalendarEvent } from '../components/Schedule/Sch
 import { EventDetailModal } from '../components/Schedule/EventDetailModal';
 import { AddPersonalEventModal } from '../components/Schedule/AddPersonalEventModal';
 import { TutorSessionRegisterModal } from '../components/Schedule/TutorSessionRegisterModal';
+import { AdminSessionRegisterModal } from '../components/Schedule/AdminSessionRegisterModal';
 import type { PersonalEvent, UserRole } from '../types';
 import { PointTransferModal } from '../components/Payment/PointTransferModal';
 import { ProfileEditModal } from '../components/Dashboard/ProfileEditModal';
@@ -927,6 +928,7 @@ function SessionsPanel({
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [tutorRegisterOpen, setTutorRegisterOpen] = useState(false);
+  const [adminRegisterOpen, setAdminRegisterOpen] = useState(false);
 
   // 캘린더 이벤트 — 모든 수업(과거 포함, 취소 제외) + 본인 개인 일정
   // 관리자: 모든 sessions 가 노출되므로 3rd party 수업은 "강사 · 학생"으로 표기
@@ -1005,18 +1007,22 @@ function SessionsPanel({
 
   return (
     <div className="space-y-8">
-      {/* 강사 전용 액션 — 본인 수업 등록 */}
-      {userRole === 'tutor' && (
+      {/* 수업 등록 액션 — 강사: 본인 학생만 / 관리자: 강사·학생 모두 선택 */}
+      {(userRole === 'tutor' || userRole === 'admin') && (
         <div className="rounded-2xl border border-blue-100 bg-gradient-to-r from-blue-50 to-indigo-50/30 p-4 flex items-center justify-between gap-3">
           <div>
             <p className="text-sm font-black text-slate-900">수업 일정 직접 등록</p>
             <p className="text-[11px] text-slate-500 mt-0.5">
-              나에게 결제한 학생만 선택 가능합니다. 등록하면 학생과 관리자 캘린더에도 즉시 표시됩니다.
+              {userRole === 'admin'
+                ? '강사 선택 후 그 강사에게 결제한 학생을 골라 수업을 등록합니다.'
+                : '나에게 결제한 학생만 선택 가능합니다. 등록하면 학생·관리자 캘린더에도 즉시 표시됩니다.'}
             </p>
           </div>
           <button
             type="button"
-            onClick={() => setTutorRegisterOpen(true)}
+            onClick={() =>
+              userRole === 'admin' ? setAdminRegisterOpen(true) : setTutorRegisterOpen(true)
+            }
             className="flex-shrink-0 px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-black hover:bg-blue-500 transition-colors flex items-center gap-1.5"
           >
             <Calendar size={14} /> 수업 등록
@@ -1174,6 +1180,15 @@ function SessionsPanel({
           tutorId={ownerId}
           tutorName={ownerName}
           onClose={() => setTutorRegisterOpen(false)}
+        />
+      )}
+
+      {userRole === 'admin' && (
+        <AdminSessionRegisterModal
+          open={adminRegisterOpen}
+          tutors={tutors}
+          adminId={ownerId}
+          onClose={() => setAdminRegisterOpen(false)}
         />
       )}
     </div>
