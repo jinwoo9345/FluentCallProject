@@ -5,7 +5,7 @@ import {
   Link as LinkIcon, Mail, Search, ChevronDown, Check,
 } from 'lucide-react';
 import {
-  collection, query, where, getDocs, addDoc, serverTimestamp, Timestamp,
+  collection, query, where, getDocs, getDoc, doc, addDoc, serverTimestamp, Timestamp,
 } from 'firebase/firestore';
 import { db } from '../../firebase';
 import { Button } from '../ui/Button';
@@ -67,7 +67,8 @@ export function AdminSessionRegisterModal({ open, tutors, adminId, onClose, onCr
     setStudentPickerOpen(false);
   }, [open]);
 
-  // 강사 선택 시 결제 학생 목록 fetch
+  // 강사 선택 시 결제 학생 목록 fetch + 누락된 userName/Email 을 users 컬렉션에서 보강
+  // (기존 결제 doc 중 userName snapshot 이 없는 경우 '학생' 으로 표시되는 문제 해결)
   useEffect(() => {
     if (!open || !selectedTutorId) {
       setStudents([]);
@@ -78,10 +79,7 @@ export function AdminSessionRegisterModal({ open, tutors, adminId, onClose, onCr
     (async () => {
       try {
         const snap = await getDocs(
-          query(
-            collection(db, 'payments'),
-            where('tutorId', '==', selectedTutorId),
-          )
+          query(collection(db, 'payments'), where('tutorId', '==', selectedTutorId)),
         );
         const map = new Map<string, StudentOption>();
         snap.docs.forEach((d) => {
@@ -94,13 +92,41 @@ export function AdminSessionRegisterModal({ open, tutors, adminId, onClose, onCr
           } else {
             map.set(data.userId, {
               userId: data.userId,
-              userName: data.userName || '학생',
+              userName: data.userName || '',
               userEmail: data.userEmail || '',
               paidSessions: totalSessions,
             });
           }
         });
-        setStudents(Array.from(map.values()));
+
+        // 누락된 userName 또는 userEmail 을 users 컬렉션에서 보강 (관리자는 read 허용)
+        const needsLookup = Array.from(map.values()).filter(
+          (s) => !s.userName || !s.userEmail,
+        );
+        if (needsLookup.length > 0) {
+          await Promise.all(
+            needsLookup.map(async (s) => {
+              try {
+                const userDoc = await getDoc(doc(db, 'users', s.userId));
+                if (userDoc.exists()) {
+                  const u = userDoc.data() as any;
+                  const entry = map.get(s.userId)!;
+                  if (!entry.userName) entry.userName = u.name || u.realName || '';
+                  if (!entry.userEmail) entry.userEmail = u.email || '';
+                }
+              } catch (err) {
+                console.warn(`[AdminSessionRegister] user lookup failed (${s.userId}):`, err);
+              }
+            }),
+          );
+        }
+
+        // 최종 fallback — 그래도 비어있으면 uid 끝 6자로 식별
+        const final = Array.from(map.values()).map((s) => ({
+          ...s,
+          userName: s.userName || `학생 (${s.userId.slice(-6)})`,
+        }));
+        setStudents(final);
       } catch (err: any) {
         console.error('[AdminSessionRegister] payments fetch failed:', err);
         setError('학생 목록을 불러오지 못했습니다: ' + (err.message || ''));

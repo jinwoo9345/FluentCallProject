@@ -63,9 +63,11 @@ export function TutorSessionRegisterModal({ open, tutorId, tutorName, onClose, o
           if (existing) {
             existing.remainingSessions += totalSessions;
           } else {
+            // 기존 결제 doc 에 userName snapshot 이 없으면 uid 끝자리로 식별 보조
+            const fallbackName = `학생 (uid 끝 6자: ${String(data.userId).slice(-6)})`;
             map.set(data.userId, {
               userId: data.userId,
-              userName: data.userName || '학생',
+              userName: data.userName || fallbackName,
               userEmail: data.userEmail || '',
               remainingSessions: totalSessions,
             });
