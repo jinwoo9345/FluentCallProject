@@ -7,14 +7,17 @@ import {
 import { Button } from '../ui/Button';
 import { cn } from '@/src/lib/utils';
 import { personalEventService } from '../../services/personalEventService';
+import { sessionService } from '../../services/sessionService';
 import type { CalendarEvent } from './ScheduleCalendar';
 import type { PersonalEvent } from '../../types';
 
 interface Props {
   event: CalendarEvent | null;
   onClose: () => void;
-  /** 본인 소유 개인 일정만 편집 가능 — 호출 측에서 판정 */
+  /** 본인 소유 개인 일정만 편집 가능 */
   canEdit: boolean;
+  /** 수업의 강사 본인 또는 관리자 — 수업 수정·삭제 권한 */
+  canManageLesson?: boolean;
 }
 
 const COLOR_OPTIONS: { value: NonNullable<PersonalEvent['color']>; label: string; cls: string }[] = [
@@ -32,7 +35,7 @@ function toLocalInputValue(d: Date) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-export function EventDetailModal({ event, onClose, canEdit }: Props) {
+export function EventDetailModal({ event, onClose, canEdit, canManageLesson = false }: Props) {
   const [editMode, setEditMode] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -42,15 +45,22 @@ export function EventDetailModal({ event, onClose, canEdit }: Props) {
   const [endStr, setEndStr] = useState('');
   const [color, setColor] = useState<NonNullable<PersonalEvent['color']>>('green');
 
+  // 수업 수정 폼 — 별도 상태 (날짜·시간·길이·링크만 변경 가능)
+  const [lessonDuration, setLessonDuration] = useState(25);
+  const [lessonMeetingLink, setLessonMeetingLink] = useState('');
+
   useEffect(() => {
     if (!event) return;
     setEditMode(false);
     setTitle(event.title);
-    const raw = event.raw as PersonalEvent | undefined;
+    const raw = event.raw as any;
     setNotes(raw?.notes || '');
     setStartStr(toLocalInputValue(event.start));
     setEndStr(event.end ? toLocalInputValue(event.end) : '');
     setColor((raw?.color as any) || (event.kind === 'lesson' ? 'blue' : 'green'));
+    // 수업 폼 초기화
+    setLessonDuration(raw?.duration || 25);
+    setLessonMeetingLink(raw?.meetingLink || '');
   }, [event]);
 
   if (!event) return null;
@@ -103,6 +113,48 @@ export function EventDetailModal({ event, onClose, canEdit }: Props) {
       onClose();
     } catch (err: any) {
       alert('삭제 실패: ' + (err.message || '알 수 없는 오류'));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // 수업 수정 (날짜·시간·길이·링크)
+  const handleSaveLesson = async () => {
+    if (!event.raw?.id) return;
+    const start = new Date(startStr);
+    if (isNaN(start.getTime())) {
+      alert('시작 시각이 올바르지 않습니다.');
+      return;
+    }
+    if (!Number.isFinite(lessonDuration) || lessonDuration <= 0 || lessonDuration > 240) {
+      alert('수업 시간은 1~240분 사이여야 합니다.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await sessionService.updateSession(event.raw.id, {
+        startTime: sessionService.toTimestamp(start) as any,
+        duration: lessonDuration,
+        meetingLink: lessonMeetingLink.trim() || '',
+      });
+      onClose();
+    } catch (err: any) {
+      alert('수업 수정 실패: ' + (err.message || '알 수 없는 오류'));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // 수업 삭제
+  const handleDeleteLesson = async () => {
+    if (!event.raw?.id) return;
+    if (!confirm('이 수업을 삭제하시겠어요? 학생·관리자 캘린더에서도 제거됩니다.')) return;
+    setSubmitting(true);
+    try {
+      await sessionService.deleteSession(event.raw.id);
+      onClose();
+    } catch (err: any) {
+      alert('수업 삭제 실패: ' + (err.message || '알 수 없는 오류'));
     } finally {
       setSubmitting(false);
     }
@@ -206,6 +258,41 @@ export function EventDetailModal({ event, onClose, canEdit }: Props) {
                     </div>
                   )}
                 </>
+              ) : isLesson ? (
+                // 수업 수정 폼 — 강사/관리자가 날짜·시간·길이·링크만 변경
+                <div className="space-y-4">
+                  <p className="text-[11px] text-slate-500 italic">
+                    수강생·강사 정보는 변경할 수 없습니다. 변경이 필요하면 삭제 후 새로 등록해주세요.
+                  </p>
+                  <FormField label="시작 일시">
+                    <input
+                      type="datetime-local"
+                      value={startStr}
+                      onChange={(e) => setStartStr(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 outline-none focus:border-blue-500 text-sm"
+                    />
+                  </FormField>
+                  <FormField label="수업 시간 (분)">
+                    <input
+                      type="number"
+                      value={lessonDuration}
+                      onChange={(e) => setLessonDuration(Number(e.target.value))}
+                      min={10}
+                      max={240}
+                      step={5}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 outline-none focus:border-blue-500 text-sm"
+                    />
+                  </FormField>
+                  <FormField label="수업 링크 (선택)">
+                    <input
+                      type="url"
+                      value={lessonMeetingLink}
+                      onChange={(e) => setLessonMeetingLink(e.target.value)}
+                      placeholder="https://zoom.us/..."
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 outline-none focus:border-blue-500 text-sm"
+                    />
+                  </FormField>
+                </div>
               ) : (
                 <div className="space-y-4">
                   <FormField label="제목">
@@ -267,9 +354,10 @@ export function EventDetailModal({ event, onClose, canEdit }: Props) {
               )}
             </div>
 
-            {/* 하단 액션 */}
+            {/* 하단 액션 — 종류·권한·편집모드 분기 */}
             <div className="p-4 border-t border-slate-100 bg-slate-50/40 flex items-center justify-between gap-2">
-              {canEdit && !editMode && (
+              {/* 개인 일정 모드 */}
+              {!isLesson && canEdit && !editMode && (
                 <>
                   <button
                     onClick={handleDelete}
@@ -286,7 +374,7 @@ export function EventDetailModal({ event, onClose, canEdit }: Props) {
                   </div>
                 </>
               )}
-              {canEdit && editMode && (
+              {!isLesson && canEdit && editMode && (
                 <>
                   <span />
                   <div className="flex items-center gap-2">
@@ -299,7 +387,45 @@ export function EventDetailModal({ event, onClose, canEdit }: Props) {
                   </div>
                 </>
               )}
-              {!canEdit && (
+              {!isLesson && !canEdit && (
+                <>
+                  <span />
+                  <Button size="sm" onClick={onClose}>닫기</Button>
+                </>
+              )}
+
+              {/* 수업 모드 */}
+              {isLesson && canManageLesson && !editMode && (
+                <>
+                  <button
+                    onClick={handleDeleteLesson}
+                    disabled={submitting}
+                    className="px-3 py-2 rounded-xl text-rose-600 text-sm font-bold hover:bg-rose-50 flex items-center gap-1.5 transition-colors disabled:opacity-50"
+                  >
+                    <Trash2 size={14} /> 수업 삭제
+                  </button>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={onClose}>닫기</Button>
+                    <Button size="sm" onClick={() => setEditMode(true)} className="gap-1">
+                      <Edit3 size={14} /> 수정
+                    </Button>
+                  </div>
+                </>
+              )}
+              {isLesson && canManageLesson && editMode && (
+                <>
+                  <span />
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={() => setEditMode(false)} disabled={submitting}>
+                      취소
+                    </Button>
+                    <Button size="sm" onClick={handleSaveLesson} disabled={submitting} className="gap-1">
+                      {submitting ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} 저장
+                    </Button>
+                  </div>
+                </>
+              )}
+              {isLesson && !canManageLesson && (
                 <>
                   <span />
                   <Button size="sm" onClick={onClose}>닫기</Button>

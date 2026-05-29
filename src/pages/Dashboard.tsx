@@ -16,6 +16,7 @@ import { usePersonalEvents } from '../hooks/usePersonalEvents';
 import { ScheduleCalendar, type CalendarEvent } from '../components/Schedule/ScheduleCalendar';
 import { EventDetailModal } from '../components/Schedule/EventDetailModal';
 import { AddPersonalEventModal } from '../components/Schedule/AddPersonalEventModal';
+import { TutorSessionRegisterModal } from '../components/Schedule/TutorSessionRegisterModal';
 import type { PersonalEvent, UserRole } from '../types';
 import { PointTransferModal } from '../components/Payment/PointTransferModal';
 import { ProfileEditModal } from '../components/Dashboard/ProfileEditModal';
@@ -925,10 +926,11 @@ function SessionsPanel({
   // 모달 상태
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [addOpen, setAddOpen] = useState(false);
+  const [tutorRegisterOpen, setTutorRegisterOpen] = useState(false);
 
   // 캘린더 이벤트 — 모든 수업(과거 포함, 취소 제외) + 본인 개인 일정
-  // 과거 수업은 회색으로 흐리게 표시해 한눈에 구분
-  // 관리자 등 학생·강사 양쪽 권한이 있는 경우, 세션별로 본인이 어느 쪽인지 판단해 제목 결정
+  // 관리자: 모든 sessions 가 노출되므로 3rd party 수업은 "강사 · 학생"으로 표기
+  // 강사·학생: 본인 참여 수업만 노출, 상대방 이름으로 표기
   const calendarEvents = useMemo<CalendarEvent[]>(() => {
     const list: CalendarEvent[] = [];
     for (const s of sessions) {
@@ -937,9 +939,16 @@ function SessionsPanel({
       if (!d) continue;
       const tutor = tutors.find((t) => t.id === s.tutorId);
       const iAmTutor = s.tutorId === ownerId;
-      const title = iAmTutor
-        ? `${s.userName || '학생'} 수업`
-        : `${tutor?.name || s.tutorName || '강사'} 수업`;
+      const iAmStudent = s.userId === ownerId;
+      let title: string;
+      if (iAmTutor) {
+        title = `${s.userName || '학생'} 수업`;
+      } else if (iAmStudent) {
+        title = `${tutor?.name || s.tutorName || '강사'} 수업`;
+      } else {
+        // 관리자가 3rd party 수업을 보는 케이스
+        title = `${tutor?.name || s.tutorName || '강사'} · ${s.userName || '학생'}`;
+      }
       const end = s.duration ? new Date(d.getTime() + s.duration * 60000) : undefined;
       const isPast = s.status === 'completed' || d.getTime() < now;
       list.push({
@@ -989,9 +998,32 @@ function SessionsPanel({
 
   const isOwnedPersonal =
     selectedEvent?.kind === 'personal' && selectedEvent.raw?.ownerId === ownerId;
+  // 수업 수정·삭제 권한: 관리자 OR 해당 수업의 강사 본인
+  const canManageSelectedLesson =
+    selectedEvent?.kind === 'lesson' &&
+    (userRole === 'admin' || selectedEvent.raw?.tutorId === ownerId);
 
   return (
     <div className="space-y-8">
+      {/* 강사 전용 액션 — 본인 수업 등록 */}
+      {userRole === 'tutor' && (
+        <div className="rounded-2xl border border-blue-100 bg-gradient-to-r from-blue-50 to-indigo-50/30 p-4 flex items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-black text-slate-900">수업 일정 직접 등록</p>
+            <p className="text-[11px] text-slate-500 mt-0.5">
+              나에게 결제한 학생만 선택 가능합니다. 등록하면 학생과 관리자 캘린더에도 즉시 표시됩니다.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setTutorRegisterOpen(true)}
+            className="flex-shrink-0 px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-black hover:bg-blue-500 transition-colors flex items-center gap-1.5"
+          >
+            <Calendar size={14} /> 수업 등록
+          </button>
+        </div>
+      )}
+
       {/* 다가오는 수업 요약 — 달력 어느 달을 보고 있어도 항상 노출 */}
       {upcoming.length > 0 && (
         <Card className="p-5 border border-blue-100 bg-blue-50/40">
@@ -1020,9 +1052,12 @@ function SessionsPanel({
                 if (!d) return null;
                 const tutor = tutors.find((t) => t.id === s.tutorId);
                 const iAmTutor = s.tutorId === ownerId;
+                const iAmStudent = s.userId === ownerId;
                 const label = iAmTutor
                   ? `${s.userName || '학생'} 수업`
-                  : `${tutor?.name || s.tutorName || '강사'} 수업`;
+                  : iAmStudent
+                    ? `${tutor?.name || s.tutorName || '강사'} 수업`
+                    : `${tutor?.name || s.tutorName || '강사'} · ${s.userName || '학생'}`;
                 return (
                   <div
                     key={s.id}
@@ -1122,6 +1157,7 @@ function SessionsPanel({
         <EventDetailModal
           event={selectedEvent}
           canEdit={!!isOwnedPersonal}
+          canManageLesson={!!canManageSelectedLesson}
           onClose={() => setSelectedEvent(null)}
         />
       )}
@@ -1131,6 +1167,15 @@ function SessionsPanel({
         ownerName={ownerName}
         onClose={() => setAddOpen(false)}
       />
+
+      {userRole === 'tutor' && (
+        <TutorSessionRegisterModal
+          open={tutorRegisterOpen}
+          tutorId={ownerId}
+          tutorName={ownerName}
+          onClose={() => setTutorRegisterOpen(false)}
+        />
+      )}
     </div>
   );
 }

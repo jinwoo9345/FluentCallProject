@@ -1890,11 +1890,12 @@ export default function AdminDashboard() {
         )}
       </AnimatePresence>
 
-      {/* 관리자 일정 상세 모달 (read-only) */}
+      {/* 관리자 일정 상세 모달 — 관리자는 모든 수업 수정/삭제 가능 */}
       {adminSelectedEvent && (
         <EventDetailModal
           event={adminSelectedEvent}
           canEdit={false}
+          canManageLesson={adminSelectedEvent.kind === 'lesson'}
           onClose={() => setAdminSelectedEvent(null)}
         />
       )}

@@ -16,34 +16,21 @@ export function useSessions(userId: string | undefined, role: UserRole | undefin
 
     setLoading(true);
 
-    // 관리자가 본인 계정으로 수강생/강사로 참여한 수업도 보이도록 userId / tutorId 둘 다 구독
+    // 관리자는 모든 sessions 구독 (본인 강의실 캘린더에 전체 수업 보임)
     if (role === 'admin') {
-      const merged = new Map<string, Session>();
-      const emit = () => setSessions(Array.from(merged.values()));
-
-      const qStudent = query(collection(db, 'sessions'), where('userId', '==', userId));
-      const qTutor = query(collection(db, 'sessions'), where('tutorId', '==', userId));
-
-      const unsub1 = onSnapshot(qStudent, (snap) => {
-        // 이전 결과에서 이 쿼리의 결과를 비우기 위해 단순히 추가/덮어쓰기. dedup은 Map 키로 처리.
-        snap.docs.forEach((d) => merged.set(d.id, { id: d.id, ...(d.data() as any) }));
-        emit();
-        setLoading(false);
-      }, (err) => {
-        console.error('[useSessions] admin/student query failed:', err);
-        setLoading(false);
-      });
-      const unsub2 = onSnapshot(qTutor, (snap) => {
-        snap.docs.forEach((d) => merged.set(d.id, { id: d.id, ...(d.data() as any) }));
-        emit();
-        setLoading(false);
-      }, (err) => {
-        console.error('[useSessions] admin/tutor query failed:', err);
-      });
-      return () => {
-        unsub1();
-        unsub2();
-      };
+      const qAll = query(collection(db, 'sessions'));
+      const unsub = onSnapshot(
+        qAll,
+        (snap) => {
+          setSessions(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) } as Session)));
+          setLoading(false);
+        },
+        (err) => {
+          console.error('[useSessions] admin all-sessions query failed:', err);
+          setLoading(false);
+        }
+      );
+      return () => unsub();
     }
 
     const unsubscribe = sessionService.subscribeToSessions(userId, role, (data) => {

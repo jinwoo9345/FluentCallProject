@@ -1,4 +1,4 @@
-import { collection, query, where, orderBy, onSnapshot, addDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Session } from '../types';
 
@@ -35,5 +35,20 @@ export const sessionService = {
       ...sessionData,
       createdAt: serverTimestamp()
     });
-  }
+  },
+
+  async updateSession(id: string, patch: Partial<Omit<Session, 'id' | 'userId' | 'tutorId'>>) {
+    return await updateDoc(doc(db, SESSIONS_COLLECTION, id), {
+      ...patch,
+      updatedAt: serverTimestamp(),
+    } as any);
+  },
+
+  async deleteSession(id: string) {
+    return await deleteDoc(doc(db, SESSIONS_COLLECTION, id));
+  },
+
+  toTimestamp(date: Date) {
+    return Timestamp.fromDate(date);
+  },
 };

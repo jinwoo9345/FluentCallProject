@@ -12,6 +12,12 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
+    function isTutor() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'tutor';
+    }
+
     // 타인의 credits 필드만 증가시키는 경우 (포인트 선물 수신자 업데이트)
     function validCreditIncrement() {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['credits'])
@@ -83,15 +89,29 @@ service cloud.firestore {
         || (isSignedIn() && request.auth.uid == tutorId);
     }
 
-    // 수업 세션 - 관리자만 쓰기 가능, 본인/튜터/관리자만 읽기
-    // (read 규칙이 list 쿼리에도 적용됨 — 적절히 필터된 쿼리만 허용)
+    // 수업 세션
+    // - 읽기: 본인(userId)·강사(tutorId)·관리자
+    // - 등록(create): 관리자 / 또는 강사 본인이 tutorId == self 로 등록 (자기 자신을 강사로만 지정 가능)
+    // - 수정·삭제: 관리자 / 또는 해당 수업의 강사 본인
     match /sessions/{sessionId} {
       allow read: if isSignedIn() && (
         resource.data.userId == request.auth.uid
         || resource.data.tutorId == request.auth.uid
         || isAdmin()
       );
-      allow create, update, delete: if isAdmin();
+      allow create: if isAdmin()
+        || (isTutor()
+          && request.resource.data.tutorId == request.auth.uid
+          && request.resource.data.status == 'upcoming'
+          && request.resource.data.userId is string
+          && request.resource.data.userId.size() > 0
+          && request.resource.data.duration is int
+          && request.resource.data.duration > 0
+          && request.resource.data.duration <= 240);
+      allow update: if isAdmin()
+        || (isTutor() && resource.data.tutorId == request.auth.uid);
+      allow delete: if isAdmin()
+        || (isTutor() && resource.data.tutorId == request.auth.uid);
     }
 
     // 개인 일정 - 소유자만 CRUD, 관리자는 전체 읽기

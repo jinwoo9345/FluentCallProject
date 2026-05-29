@@ -254,6 +254,8 @@ export function PaymentModal({ isOpen, onClose, productId, productName, tutorId,
         tx.set(paymentRef, {
           orderId,
           userId: auth.currentUser!.uid,
+          userName: user?.name || '',              // 강사 측 식별 (수업 등록 시 학생 이름 표시)
+          userEmail: user?.email || auth.currentUser!.email || '',
           tutorId: tutorId || null,                // 매칭된 튜터 uid (알림 수신용)
           tutorName: tutorName || null,
           amount: txFinalAmount,
@@ -341,6 +343,8 @@ export function PaymentModal({ isOpen, onClose, productId, productName, tutorId,
         tx.set(paymentRef, {
           orderId,
           userId: auth.currentUser!.uid,
+          userName: user?.name || '',
+          userEmail: user?.email || auth.currentUser!.email || '',
           tutorId: tutorId || null,
           tutorName: tutorName || null,
           amount: txFinalAmount,
