@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Users, UserPlus, CreditCard, MessageSquare, TrendingUp,
@@ -204,6 +204,29 @@ export default function AdminDashboard() {
     fetchAdminData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, isAuthReady]);
+
+  // 기존 결제 doc 의 userName/userEmail 자동 보강 (관리자 로그인 시 1회)
+  // 강사가 자기 학생 이름 보려면 payment.userName snapshot 이 필요한데,
+  // PaymentModal 수정 전 결제건은 비어있어서 자동으로 채워줌
+  const backfillRanRef = useRef(false);
+  useEffect(() => {
+    if (!isAuthReady || user?.role !== 'admin') return;
+    if (backfillRanRef.current) return;
+    if (usersList.length === 0 || payments.length === 0) return;
+    const needsBackfill = payments.some((p) => !p.userName || !p.userEmail);
+    if (!needsBackfill) {
+      backfillRanRef.current = true;
+      return;
+    }
+    backfillRanRef.current = true;
+    backfillPaymentUserNames(usersList)
+      .then((r) => {
+        if (r.updated > 0) {
+          console.log(`[AdminDashboard] payment userName/email auto-backfill: ${r.updated} updated`);
+        }
+      })
+      .catch((err) => console.warn('[AdminDashboard] payment auto-backfill failed:', err));
+  }, [isAuthReady, user?.role, usersList.length, payments.length]);
 
   // 전체 sessions 실시간 구독 — 다른 관리자가 등록한 세션도 즉시 반영
   useEffect(() => {
@@ -2235,6 +2258,47 @@ interface AdminScheduleSectionProps {
   onSelectEvent: (event: CalendarEvent | null) => void;
   onRegisterForUser: (user: any) => void;
   onQuickRegister: () => void;
+}
+
+// 기존 payment doc 중 userName/userEmail 이 누락된 것을 users 컬렉션에서 보강
+// (강사는 users 직접 read 권한이 없어 payment.userName snapshot 에 의존)
+// 관리자가 페이지 진입 시 자동 1회 실행 → 강사·관리자 화면 모두 정상 노출
+async function backfillPaymentUserNames(users: any[]): Promise<{ updated: number }> {
+  const usersMap = new Map<string, any>();
+  users.forEach((u) => usersMap.set(u.id, u));
+
+  const snap = await getDocs(collection(db, 'payments'));
+  let updated = 0;
+  let batch = writeBatch(db);
+  let batchCount = 0;
+
+  for (const d of snap.docs) {
+    const data = d.data() as any;
+    const needsName = !data.userName;
+    const needsEmail = !data.userEmail;
+    if (!needsName && !needsEmail) continue;
+
+    const u = usersMap.get(data.userId);
+    if (!u) continue;
+
+    const patch: any = {};
+    if (needsName && (u.name || u.realName)) patch.userName = u.name || u.realName;
+    if (needsEmail && u.email) patch.userEmail = u.email;
+    if (Object.keys(patch).length === 0) continue;
+
+    batch.update(d.ref, patch);
+    batchCount += 1;
+    updated += 1;
+
+    // Firestore writeBatch 최대 500 — 400개씩 끊어 안전하게 커밋
+    if (batchCount >= 400) {
+      await batch.commit();
+      batch = writeBatch(db);
+      batchCount = 0;
+    }
+  }
+  if (batchCount > 0) await batch.commit();
+  return { updated };
 }
 
 function AdminScheduleSection({
