@@ -1852,6 +1852,7 @@ export default function AdminDashboard() {
                     <SessionRegisterSection
                       userId={detailUser.id}
                       userName={detailUser.name || '회원'}
+                      userEmail={detailUser.email || ''}
                       tutors={tutors}
                       autoOpenForm={detailUserMode === 'session'}
                     />
@@ -2233,7 +2234,13 @@ function AdminScheduleSection({
           : null;
       if (!d || isNaN(d.getTime())) continue;
       const tutor = tutors.find((t) => t.id === s.tutorId);
-      const title = `${tutor?.name || s.tutorName || '강사'} · ${s.userName || '학생'}`;
+      const student = users.find((u) => u.id === s.userId);
+      // 칩에 너무 길어지지 않게: "강사 · 학생닉네임 (이메일prefix)"
+      const emailPrefix = student?.email ? student.email.split('@')[0] : '';
+      const studentLabel = emailPrefix
+        ? `${s.userName || student?.name || '학생'} (${emailPrefix})`
+        : (s.userName || student?.name || '학생');
+      const title = `${tutor?.name || s.tutorName || '강사'} · ${studentLabel}`;
       const end = s.duration ? new Date(d.getTime() + s.duration * 60000) : undefined;
       list.push({
         id: s.id,
@@ -2241,14 +2248,21 @@ function AdminScheduleSection({
         title,
         start: d,
         end,
-        color:
-          s.status === 'completed' ? 'slate'
-          : 'blue',
-        raw: s,
+        color: s.status === 'completed' ? 'slate' : 'blue',
+        raw: {
+          ...s,
+          // 모달에서 학생 식별용
+          userEmail: student?.email || s.userEmail || '',
+          userRealName: student?.realName || '',
+          userKakaoLabel: s.userId?.startsWith?.('kakao:')
+            ? `카카오 회원 (uid 끝 6자: ${String(s.userId).slice(-6)})`
+            : '',
+          userIdRef: s.userId || '',
+        },
       });
     }
     return list;
-  }, [filteredSessions, tutors]);
+  }, [filteredSessions, tutors, users]);
 
   const upcomingFiltered = useMemo(
     () => filteredSessions.filter(s => s.status === 'upcoming'),

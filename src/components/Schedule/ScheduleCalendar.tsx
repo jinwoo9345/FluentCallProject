@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { ChevronLeft, ChevronRight, CalendarDays, Plus } from 'lucide-react';
 import { cn } from '@/src/lib/utils';
 
@@ -59,6 +59,14 @@ export function ScheduleCalendar({
   const today = useMemo(() => new Date(), []);
   const [cursor, setCursor] = useState<Date>(initialMonth ? startOfMonth(initialMonth) : startOfMonth(today));
   const [selectedDay, setSelectedDay] = useState<Date>(today);
+
+  // initialMonth가 마운트 이후 변경되면 (예: 다음 수업의 달로 자동 점프) 그쪽으로 이동
+  useEffect(() => {
+    if (initialMonth) {
+      setCursor(startOfMonth(initialMonth));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialMonth?.getTime()]);
 
   // 6주 x 7일 = 42칸 그리드 생성 (이전·다음 달 셀 포함)
   const cells = useMemo(() => {

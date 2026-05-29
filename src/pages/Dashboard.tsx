@@ -424,6 +424,7 @@ export default function Dashboard() {
                       tutors={tutors}
                       ownerId={firebaseUser?.uid || ''}
                       ownerName={user?.name || ''}
+                      ownerEmail={user?.email || ''}
                       userRole={user?.role}
                     />
                   )}
@@ -886,13 +887,14 @@ function toDateSafe(ts: any): Date | null {
 }
 
 function SessionsPanel({
-  sessions, personalEvents, tutors, ownerId, ownerName, userRole,
+  sessions, personalEvents, tutors, ownerId, ownerName, ownerEmail, userRole,
 }: {
   sessions: any[];
   personalEvents: PersonalEvent[];
   tutors: any[];
   ownerId: string;
   ownerName: string;
+  ownerEmail: string;
   userRole: UserRole | undefined;
 }) {
   const now = Date.now();
@@ -924,25 +926,29 @@ function SessionsPanel({
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [addOpen, setAddOpen] = useState(false);
 
-  // 캘린더 이벤트 — 다가오는 수업 + 본인 개인 일정 (지난 수업은 캘린더에 표시 X)
+  // 캘린더 이벤트 — 모든 수업(과거 포함, 취소 제외) + 본인 개인 일정
+  // 과거 수업은 회색으로 흐리게 표시해 한눈에 구분
+  // 관리자 등 학생·강사 양쪽 권한이 있는 경우, 세션별로 본인이 어느 쪽인지 판단해 제목 결정
   const calendarEvents = useMemo<CalendarEvent[]>(() => {
     const list: CalendarEvent[] = [];
-    for (const s of upcoming) {
+    for (const s of sessions) {
+      if (s.status === 'cancelled') continue;
       const d = toDateSafe(s.startTime);
       if (!d) continue;
       const tutor = tutors.find((t) => t.id === s.tutorId);
-      const title =
-        userRole === 'tutor'
-          ? `${s.userName || '학생'} 수업`
-          : `${tutor?.name || s.tutorName || '강사'} 수업`;
+      const iAmTutor = s.tutorId === ownerId;
+      const title = iAmTutor
+        ? `${s.userName || '학생'} 수업`
+        : `${tutor?.name || s.tutorName || '강사'} 수업`;
       const end = s.duration ? new Date(d.getTime() + s.duration * 60000) : undefined;
+      const isPast = s.status === 'completed' || d.getTime() < now;
       list.push({
         id: s.id,
         kind: 'lesson',
         title,
         start: d,
         end,
-        color: 'blue',
+        color: isPast ? 'slate' : 'blue',
         raw: s,
       });
     }
@@ -961,25 +967,103 @@ function SessionsPanel({
       });
     }
     return list;
-  }, [upcoming, personalEvents, tutors, userRole]);
+  }, [sessions, personalEvents, tutors, userRole, now]);
+
+  // 가장 가까운 다가오는 수업의 달로 자동 점프 (없으면 가장 최근 과거 수업의 달, 그것도 없으면 오늘)
+  const initialCalendarMonth = useMemo<Date | undefined>(() => {
+    if (upcoming.length > 0) {
+      const sorted = [...upcoming].sort((a, b) => {
+        const da = toDateSafe(a.startTime)?.getTime() || 0;
+        const db = toDateSafe(b.startTime)?.getTime() || 0;
+        return da - db;
+      });
+      const first = toDateSafe(sorted[0].startTime);
+      if (first) return first;
+    }
+    if (past.length > 0) {
+      const d = toDateSafe(past[0].startTime); // past는 최근→오래된 순으로 정렬되어 있음
+      if (d) return d;
+    }
+    return undefined;
+  }, [upcoming, past]);
 
   const isOwnedPersonal =
     selectedEvent?.kind === 'personal' && selectedEvent.raw?.ownerId === ownerId;
 
   return (
     <div className="space-y-8">
+      {/* 다가오는 수업 요약 — 달력 어느 달을 보고 있어도 항상 노출 */}
+      {upcoming.length > 0 && (
+        <Card className="p-5 border border-blue-100 bg-blue-50/40">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <span className="h-8 w-8 rounded-xl bg-blue-600 text-white flex items-center justify-center">
+                <Calendar size={14} />
+              </span>
+              <div>
+                <p className="text-sm font-black text-slate-900">다가오는 수업 {upcoming.length}건</p>
+                <p className="text-[11px] text-slate-500">달력에서 파란색으로 표시됩니다</p>
+              </div>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            {upcoming
+              .slice()
+              .sort((a, b) => {
+                const da = toDateSafe(a.startTime)?.getTime() || 0;
+                const db = toDateSafe(b.startTime)?.getTime() || 0;
+                return da - db;
+              })
+              .slice(0, 3)
+              .map((s) => {
+                const d = toDateSafe(s.startTime);
+                if (!d) return null;
+                const tutor = tutors.find((t) => t.id === s.tutorId);
+                const iAmTutor = s.tutorId === ownerId;
+                const label = iAmTutor
+                  ? `${s.userName || '학생'} 수업`
+                  : `${tutor?.name || s.tutorName || '강사'} 수업`;
+                return (
+                  <div
+                    key={s.id}
+                    className="flex items-center gap-3 rounded-xl bg-white border border-blue-100 px-3 py-2"
+                  >
+                    <span className="text-xs font-black text-blue-600 w-24 flex-shrink-0">
+                      {d.toLocaleDateString('ko-KR', { month: 'short', day: 'numeric' })} ({WEEKDAY_KR[d.getDay()]})
+                    </span>
+                    <span className="text-xs font-bold text-slate-700 w-14 flex-shrink-0">
+                      {d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                    <span className="text-sm text-slate-800 truncate">{label}</span>
+                  </div>
+                );
+              })}
+            {upcoming.length > 3 && (
+              <p className="text-[11px] text-slate-400 text-center pt-1">
+                + {upcoming.length - 3}건 더 — 달력에서 확인하세요
+              </p>
+            )}
+          </div>
+        </Card>
+      )}
+
       {/* 달력 */}
       <ScheduleCalendar
         events={calendarEvents}
         onAddEvent={() => setAddOpen(true)}
         onSelectEvent={setSelectedEvent}
+        initialMonth={initialCalendarMonth}
         caption={
-          userRole === 'tutor' ? '담당 학생 수업 + 내 개인 일정' : '내 수업 + 개인 일정'
+          userRole === 'admin'
+            ? '내가 참여한 수업 + 개인 일정'
+            : userRole === 'tutor'
+              ? '담당 학생 수업 + 내 개인 일정'
+              : '내 수업 + 개인 일정'
         }
       />
 
-      {/* 빈 상태 안내 (수업도 일정도 모두 비어있을 때만) */}
-      {upcoming.length === 0 && personalEvents.length === 0 && (
+      {/* 빈 상태 안내 */}
+      {sessions.length === 0 && personalEvents.length === 0 && (
         <Card className="p-8 text-center border-dashed">
           <div className="mx-auto h-12 w-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mb-3">
             <Calendar size={22} />
@@ -989,6 +1073,12 @@ function SessionsPanel({
             상단의 <strong>내 일정</strong> 버튼으로 개인 일정을 추가하거나,
             관리자와 협의해 수업을 등록받으세요.
           </p>
+          {(userRole === 'student' || userRole === 'tutor') && (
+            <p className="text-[11px] text-amber-700 mt-3 leading-relaxed">
+              ※ 관리자가 등록했는데도 보이지 않으면 가입 경로가 다를 수 있어요.
+              관리자에게 "<strong>내 이메일: {ownerEmail || '확인 필요'}</strong>" 로 등록됐는지 확인 요청해주세요.
+            </p>
+          )}
         </Card>
       )}
 

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   X, Calendar, Clock, User as UserIcon, School, Link as LinkIcon,
-  Trash2, Edit3, Loader2, Save, Check, StickyNote,
+  Trash2, Edit3, Loader2, Save, Check, StickyNote, Mail, IdCard,
 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { cn } from '@/src/lib/utils';
@@ -157,7 +157,27 @@ export function EventDetailModal({ event, onClose, canEdit }: Props) {
                         <DetailRow icon={School} label="강사">{raw.tutorName}</DetailRow>
                       )}
                       {raw?.userName && (
-                        <DetailRow icon={UserIcon} label="수강생">{raw.userName}</DetailRow>
+                        <DetailRow icon={UserIcon} label="수강생">
+                          <span>{raw.userName}</span>
+                          {raw?.userRealName && raw.userRealName !== raw.userName && (
+                            <span className="ml-2 text-xs text-slate-500">(실명: {raw.userRealName})</span>
+                          )}
+                        </DetailRow>
+                      )}
+                      {raw?.userEmail && (
+                        <DetailRow icon={Mail} label="이메일">
+                          <a
+                            href={`mailto:${raw.userEmail}`}
+                            className="text-blue-600 hover:underline break-all"
+                          >
+                            {raw.userEmail}
+                          </a>
+                        </DetailRow>
+                      )}
+                      {raw?.userKakaoLabel && (
+                        <DetailRow icon={IdCard} label="가입 경로">
+                          {raw.userKakaoLabel}
+                        </DetailRow>
                       )}
                       {raw?.meetingLink && (
                         <DetailRow icon={LinkIcon} label="수업 링크">

@@ -16,6 +16,7 @@ type SessionDoc = {
   id: string;
   userId: string;
   userName?: string;
+  userEmail?: string;
   tutorId: string;
   tutorName?: string;
   startTime: any;
@@ -28,6 +29,7 @@ type SessionDoc = {
 interface SessionRegisterSectionProps {
   userId: string;
   userName: string;
+  userEmail?: string;
   tutors: any[];
   autoOpenForm?: boolean;
 }
@@ -44,7 +46,7 @@ function formatDateTime(ts: any): string {
   )}`;
 }
 
-export function SessionRegisterSection({ userId, userName, tutors, autoOpenForm = false }: SessionRegisterSectionProps) {
+export function SessionRegisterSection({ userId, userName, userEmail, tutors, autoOpenForm = false }: SessionRegisterSectionProps) {
   const [sessions, setSessions] = useState<SessionDoc[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(autoOpenForm);
@@ -124,6 +126,7 @@ export function SessionRegisterSection({ userId, userName, tutors, autoOpenForm 
       await addDoc(collection(db, 'sessions'), {
         userId,
         userName,
+        userEmail: userEmail || '',
         tutorId: form.tutorId,
         tutorName: selectedTutor?.name || '',
         startTime: Timestamp.fromDate(startDate),
@@ -219,6 +222,15 @@ export function SessionRegisterSection({ userId, userName, tutors, autoOpenForm 
                 disabled
                 className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm bg-slate-50 text-slate-500"
               />
+              <p className="text-[10px] text-slate-400 mt-1 leading-relaxed break-all">
+                {userEmail ? <>📧 {userEmail}</> : '이메일 없음'}
+                {userId && (
+                  <span className="ml-2">
+                    · UID {userId.startsWith('kakao:') ? '카카오:' : ''}
+                    <span className="font-mono">{userId.slice(-6)}</span>
+                  </span>
+                )}
+              </p>
             </div>
 
             <div>
