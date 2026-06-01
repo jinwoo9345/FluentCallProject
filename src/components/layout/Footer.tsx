@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Facebook, Twitter, Instagram, Building2, FileText, Users, Shield } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { doc, onSnapshot } from 'firebase/firestore';
@@ -173,7 +173,7 @@ export const Footer = () => {
   );
 };
 
-function FooterColumn({ icon: Icon, title, children }: { icon: any; title: string; children: React.ReactNode }) {
+function FooterColumn({ icon: Icon, title, children }: { icon: any; title: string; children: ReactNode }) {
   return (
     <div>
       <h3 className="flex items-center gap-1.5 text-[11px] font-black uppercase tracking-widest text-slate-700">
@@ -187,7 +187,7 @@ function FooterColumn({ icon: Icon, title, children }: { icon: any; title: strin
   );
 }
 
-function FooterLink({ to, children }: { to: string; children: React.ReactNode }) {
+function FooterLink({ to, children }: { to: string; children: ReactNode }) {
   return (
     <li>
       <Link
@@ -200,7 +200,7 @@ function FooterLink({ to, children }: { to: string; children: React.ReactNode })
   );
 }
 
-function SocialIconButton({ onClick, label, children }: { onClick: () => void; label: string; children: React.ReactNode }) {
+function SocialIconButton({ onClick, label, children }: { onClick: () => void; label: string; children: ReactNode }) {
   return (
     <button
       type="button"

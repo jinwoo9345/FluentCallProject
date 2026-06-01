@@ -251,16 +251,20 @@ export default function Events() {
 // ────────────────────────────────────────────────────────────────────
 // 이벤트 카드
 // ────────────────────────────────────────────────────────────────────
-function EventCard({
-  event, index, canManage, onOpen, onEdit, onDelete,
-}: {
+interface EventCardProps {
+  // React JSX 의 reserved key 를 props 타입에 명시해두면 TS strict 검사에서 누락 에러를 피할 수 있다.
+  key?: import('react').Key;
   event: EventDoc;
   index: number;
   canManage: boolean;
   onOpen: () => void;
   onEdit: () => void;
   onDelete: () => void;
-}) {
+}
+
+function EventCard({
+  event, index, canManage, onOpen, onEdit, onDelete,
+}: EventCardProps) {
   const accent = event.badgeAccent || 'blue';
   const badgeClass = BADGE_COLORS[accent];
   const barClass = CARD_ACCENT_BAR[accent];

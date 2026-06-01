@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { motion } from 'motion/react';
 import { Link } from 'react-router-dom';
 import {
@@ -241,10 +241,10 @@ export default function ConsultationRequest() {
 function SectionCard({
   icon, iconBg, title, children,
 }: {
-  icon: React.ReactNode;
+  icon: ReactNode;
   iconBg: string;
   title: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <Card className="p-8">

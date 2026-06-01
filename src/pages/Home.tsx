@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ChevronDown, Check, ArrowRight } from 'lucide-react';
 import { Button } from '../components/ui/Button';
@@ -9,7 +9,7 @@ import { PromotionPopup } from '../components/layout/PromotionPopup';
 type FaqItem = {
   q: string;
   a: string;                    // 짧은 핵심 답변 1~2문장
-  details: React.ReactNode;     // 상세 설명 JSX
+  details: ReactNode;           // 상세 설명 JSX
   linkTo?: string;              // "더 자세히 보기" 페이지 링크 (선택)
   linkLabel?: string;
 };

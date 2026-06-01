@@ -54,7 +54,11 @@ function AppContent() {
             body: JSON.stringify({ code })
           });
 
-          const data = await response.json();
+          const data = await response.json() as {
+            customToken?: string;
+            userName?: string;
+            message?: string;
+          };
           // customToken 포함된 응답 전체를 로그로 남기지 않음 (devtools 유출 방지)
           if (!response.ok) throw new Error(data.message || '카카오 로그인 실패');
 

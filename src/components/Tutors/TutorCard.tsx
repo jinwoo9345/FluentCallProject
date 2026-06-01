@@ -1,3 +1,4 @@
+import type { Key } from 'react';
 import { motion } from 'motion/react';
 import { Star, Heart, CreditCard } from 'lucide-react';
 import { Card } from '../ui/Card';
@@ -10,6 +11,8 @@ import { DEFAULT_PACKAGE } from '../../constants';
 type TutorCardVariant = 'full' | 'compact';
 
 interface TutorCardProps {
+  // React JSX 의 reserved key 를 props 타입에 명시해두면 TS strict 검사에서 누락 에러를 피할 수 있다.
+  key?: Key;
   tutor: Tutor & { enrollDisabled?: boolean; disabledMessage?: string };
   variant?: TutorCardVariant;
   isWishlisted?: boolean;
