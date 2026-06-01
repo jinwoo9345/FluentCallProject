@@ -96,9 +96,18 @@ export const onRequestPost: PagesFunction<any> = async ({ request, env }) => {
 
     const customToken = await createCustomToken(uid, clientEmail, privateKey);
 
+    // 카카오에서 이메일 동의를 받은 경우에만 email 필드 포함
+    // (개발자센터에서 'account_email' 동의 항목이 활성화돼 있어야 하며,
+    //  사용자가 동의했을 때 is_email_valid && is_email_verified 가 true)
+    const kakaoEmail: string | undefined =
+      userData.kakao_account?.is_email_valid && userData.kakao_account?.is_email_verified
+        ? userData.kakao_account?.email
+        : undefined;
+
     return new Response(JSON.stringify({
       customToken,
       userName: userData.kakao_account?.profile?.nickname,
+      email: kakaoEmail,
     }), { headers: { 'Content-Type': 'application/json' } });
 
   } catch (error: any) {

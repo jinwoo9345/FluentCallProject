@@ -5,6 +5,12 @@ import { Button } from '../ui/Button';
 import { db } from '../../firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import type { User } from '../../types';
+import {
+  validateNicknameFormat,
+  isNicknameAvailable,
+  claimNickname,
+  releaseNickname,
+} from '../../lib/nickname';
 
 interface ProfileEditModalProps {
   isOpen: boolean;
@@ -22,17 +28,37 @@ export function ProfileEditModal({ isOpen, onClose, user }: ProfileEditModalProp
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmedNickname = nickname.trim();
-    if (!trimmedNickname) {
-      setError('닉네임은 비워둘 수 없습니다.');
-      return;
-    }
-    if (trimmedNickname.length > 20) {
-      setError('닉네임은 20자 이하로 입력해주세요.');
+    const fmt = validateNicknameFormat(trimmedNickname);
+    if (!fmt.ok) {
+      setError(fmt.message || '닉네임이 올바르지 않습니다.');
       return;
     }
     setSaving(true);
     setError('');
     try {
+      const previousNickname = (user.name || '').trim();
+      const isNicknameChanged = trimmedNickname.toLowerCase() !== previousNickname.toLowerCase();
+
+      if (isNicknameChanged) {
+        // 1) 중복 검증 — 본인 소유 닉네임은 통과
+        const available = await isNicknameAvailable(trimmedNickname, user.uid);
+        if (!available) {
+          setError('이미 사용 중인 닉네임입니다.');
+          setSaving(false);
+          return;
+        }
+        // 2) 새 닉네임 점유 (race condition 시 throw)
+        try {
+          await claimNickname(trimmedNickname, user.uid);
+        } catch (err: any) {
+          setError(err?.message || '닉네임 등록에 실패했습니다.');
+          setSaving(false);
+          return;
+        }
+        // 3) 이전 닉네임 doc 해제 (다른 사용자가 쓸 수 있도록)
+        if (previousNickname) await releaseNickname(previousNickname, user.uid);
+      }
+
       await updateDoc(doc(db, 'users', user.uid), {
         name: trimmedNickname,
         email: email.trim(),
@@ -97,7 +123,7 @@ export function ProfileEditModal({ isOpen, onClose, user }: ProfileEditModalProp
                     maxLength={20}
                     className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-blue-500"
                   />
-                  <p className="text-[10px] text-slate-400 mt-1">서비스 전반에서 이 이름으로 표시됩니다. 언제든 변경 가능합니다.</p>
+                  <p className="text-[10px] text-slate-400 mt-1">서비스 전반에서 이 이름으로 표시됩니다. <strong>다른 회원과 중복될 수 없습니다.</strong></p>
                 </div>
 
                 <div>

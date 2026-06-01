@@ -23,8 +23,9 @@ import InfoBoard from './pages/InfoBoard';
 import { useEffect, useRef } from 'react';
 import { db, auth } from './firebase';
 import { doc, getDoc, setDoc, updateDoc, serverTimestamp, collection, query, where, getDocs } from 'firebase/firestore';
-import { signInWithCustomToken } from 'firebase/auth';
+import { signInWithCustomToken, signOut } from 'firebase/auth';
 import { generateReferralCode } from './lib/utils';
+import { claimNickname, isNicknameAvailable, validateNicknameFormat } from './lib/nickname';
 
 function AppContent() {
   const { isAuthModalOpen, setIsAuthModalOpen, authMode } = useAuth();
@@ -57,6 +58,7 @@ function AppContent() {
           const data = await response.json() as {
             customToken?: string;
             userName?: string;
+            email?: string;
             message?: string;
           };
           // customToken 포함된 응답 전체를 로그로 남기지 않음 (devtools 유출 방지)
@@ -82,8 +84,26 @@ function AppContent() {
 
           if (!userSnap.exists()) {
             const referralCode = generateReferralCode();
-            const fallbackName = `카카오회원${user.uid.slice(-4)}`;
-            const kakaoName = data.userName || user.displayName || fallbackName;
+            const kakaoName = data.userName || user.displayName || `카카오회원${user.uid.slice(-4)}`;
+
+            // 신규 가입은 AuthModal 에서 미리 입력한 닉네임이 있어야 진행.
+            // 누락된 경우(다른 흐름으로 진입한 신규 유저)는 가입 보류 + 안내.
+            const pendingNickname = localStorage.getItem('pendingNickname') || '';
+            const fmt = validateNicknameFormat(pendingNickname);
+            if (!fmt.ok) {
+              await signOut(auth);
+              localStorage.removeItem('pendingNickname');
+              alert('신규 가입은 회원가입 모달에서 닉네임 입력 후 진행해주세요.');
+              return;
+            }
+            // race condition 으로 사전 검사 통과 후 점유된 경우를 대비해 한 번 더 확인
+            const available = await isNicknameAvailable(pendingNickname);
+            if (!available) {
+              await signOut(auth);
+              localStorage.removeItem('pendingNickname');
+              alert('입력하신 닉네임이 방금 다른 사용자에게 등록되었습니다. 다시 시도해주세요.');
+              return;
+            }
 
             // 추천인 코드 검증 (referral_codes 인덱스 사용 — 비로그인 상태에서도 읽기 가능)
             let validatedReferral = '';
@@ -98,12 +118,24 @@ function AppContent() {
               }
             }
 
+            // 닉네임 인덱스 점유 (실패 시 가입 중단)
+            try {
+              await claimNickname(pendingNickname, user.uid);
+            } catch (err: any) {
+              await signOut(auth);
+              localStorage.removeItem('pendingNickname');
+              alert(err?.message || '닉네임 등록에 실패했습니다.');
+              return;
+            }
+
             const marketingOptIn = !!pendingConsent.marketingOptIn;
+            // 카카오에서 동의받은 이메일이 있으면 자동 등록, 없으면 빈 문자열
+            const kakaoEmail = (data.email || '').trim();
             await setDoc(userRef, {
               uid: user.uid,
-              name: kakaoName,
+              name: pendingNickname.trim(),
               realName: kakaoName,
-              email: user.email || '',
+              email: kakaoEmail,
               role: 'student',
               credits: 0,
               referralCode,
@@ -118,12 +150,13 @@ function AppContent() {
               marketingOptInAt: marketingOptIn ? serverTimestamp() : null,
             });
             localStorage.removeItem('pendingConsent');
+            localStorage.removeItem('pendingNickname');
 
             // 추천 코드 인덱스 문서 생성 (공개 조회용 · 이름 스냅샷 포함)
             try {
               await setDoc(doc(db, 'referral_codes', referralCode), {
                 userId: user.uid,
-                name: kakaoName,
+                name: pendingNickname.trim(),
                 createdAt: serverTimestamp(),
               });
             } catch (err) {
@@ -144,6 +177,10 @@ function AppContent() {
               (data.userName || user.displayName)
             ) {
               updateData.name = data.userName || user.displayName;
+            }
+            // 카카오에서 이메일을 받아왔는데 기존 유저 doc에 이메일이 비어 있으면 자동 보완
+            if (!existing.email && data.email) {
+              updateData.email = data.email;
             }
             if (pendingConsultationId) {
               updateData.hasCompletedConsultation = true;

@@ -309,12 +309,16 @@ export default function AdminDashboard() {
   };
 
   const handleApproveTutorApp = async (app: any) => {
-    if (!window.confirm(`${app.name} 님의 강사 신청을 승인합니다.\n승인 시 해당 유저의 역할이 '강사'로 변경되고 튜터 목록에 등록됩니다.`)) return;
+    // 신청서의 실명(app.name) 대신 유저가 설정한 닉네임(users.name) 을 우선 사용
+    const tutorUser = usersList.find(u => u.id === app.userId || u.uid === app.userId);
+    const tutorDisplayName = (tutorUser?.name || app.name || '강사').trim();
+
+    if (!window.confirm(`${tutorDisplayName} 님의 강사 신청을 승인합니다.\n승인 시 해당 유저의 역할이 '강사'로 변경되고 튜터 목록에 등록됩니다.`)) return;
     try {
       // 1. 튜터 문서 생성 (user uid를 문서 ID로 사용)
       await setDoc(doc(db, 'tutors', app.userId), {
         id: app.userId,
-        name: app.name,
+        name: tutorDisplayName,
         avatar: `https://picsum.photos/seed/tutor_${app.userId}/200/200`,
         rating: 0,
         reviewCount: 0,
@@ -363,7 +367,8 @@ export default function AdminDashboard() {
       alert('유저 식별자(uid)를 찾을 수 없습니다.');
       return;
     }
-    const displayName = u.realName || u.name || '강사';
+    // 사용자가 직접 설정한 닉네임(name)을 우선 사용. 카카오 회원은 realName 이 카카오 닉네임으로 채워져 있어 부적절.
+    const displayName = (u.name || u.realName || '강사').trim();
     const currentRole: string = u.role || 'student';
     const roleNote = currentRole === 'tutor'
       ? ''

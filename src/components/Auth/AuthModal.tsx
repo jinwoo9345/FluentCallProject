@@ -13,6 +13,11 @@ import {
 import { doc, setDoc, serverTimestamp, getDoc, addDoc, collection, updateDoc } from 'firebase/firestore';
 import { Button } from '../ui/Button';
 import { generateReferralCode } from '@/src/lib/utils';
+import {
+  validateNicknameFormat,
+  isNicknameAvailable,
+  claimNickname,
+} from '@/src/lib/nickname';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -39,6 +44,9 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
 
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  // 닉네임 실시간 검증 상태
+  const [nicknameStatus, setNicknameStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle');
+  const [nicknameStatusMessage, setNicknameStatusMessage] = useState('');
 
   // 가입 시 약관 동의 (필수: 이용약관 + 개인정보 / 선택: 마케팅 수신)
   const [agreeTerms, setAgreeTerms] = useState(false);
@@ -62,6 +70,42 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
     }
   }, [mode]);
 
+  // 닉네임 입력 debounce 중복 검사 (가입 모드 한정)
+  useEffect(() => {
+    if (mode !== 'signup') return;
+    const trimmed = nickname.trim();
+    if (!trimmed) {
+      setNicknameStatus('idle');
+      setNicknameStatusMessage('');
+      return;
+    }
+    const formatCheck = validateNicknameFormat(trimmed);
+    if (!formatCheck.ok) {
+      setNicknameStatus('invalid');
+      setNicknameStatusMessage(formatCheck.message || '');
+      return;
+    }
+    setNicknameStatus('checking');
+    setNicknameStatusMessage('확인 중...');
+    const handle = setTimeout(async () => {
+      try {
+        const available = await isNicknameAvailable(trimmed);
+        if (available) {
+          setNicknameStatus('available');
+          setNicknameStatusMessage('사용 가능한 닉네임입니다.');
+        } else {
+          setNicknameStatus('taken');
+          setNicknameStatusMessage('이미 사용 중인 닉네임입니다.');
+        }
+      } catch (err) {
+        console.warn('닉네임 검사 실패:', err);
+        setNicknameStatus('idle');
+        setNicknameStatusMessage('');
+      }
+    }, 400);
+    return () => clearTimeout(handle);
+  }, [nickname, mode]);
+
   const resetFields = () => {
     setPassword('');
     setPasswordConfirm('');
@@ -84,6 +128,33 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
     return true;
   };
 
+  // 가입 모드의 모든 가입 버튼(소셜 + 이메일)을 차단할지 여부
+  // - 필수 약관 미동의 OR 닉네임이 사용 가능 상태가 아님
+  const signupBlocked = mode === 'signup' && (!requiredConsentOk || nicknameStatus !== 'available');
+
+  // 가입 모드에서 닉네임 입력값을 검증하고 사용 가능 여부를 확정한다.
+  // - 형식 오류 / 미입력 / 이미 사용 중 인 경우 false 반환 + error 표시
+  const ensureNicknameUsable = async (): Promise<boolean> => {
+    if (mode !== 'signup') return true;
+    const fmt = validateNicknameFormat(nickname);
+    if (!fmt.ok) {
+      setError(fmt.message || '닉네임이 올바르지 않습니다.');
+      return false;
+    }
+    try {
+      const available = await isNicknameAvailable(nickname);
+      if (!available) {
+        setError('이미 사용 중인 닉네임입니다. 다른 닉네임을 입력해주세요.');
+        return false;
+      }
+      return true;
+    } catch (err: any) {
+      console.warn('닉네임 가용성 확인 실패:', err);
+      setError('닉네임 확인 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+      return false;
+    }
+  };
+
   // 입력된 추천인 코드가 유효한지 검증하고 정규화된 코드 반환
   // referral_codes/{code} 문서를 공개 read로 확인 (로그인 전에도 검증 가능)
   const validateReferral = async (raw: string): Promise<string> => {
@@ -99,6 +170,8 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
   const handleSocialLogin = async (provider: any) => {
     setError('');
     if (!ensureRequiredConsent()) return;
+    // 가입 모드면 닉네임 사전 검증
+    if (mode === 'signup' && !(await ensureNicknameUsable())) return;
     setLoading(true);
     try {
       // 신규 가입 시에만 사용될 추천인 코드를 미리 검증
@@ -114,7 +187,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
       }
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
-      await ensureUserDocument(user, validatedReferral);
+      await ensureUserDocument(user, validatedReferral, mode === 'signup' ? nickname.trim() : '');
       onClose();
     } catch (err: any) {
       console.error(err);
@@ -124,9 +197,11 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
     }
   };
 
-  const handleKakaoLogin = () => {
+  const handleKakaoLogin = async () => {
     setError('');
     if (!ensureRequiredConsent()) return;
+    // 가입 모드면 닉네임 사전 검증 (redirect 후 App.tsx 에서 사용)
+    if (mode === 'signup' && !(await ensureNicknameUsable())) return;
     try {
       const Kakao = (window as any).Kakao;
       const KAKAO_KEY = (import.meta as any).env.VITE_KAKAO_JS_KEY;
@@ -143,7 +218,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
         }
       }
 
-      // 카카오는 redirect 흐름이라 동의값을 localStorage 에 임시 저장해서 App.tsx 의 유저 생성 시점에 반영
+      // 카카오는 redirect 흐름이라 동의값/닉네임을 localStorage 에 임시 저장해서 App.tsx 의 유저 생성 시점에 반영
       if (mode === 'signup') {
         localStorage.setItem(
           'pendingConsent',
@@ -154,12 +229,14 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
             ts: Date.now(),
           })
         );
+        localStorage.setItem('pendingNickname', nickname.trim());
       }
 
       const redirectUri = `${window.location.origin}/dashboard`;
       Kakao.Auth.authorize({
         redirectUri: redirectUri,
-        scope: 'profile_nickname',
+        // account_email: 카카오 개발자센터에서 동의항목 활성화돼 있어야 실제 전달됨
+        scope: 'profile_nickname,account_email',
       });
     } catch (err: any) {
       console.error(err);
@@ -167,17 +244,26 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
     }
   };
 
-  const ensureUserDocument = async (user: any, validatedReferral: string = '') => {
+  const ensureUserDocument = async (
+    user: any,
+    validatedReferral: string = '',
+    chosenNickname: string = ''
+  ) => {
     const userRef = doc(db, 'users', user.uid);
     const userSnap = await getDoc(userRef);
 
     if (!userSnap.exists()) {
       const referralCode = generateReferralCode();
-      const displayName = user.displayName || '회원';
+      const realName = user.displayName || '회원';
+      const displayName = (chosenNickname || realName).trim();
+
+      // 닉네임 유니크 인덱스 점유 (실패 시 가입 중단)
+      await claimNickname(displayName, user.uid);
+
       await setDoc(userRef, {
         uid: user.uid,
         name: displayName,
-        realName: displayName,
+        realName,
         email: user.email || '',
         role: 'student',
         credits: 0,
@@ -228,6 +314,10 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
         setError('실명을 입력해주세요.');
         return;
       }
+      // 닉네임 필수 + 중복 사전 검증
+      if (!(await ensureNicknameUsable())) {
+        return;
+      }
       if (role === 'tutor') {
         if (!tutorContact.trim() || !tutorExperience.trim() || !tutorIntroduction.trim()) {
           setError('강사 신청에는 연락처, 경력, 자기소개가 모두 필요합니다.');
@@ -254,8 +344,17 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
 
-        const displayName = (nickname.trim() || name.trim());
+        const displayName = nickname.trim();
         await updateProfile(user, { displayName });
+
+        // 닉네임 유니크 인덱스 점유 — 실패하면 Auth 계정만 남는 상태를 막기 위해 가입 흐름을 중단하고 보고.
+        // (race condition 으로 사전 검사 통과 후 다른 유저가 선점한 경우)
+        try {
+          await claimNickname(displayName, user.uid);
+        } catch (err: any) {
+          throw new Error(err?.message || '닉네임 등록에 실패했습니다.');
+        }
+
         const referralCode = generateReferralCode();
 
         // 강사 가입 지원자도 일단 'student'로 등록하고 별도 신청 문서 생성.
@@ -368,7 +467,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
                   <button
                     type="button"
                     onClick={() => handleSocialLogin(googleProvider)}
-                    disabled={mode === 'signup' && !requiredConsentOk}
+                    disabled={signupBlocked}
                     className="w-full aspect-[600/90] flex items-center justify-center gap-3 px-4 rounded-xl border border-slate-200 bg-white text-slate-700 font-bold hover:bg-slate-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5" />
@@ -377,7 +476,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
                   <button
                     type="button"
                     onClick={handleKakaoLogin}
-                    disabled={mode === 'signup' && !requiredConsentOk}
+                    disabled={signupBlocked}
                     aria-label={`카카오 계정으로 ${mode === 'signin' ? '로그인' : '시작하기'}`}
                     className="w-full hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
                   >
@@ -389,18 +488,41 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
                       className="w-full h-auto block"
                     />
                   </button>
-                  {mode === 'signup' && !requiredConsentOk && (
+                  {signupBlocked && (
                     <p className="text-[11px] text-slate-500 text-center">
-                      소셜 가입을 진행하려면 위 필수 약관에 동의해주세요.
+                      소셜 가입을 진행하려면 위 닉네임 입력과 필수 약관 동의가 필요합니다.
                     </p>
                   )}
                 </div>
 
                 {mode === 'signup' && (
                   <>
-                    <p className="text-[11px] text-slate-500 -mt-2 text-center leading-relaxed">
-                      소셜 가입 후에는 <strong>마이페이지에서 닉네임</strong>을 자유롭게 변경할 수 있습니다.
-                    </p>
+                    {/* 소셜 가입에도 사용할 닉네임 (필수, 중복 불가) */}
+                    <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
+                      <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                        닉네임 (필수 · 중복 불가)
+                      </label>
+                      <input
+                        type="text"
+                        value={nickname}
+                        onChange={(e) => setNickname(e.target.value)}
+                        placeholder="예: 영어초보"
+                        maxLength={20}
+                        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-blue-500"
+                      />
+                      {nicknameStatusMessage && (
+                        <p className={`mt-1 text-[11px] font-bold ${
+                          nicknameStatus === 'available' ? 'text-green-600'
+                          : nicknameStatus === 'checking' ? 'text-slate-500'
+                          : 'text-red-600'
+                        }`}>
+                          {nicknameStatusMessage}
+                        </p>
+                      )}
+                      <p className="text-[10px] text-slate-500 mt-1.5 leading-relaxed">
+                        서비스 전반에서 표시되는 이름입니다. <strong>가입 후 마이페이지에서 변경할 수 있어요.</strong>
+                      </p>
+                    </div>
 
                     {/* 추천인 코드 입력 (이메일·소셜 공통) */}
                     <div className="p-4 rounded-2xl bg-blue-50/50 border border-blue-100">
@@ -479,17 +601,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
                         />
                       </div>
 
-                      <div className="relative">
-                        <AtSign className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                        <input
-                          type="text"
-                          placeholder="닉네임 (선택, 미입력 시 실명으로 표시)"
-                          className="w-full pl-12 pr-4 py-3 rounded-xl border border-slate-200 outline-none"
-                          value={nickname}
-                          onChange={(e) => setNickname(e.target.value)}
-                          maxLength={20}
-                        />
-                      </div>
+                      {/* 닉네임은 가입 모드 상단(소셜 버튼 위)에서 이미 입력 */}
                     </>
                   )}
 
@@ -585,7 +697,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
                   <Button
                     type="submit"
                     className="w-full py-4 rounded-xl"
-                    disabled={loading || (mode === 'signup' && !requiredConsentOk)}
+                    disabled={loading || signupBlocked}
                   >
                     {loading ? '처리 중...' : mode === 'signin' ? '로그인' : role === 'tutor' ? '강사 신청 제출' : '회원가입 완료'}
                   </Button>

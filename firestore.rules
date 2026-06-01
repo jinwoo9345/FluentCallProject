@@ -55,6 +55,19 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // 닉네임 유니크 인덱스 — 문서 ID = 닉네임 소문자(키), 한 유저당 하나만 점유
+    // - read 공개: 신규 가입/변경 시 사전 중복 검사용
+    // - create: 본인 uid 만 자기 닉네임 doc 생성. 길이 2~30
+    // - delete: 본인(닉네임 변경 시 이전 doc 해제) 또는 관리자
+    match /nicknames/{nickname} {
+      allow read: if true;
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid
+        && nickname.size() >= 2 && nickname.size() <= 30;
+      allow delete: if isAdmin()
+        || (isSignedIn() && resource.data.userId == request.auth.uid);
+    }
+
     // 추천 코드 인덱스
     // 코드 포맷 강제 + 덮어쓰기 방지 + 본인 uid 검증
     match /referral_codes/{code} {
