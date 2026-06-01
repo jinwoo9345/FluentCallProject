@@ -235,8 +235,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
       const redirectUri = `${window.location.origin}/dashboard`;
       Kakao.Auth.authorize({
         redirectUri: redirectUri,
-        // account_email: 카카오 개발자센터에서 동의항목 활성화돼 있어야 실제 전달됨
-        scope: 'profile_nickname,account_email',
+        scope: 'profile_nickname',
       });
     } catch (err: any) {
       console.error(err);

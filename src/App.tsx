@@ -58,7 +58,6 @@ function AppContent() {
           const data = await response.json() as {
             customToken?: string;
             userName?: string;
-            email?: string;
             message?: string;
           };
           // customToken 포함된 응답 전체를 로그로 남기지 않음 (devtools 유출 방지)
@@ -129,13 +128,11 @@ function AppContent() {
             }
 
             const marketingOptIn = !!pendingConsent.marketingOptIn;
-            // 카카오에서 동의받은 이메일이 있으면 자동 등록, 없으면 빈 문자열
-            const kakaoEmail = (data.email || '').trim();
             await setDoc(userRef, {
               uid: user.uid,
               name: pendingNickname.trim(),
               realName: kakaoName,
-              email: kakaoEmail,
+              email: '',
               role: 'student',
               credits: 0,
               referralCode,
@@ -177,10 +174,6 @@ function AppContent() {
               (data.userName || user.displayName)
             ) {
               updateData.name = data.userName || user.displayName;
-            }
-            // 카카오에서 이메일을 받아왔는데 기존 유저 doc에 이메일이 비어 있으면 자동 보완
-            if (!existing.email && data.email) {
-              updateData.email = data.email;
             }
             if (pendingConsultationId) {
               updateData.hasCompletedConsultation = true;
