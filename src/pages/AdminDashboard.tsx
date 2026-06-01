@@ -792,9 +792,10 @@ export default function AdminDashboard() {
       .filter(u => {
         const uid = u.uid || u.id;
         if (tutorIds.has(uid)) return false;
-        const name = (u.realName || u.name || '').toLowerCase();
+        const nickname = (u.name || '').toLowerCase();
+        const realName = (u.realName || '').toLowerCase();
         const email = (u.email || '').toLowerCase();
-        return name.includes(keyword) || email.includes(keyword);
+        return nickname.includes(keyword) || realName.includes(keyword) || email.includes(keyword);
       })
       .slice(0, 20); // 상위 20명까지만
   }, [usersList, tutors, tutorRegisterSearch]);
@@ -1414,13 +1415,15 @@ export default function AdminDashboard() {
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2">
                               <p className="font-bold text-sm text-slate-900 truncate">
-                                {u.realName || u.name || '(이름 없음)'}
+                                {u.name || u.realName || '(이름 없음)'}
                               </p>
                               <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
                                 {roleLabel(u.role)}
                               </span>
                             </div>
-                            <p className="text-xs text-slate-500 truncate">{u.email || '-'}</p>
+                            <p className="text-xs text-slate-500 truncate">
+                              {u.realName && u.realName !== u.name ? `${u.realName} · ` : ''}{u.email || '-'}
+                            </p>
                           </div>
                           <Button
                             className="text-xs gap-1 whitespace-nowrap"
