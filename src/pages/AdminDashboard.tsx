@@ -96,6 +96,8 @@ export default function AdminDashboard() {
   const [footerTwitterUrl, setFooterTwitterUrl] = useState('');
   const [footerFacebookUrl, setFooterFacebookUrl] = useState('');
   const [settingsSaving, setSettingsSaving] = useState(false);
+  // 강사 관리 탭에서 유저를 검색해 강사로 등록할 때 쓰는 입력
+  const [tutorRegisterSearch, setTutorRegisterSearch] = useState('');
 
   const fetchAdminData = async () => {
     setLoading(true);
@@ -280,6 +282,32 @@ export default function AdminDashboard() {
     }
   };
 
+  // Firebase Auth custom claim 의 role 을 백엔드 엔드포인트로 동기화한다.
+  // 실패해도 Firestore 의 role 업데이트는 이미 완료된 상태이므로 치명적이지 않음 → warn 만 표시.
+  const syncCustomClaimRole = async (uid: string, role: 'student' | 'tutor' | 'admin') => {
+    if (!firebaseUser) return false;
+    try {
+      const idToken = await firebaseUser.getIdToken();
+      const res = await fetch('/api/admin/set-user-role', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${idToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ targetUid: uid, role }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        console.warn('[custom claim sync 실패]', uid, role, (data as any)?.message);
+        return false;
+      }
+      return true;
+    } catch (err) {
+      console.warn('[custom claim sync 호출 실패]', err);
+      return false;
+    }
+  };
+
   const handleApproveTutorApp = async (app: any) => {
     if (!window.confirm(`${app.name} 님의 강사 신청을 승인합니다.\n승인 시 해당 유저의 역할이 '강사'로 변경되고 튜터 목록에 등록됩니다.`)) return;
     try {
@@ -313,13 +341,67 @@ export default function AdminDashboard() {
         reviewedAt: serverTimestamp(),
       });
 
+      // 4. Firebase Auth custom claim 동기화
+      const claimOk = await syncCustomClaimRole(app.userId, 'tutor');
+
       setTutorApps(prev => prev.map(a => (a.id === app.id ? { ...a, status: 'approved' } : a)));
       setUsersList(prev => prev.map(u => (u.id === app.userId ? { ...u, role: 'tutor', tutorApplicationStatus: 'approved' } : u)));
-      alert('승인 처리 완료');
+      alert(claimOk
+        ? '승인 처리 완료'
+        : '승인 처리 완료 (참고: Auth claim 동기화에 실패했습니다. 해당 유저는 재로그인 후에도 권한이 즉시 반영되지 않을 수 있습니다.)');
       setDetailTutorApp(null);
       fetchAdminData();
     } catch (err: any) {
       alert('승인 실패: ' + (err.message || '알 수 없는 오류'));
+    }
+  };
+
+  // 관리자가 임의의 유저를 강사로 직접 등록 (role 무관 — 학생이어도 가능)
+  const handleRegisterUserAsTutor = async (u: any) => {
+    const uid = u.uid || u.id;
+    if (!uid) {
+      alert('유저 식별자(uid)를 찾을 수 없습니다.');
+      return;
+    }
+    const displayName = u.realName || u.name || '강사';
+    const currentRole: string = u.role || 'student';
+    const roleNote = currentRole === 'tutor'
+      ? ''
+      : `\n현재 역할(${roleLabel(currentRole)})이 '강사'로 변경됩니다.`;
+    if (!window.confirm(
+      `${displayName} 님을 강사 목록에 등록합니다.${roleNote}\n` +
+      `프로필은 빈 값으로 생성되며, 등록 후 "정보 수정"에서 채울 수 있습니다.`
+    )) return;
+
+    try {
+      await setDoc(doc(db, 'tutors', uid), {
+        id: uid,
+        name: displayName,
+        avatar: u.avatar || `https://picsum.photos/seed/tutor_${uid}/200/200`,
+        rating: 0,
+        reviewCount: 0,
+        specialties: [],
+        bio: '',
+        longBio: '',
+        availability: [],
+        languages: ['English'],
+        location: '',
+        tier: '',
+        hidden: false,
+        createdAt: serverTimestamp(),
+      });
+      await updateDoc(doc(db, 'users', uid), {
+        role: 'tutor',
+        tutorApplicationStatus: 'approved',
+      });
+      const claimOk = await syncCustomClaimRole(uid, 'tutor');
+      alert(claimOk
+        ? '강사 등록 완료'
+        : '강사 등록 완료 (참고: Auth claim 동기화에 실패했습니다. 해당 유저는 재로그인 후에도 권한이 즉시 반영되지 않을 수 있습니다.)');
+      setTutorRegisterSearch('');
+      fetchAdminData();
+    } catch (err: any) {
+      alert('등록 실패: ' + (err.message || '알 수 없는 오류'));
     }
   };
 
@@ -695,6 +777,22 @@ export default function AdminDashboard() {
   const consultPage = usePaginated(filteredConsultations, PAGE_SIZES.consultations);
   const paymentsPage = usePaginated(payments, PAGE_SIZES.payments);
   const tutorsPage = usePaginated(tutors, PAGE_SIZES.tutors);
+
+  // 강사 등록 후보: tutors 컬렉션에 아직 없는 유저 전체. 검색어가 있을 때만 결과 노출.
+  const tutorRegisterCandidates = useMemo(() => {
+    const keyword = tutorRegisterSearch.trim().toLowerCase();
+    if (!keyword) return [];
+    const tutorIds = new Set(tutors.map(t => t.id));
+    return usersList
+      .filter(u => {
+        const uid = u.uid || u.id;
+        if (tutorIds.has(uid)) return false;
+        const name = (u.realName || u.name || '').toLowerCase();
+        const email = (u.email || '').toLowerCase();
+        return name.includes(keyword) || email.includes(keyword);
+      })
+      .slice(0, 20); // 상위 20명까지만
+  }, [usersList, tutors, tutorRegisterSearch]);
 
   // 여기부터는 일반 값 계산 + 조건부 early return 허용
   const navItems = [
@@ -1278,6 +1376,60 @@ export default function AdminDashboard() {
 
           {activeTab === 'tutors' && (
             <motion.div key="tutors" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
+              <Card className="p-5 border-indigo-100 bg-indigo-50/40">
+                <div className="flex items-center gap-2 mb-2">
+                  <UserPlus size={18} className="text-indigo-600" />
+                  <h3 className="text-sm font-black uppercase tracking-widest text-indigo-700">
+                    유저를 강사로 등록
+                  </h3>
+                </div>
+                <p className="text-xs text-slate-600 mb-3 leading-relaxed">
+                  이름 또는 이메일로 검색해 원하는 유저만 강사로 등록할 수 있습니다.
+                  강사 역할이 아닌 유저(학생 등)도 등록 시 자동으로 역할이 '강사'로 변경됩니다.
+                </p>
+                <input
+                  type="text"
+                  value={tutorRegisterSearch}
+                  onChange={(e) => setTutorRegisterSearch(e.target.value)}
+                  placeholder="이름 또는 이메일로 검색"
+                  className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
+                />
+                {tutorRegisterSearch.trim() && (
+                  <div className="mt-3 space-y-2">
+                    {tutorRegisterCandidates.length === 0 ? (
+                      <p className="text-xs text-slate-500 px-1 py-2">
+                        일치하는 유저가 없거나 이미 강사로 등록되어 있습니다.
+                      </p>
+                    ) : (
+                      tutorRegisterCandidates.map(u => (
+                        <div
+                          key={u.id}
+                          className="flex items-center justify-between gap-3 bg-white p-3 rounded-xl border border-slate-100"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <p className="font-bold text-sm text-slate-900 truncate">
+                                {u.realName || u.name || '(이름 없음)'}
+                              </p>
+                              <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                                {roleLabel(u.role)}
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-500 truncate">{u.email || '-'}</p>
+                          </div>
+                          <Button
+                            className="text-xs gap-1 whitespace-nowrap"
+                            onClick={() => handleRegisterUserAsTutor(u)}
+                          >
+                            <UserPlus size={14} /> 강사 등록
+                          </Button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </Card>
+
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-xl font-bold text-slate-900">등록된 강사 목록 ({tutors.length}명)</h2>
                 <Button className="gap-2" onClick={() => setIsAddingTutor(true)}>
