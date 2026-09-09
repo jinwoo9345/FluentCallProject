@@ -75,6 +75,7 @@ export default function AdminDashboard() {
   const [editTutor, setEditTutor] = useState<any | null>(null);
   const [isAddingTutor, setIsAddingTutor] = useState(false);
   const [consultFilter, setConsultFilter] = useState<'all' | 'pending' | 'completed'>('all');
+  const [paymentFilter, setPaymentFilter] = useState<'all' | 'pending' | 'completed' | 'cancelled'>('all');
   const [tutorApps, setTutorApps] = useState<any[]>([]);
   const [detailTutorApp, setDetailTutorApp] = useState<any | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
@@ -776,11 +777,21 @@ export default function AdminDashboard() {
   const pendingCount = consultations.filter(c => c.status === 'pending' || !c.status).length;
   const pendingTutorAppsCount = tutorApps.filter(a => a.status === 'pending').length;
 
+  const filteredPayments = payments.filter(p => {
+    if (paymentFilter === 'all') return true;
+    if (paymentFilter === 'pending') return p.status === 'pending' || !p.status;
+    if (paymentFilter === 'completed') return p.status === 'completed';
+    return p.status === 'cancelled' || p.status === 'failed';
+  });
+  const pendingPaymentCount = payments.filter(p => p.status === 'pending' || !p.status).length;
+  const completedPaymentCount = payments.filter(p => p.status === 'completed').length;
+  const cancelledPaymentCount = payments.filter(p => p.status === 'cancelled' || p.status === 'failed').length;
+
   // usePaginated는 내부에서 useState/useEffect/useMemo를 호출하는 커스텀 훅이므로
   // 반드시 최상단에서 early return 이전에 호출되어야 한다.
   const usersPage = usePaginated(filteredUsers, PAGE_SIZES.users);
   const consultPage = usePaginated(filteredConsultations, PAGE_SIZES.consultations);
-  const paymentsPage = usePaginated(payments, PAGE_SIZES.payments);
+  const paymentsPage = usePaginated(filteredPayments, PAGE_SIZES.payments);
   const tutorsPage = usePaginated(tutors, PAGE_SIZES.tutors);
 
   // 강사 등록 후보: tutors 컬렉션에 아직 없는 유저 전체. 검색어가 있을 때만 결과 노출.
@@ -1096,7 +1107,33 @@ export default function AdminDashboard() {
 
           {activeTab === 'payments' && (
             <motion.div key="payments" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
-              <h2 className="text-xl font-bold text-slate-900 mb-4">전체 결제 내역</h2>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                <h2 className="text-xl font-bold text-slate-900">결제 내역</h2>
+                <div className="inline-flex flex-wrap items-center gap-1 p-1 bg-slate-100 rounded-xl">
+                  {([
+                    { id: 'all', label: `전체 (${payments.length})` },
+                    { id: 'pending', label: `입금 대기 (${pendingPaymentCount})` },
+                    { id: 'completed', label: `완료 (${completedPaymentCount})` },
+                    { id: 'cancelled', label: `취소/실패 (${cancelledPaymentCount})` },
+                  ] as const).map(opt => (
+                    <button
+                      key={opt.id}
+                      onClick={() => {
+                        setPaymentFilter(opt.id);
+                        paymentsPage.setPage(1);
+                      }}
+                      className={cn(
+                        'px-4 py-1.5 rounded-lg text-xs font-bold transition-all',
+                        paymentFilter === opt.id
+                          ? 'bg-white text-blue-600 shadow-sm'
+                          : 'text-slate-500 hover:text-slate-700'
+                      )}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <Card className="p-0 overflow-hidden shadow-sm border border-slate-200">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse">
@@ -1113,6 +1150,13 @@ export default function AdminDashboard() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
+                      {paymentsPage.sliced.length === 0 && (
+                        <tr>
+                          <td colSpan={8} className="px-4 py-14 text-center text-sm text-slate-400">
+                            해당 상태의 결제 내역이 없습니다.
+                          </td>
+                        </tr>
+                      )}
                       {paymentsPage.sliced.map(p => {
                         const payer = usersList.find(u => u.id === p.userId || u.uid === p.userId);
                         return (
@@ -1181,7 +1225,7 @@ export default function AdminDashboard() {
                 </div>
                 <Pagination
                   currentPage={paymentsPage.page}
-                  totalItems={payments.length}
+                  totalItems={filteredPayments.length}
                   pageSize={PAGE_SIZES.payments}
                   onPageChange={paymentsPage.setPage}
                 />
