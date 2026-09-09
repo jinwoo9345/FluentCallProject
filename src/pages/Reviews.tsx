@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'motion/react';
 import {
-  Star, Search, PenSquare, Trash2, Edit3, Info, Loader2, X, Check,
+  Star, Search, PenSquare, Trash2, Edit3, Loader2, X, Check,
   Briefcase, GraduationCap, Plane, Sparkles, BookOpen, Sprout,
 } from 'lucide-react';
 import {
@@ -25,7 +25,6 @@ type PlatformReview = {
   rating: number;
   content: string;
   createdAt?: any;
-  isSample?: boolean;
 };
 
 const TAG_OPTIONS = [
@@ -40,40 +39,6 @@ const TAG_OPTIONS = [
 const TAG_ICON: Record<string, any> = Object.fromEntries(
   TAG_OPTIONS.map((t) => [t.label, t.icon])
 );
-
-// 예시 후기 (실제 유저 데이터가 쌓이기 전 이해를 돕기 위한 샘플 · isSample=true)
-const SAMPLE_REVIEWS: PlatformReview[] = [
-  {
-    id: 'sample-1', userId: '', userName: '대학생', userTag: '대학생',
-    rating: 5, isSample: true,
-    content: '영어 면접 준비 때문에 시작했는데, 확실히 일반 학원보다 실전 느낌이 좋아요. 특히 예상 질문 피드백도 자연스럽게 이어지는 연습이 많이 됐습니다. 아직 완벽하진 않지만, 영어로 말하는 게 덜 부담스러워졌어요.',
-  },
-  {
-    id: 'sample-2', userId: '', userName: '직장인', userTag: '직장인',
-    rating: 5, isSample: true,
-    content: '퇴근하고 30분 정도 부담 없이 할 수 있어서 시작했어요. 딱딱한 수업이 아니라 그냥 대화하는 느낌이라 꾸준히 하게 되는 것 같아요. 표현도 하나씩 자연스럽게 늘고 있습니다.',
-  },
-  {
-    id: 'sample-3', userId: '', userName: '초보자', userTag: '초보자',
-    rating: 5, isSample: true,
-    content: '영어 거의 못하는 상태에서 시작했는데 생각보다 편했어요. 튜터도 제 속도에 맞춰 유도해줘서 부담이 덜합니다. 처음엔 긴장했는데 몇 번 하니까 익숙해졌어요.',
-  },
-  {
-    id: 'sample-4', userId: '', userName: '여행 준비', userTag: '여행 준비',
-    rating: 5, isSample: true,
-    content: '여행 가기 전에 간단한 회화라도 하려고 시작했는데, 실제로 쓸만한 표현 위주로 알려줘서 좋았어요. 공항·카페·길 물어보기 같은 상황별로 나눠서 연습할 수 있어서 만족스럽습니다.',
-  },
-  {
-    id: 'sample-5', userId: '', userName: '꾸준형 수강생', userTag: '꾸준형 수강생',
-    rating: 5, isSample: true,
-    content: '한 번에 확 늘진 않지만, 꾸준히 하니까 확실히 달라지긴 해요. 예전에는 한 문장도 겁났는데 지금은 일단 뱉고 보는 습관이 생겼습니다. 튜터 바꿔가면서 다양한 스타일 경험한 것도 좋았어요.',
-  },
-  {
-    id: 'sample-6', userId: '', userName: '자기계발', userTag: '자기계발',
-    rating: 5, isSample: true,
-    content: '업무상 영어 써야 할 일이 많아지는데 따로 공부할 시간이 부족해서 시작했어요. 출퇴근 시간에도 연습이 가능해서 효율이 좋습니다. 실용적인 문장 위주로 반복하니까 확실히 입에 붙어요.',
-  },
-];
 
 function StarRow({ rating, size = 14, className }: { rating: number; size?: number; className?: string }) {
   return (
@@ -134,29 +99,24 @@ export default function Reviews() {
     })();
   }, [firebaseUser]);
 
-  const combined = useMemo(() => {
-    if (reviews.length === 0) return SAMPLE_REVIEWS;
-    return [...reviews, ...SAMPLE_REVIEWS];
-  }, [reviews]);
-
   const filtered = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    if (!q) return combined;
-    return combined.filter(
+    if (!q) return reviews;
+    return reviews.filter(
       (r) =>
         (r.userName || '').toLowerCase().includes(q) ||
         (r.content || '').toLowerCase().includes(q) ||
         (r.userTag || '').toLowerCase().includes(q)
     );
-  }, [combined, searchQuery]);
+  }, [reviews, searchQuery]);
 
   const pager = usePaginated(filtered, PAGE_SIZE);
 
   const avgRating = useMemo(() => {
-    if (filtered.length === 0) return 0;
-    const sum = filtered.reduce((acc, r) => acc + (r.rating || 0), 0);
-    return Math.round((sum / filtered.length) * 10) / 10;
-  }, [filtered]);
+    if (reviews.length === 0) return 0;
+    const sum = reviews.reduce((acc, r) => acc + (r.rating || 0), 0);
+    return Math.round((sum / reviews.length) * 10) / 10;
+  }, [reviews]);
 
   const handleOpenWrite = () => {
     if (!firebaseUser) {
@@ -212,13 +172,6 @@ export default function Reviews() {
                 평균 만족도 {avgRating.toFixed(1)}/5.0
               </p>
             </div>
-            <div className="mt-6 inline-flex items-start gap-2 text-[11px] text-amber-100/90 bg-amber-400/10 border border-amber-300/30 rounded-xl px-4 py-3 leading-relaxed text-left">
-              <Info size={14} className="mt-0.5 flex-shrink-0" />
-              <span>
-                * 아래 후기는 이해를 돕기 위한 예시입니다.<br />
-                * 현재 실제 수강생 후기를 순차적으로 업데이트 중입니다.
-              </span>
-            </div>
           </motion.div>
 
           {/* 검색 + 작성 */}
@@ -254,7 +207,7 @@ export default function Reviews() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
               {pager.sliced.map((r) => {
                 const Icon = TAG_ICON[r.userTag] || GraduationCap;
-                const isMine = !r.isSample && !!firebaseUser && r.userId === firebaseUser.uid;
+                const isMine = !!firebaseUser && r.userId === firebaseUser.uid;
                 return (
                   <motion.div
                     key={r.id}
@@ -263,11 +216,6 @@ export default function Reviews() {
                     transition={{ duration: 0.25 }}
                   >
                     <Card className="h-full p-6 hover:shadow-lg transition-all relative bg-white border border-slate-100 hover:border-amber-200">
-                      {r.isSample && (
-                        <span className="absolute top-3 right-3 text-[10px] font-black uppercase tracking-widest bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
-                          예시
-                        </span>
-                      )}
                       <div className="flex items-start gap-3 mb-3">
                         <div className="h-10 w-10 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center flex-shrink-0">
                           <Icon size={18} />
