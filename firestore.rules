@@ -19,8 +19,9 @@ service cloud.firestore {
     }
 
     // 타인의 credits 필드만 증가시키는 경우 (포인트 선물 수신자 업데이트)
-    function validCreditIncrement() {
-      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['credits'])
+    function validCreditIncrement(userId) {
+      return request.auth.uid != userId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['credits'])
         && request.resource.data.credits is int
         && resource.data.credits is int
         && request.resource.data.credits > resource.data.credits
@@ -35,22 +36,62 @@ service cloud.firestore {
         && request.resource.data.credits < resource.data.credits;
     }
 
+    // 신규 가입자는 반드시 최소 권한(student)과 0 포인트로 시작해야 한다.
+    // 클라이언트가 임의 필드를 추가해 관리자 권한이나 금전성 값을 주입하지 못하도록
+    // 가입 시 사용하는 필드도 명시적으로 제한한다.
+    function validUserCreate(userId) {
+      return request.auth.uid == userId
+        && request.resource.data.keys().hasAll([
+          'uid', 'name', 'realName', 'email', 'role', 'credits',
+          'referralCode', 'referredBy', 'discountBalance', 'createdAt',
+          'avatar', 'agreedToTermsAt', 'agreedToPrivacyAt',
+          'marketingOptIn', 'marketingOptInAt'
+        ])
+        && request.resource.data.keys().hasOnly([
+          'uid', 'name', 'realName', 'email', 'role', 'credits',
+          'referralCode', 'referredBy', 'discountBalance', 'createdAt',
+          'avatar', 'hasCompletedConsultation',
+          'agreedToTermsAt', 'agreedToPrivacyAt',
+          'marketingOptIn', 'marketingOptInAt', 'tutorApplicationStatus'
+        ])
+        && request.resource.data.uid == userId
+        && request.resource.data.role == 'student'
+        && request.resource.data.credits == 0
+        && request.resource.data.discountBalance == 0
+        && request.resource.data.name is string
+        && request.resource.data.realName is string
+        && request.resource.data.email is string
+        && request.resource.data.referralCode is string
+        && request.resource.data.referredBy is string
+        && request.resource.data.avatar is string
+        && request.resource.data.marketingOptIn is bool;
+    }
+
+    // 본인이 바꿀 수 있는 값은 화면에서 제공하는 비권한성 프로필/상태 필드뿐이다.
+    // role, credits, discountBalance, referralCode 같은 권한·금전성 필드는 포함하지 않는다.
+    function ownProfileUpdateOnly(userId) {
+      return request.auth.uid == userId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'name', 'realName', 'email', 'avatar', 'wishlist',
+          'hasCompletedConsultation', 'tutorApplicationId',
+          'marketingOptIn', 'marketingOptInAt'
+        ]);
+    }
+
     // 유저 정보
     match /users/{userId} {
       allow read: if isSignedIn() && (request.auth.uid == userId || isAdmin());
 
-      allow create: if isSignedIn() && request.auth.uid == userId;
+      allow create: if isSignedIn() && validUserCreate(userId);
 
       // 본인: 프로필 필드만 변경 가능 (credits 직접 수정 금지, 단 decrement은 허용 = 포인트 선물용)
       // 타인: credits 증가만 허용 (최대 10만P/회) - 포인트 선물 수신용
       // 관리자: 전체 허용
       allow update: if isSignedIn() && (
         isAdmin()
-        || (request.auth.uid == userId && (
-          !('credits' in request.resource.data.diff(resource.data).affectedKeys())
-          || ownCreditsDecrementOnly()
-        ))
-        || validCreditIncrement()
+        || ownProfileUpdateOnly(userId)
+        || (request.auth.uid == userId && ownCreditsDecrementOnly())
+        || validCreditIncrement(userId)
       );
       allow delete: if isAdmin();
     }
