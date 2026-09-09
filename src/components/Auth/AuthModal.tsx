@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Mail, Lock, User as UserIcon, GraduationCap, School, AtSign, Check, ExternalLink } from 'lucide-react';
 import { auth, db, googleProvider } from '../../firebase';
@@ -12,7 +12,7 @@ import {
 } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp, getDoc, addDoc, collection, updateDoc } from 'firebase/firestore';
 import { Button } from '../ui/Button';
-import { generateReferralCode } from '@/src/lib/utils';
+import { cn, generateReferralCode } from '@/src/lib/utils';
 import {
   validateNicknameFormat,
   isNicknameAvailable,
@@ -47,6 +47,10 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
   // 닉네임 실시간 검증 상태
   const [nicknameStatus, setNicknameStatus] = useState<'idle' | 'checking' | 'available' | 'taken' | 'invalid'>('idle');
   const [nicknameStatusMessage, setNicknameStatusMessage] = useState('');
+  const [signupValidationAttempted, setSignupValidationAttempted] = useState(false);
+  const nicknameSectionRef = useRef<HTMLDivElement>(null);
+  const nicknameInputRef = useRef<HTMLInputElement>(null);
+  const consentSectionRef = useRef<HTMLDivElement>(null);
 
   // 가입 시 약관 동의 (필수: 이용약관 + 개인정보 / 선택: 마케팅 수신)
   const [agreeTerms, setAgreeTerms] = useState(false);
@@ -67,6 +71,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
       setAgreeTerms(false);
       setAgreePrivacy(false);
       setAgreeMarketing(false);
+      setSignupValidationAttempted(false);
     }
   }, [mode]);
 
@@ -117,42 +122,69 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
     setAgreeTerms(false);
     setAgreePrivacy(false);
     setAgreeMarketing(false);
+    setSignupValidationAttempted(false);
     setError('');
   };
 
-  const ensureRequiredConsent = (): boolean => {
-    if (mode === 'signup' && !requiredConsentOk) {
-      setError('이용약관 및 개인정보 수집·이용에 동의해주세요.');
-      return false;
-    }
-    return true;
-  };
-
-  // 가입 모드의 모든 가입 버튼(소셜 + 이메일)을 차단할지 여부
-  // - 필수 약관 미동의 OR 닉네임이 사용 가능 상태가 아님
+  // 이메일 가입 완료 버튼은 필수 입력이 준비될 때까지 비활성화한다.
+  // 소셜 가입 버튼은 항상 누를 수 있고, 클릭 시 누락된 필드로 안내한다.
   const signupBlocked = mode === 'signup' && (!requiredConsentOk || nicknameStatus !== 'available');
 
   // 가입 모드에서 닉네임 입력값을 검증하고 사용 가능 여부를 확정한다.
   // - 형식 오류 / 미입력 / 이미 사용 중 인 경우 false 반환 + error 표시
-  const ensureNicknameUsable = async (): Promise<boolean> => {
+  const ensureNicknameUsable = async (showGlobalError = true): Promise<boolean> => {
     if (mode !== 'signup') return true;
     const fmt = validateNicknameFormat(nickname);
     if (!fmt.ok) {
-      setError(fmt.message || '닉네임이 올바르지 않습니다.');
+      const message = fmt.message || '닉네임이 올바르지 않습니다.';
+      setNicknameStatus('invalid');
+      setNicknameStatusMessage(message);
+      if (showGlobalError) setError(message);
       return false;
     }
     try {
       const available = await isNicknameAvailable(nickname);
       if (!available) {
-        setError('이미 사용 중인 닉네임입니다. 다른 닉네임을 입력해주세요.');
+        const message = '이미 사용 중인 닉네임입니다. 다른 닉네임을 입력해주세요.';
+        setNicknameStatus('taken');
+        setNicknameStatusMessage(message);
+        if (showGlobalError) setError(message);
         return false;
       }
+      setNicknameStatus('available');
+      setNicknameStatusMessage('사용 가능한 닉네임입니다.');
       return true;
     } catch (err: any) {
       console.warn('닉네임 가용성 확인 실패:', err);
-      setError('닉네임 확인 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.');
+      const message = '닉네임 확인 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.';
+      setNicknameStatus('idle');
+      setNicknameStatusMessage(message);
+      if (showGlobalError) setError(message);
       return false;
     }
+  };
+
+  const moveToField = (section: HTMLElement | null, input?: HTMLInputElement | null) => {
+    requestAnimationFrame(() => {
+      section?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      input?.focus({ preventScroll: true });
+    });
+  };
+
+  // 간편 가입 버튼 클릭 시 비활성화 대신 누락된 필드를 직접 안내한다.
+  const ensureSocialSignupReady = async (): Promise<boolean> => {
+    if (mode !== 'signup') return true;
+    setSignupValidationAttempted(true);
+
+    if (!(await ensureNicknameUsable(false))) {
+      moveToField(nicknameSectionRef.current, nicknameInputRef.current);
+      return false;
+    }
+    if (!requiredConsentOk) {
+      moveToField(consentSectionRef.current);
+      return false;
+    }
+    return true;
   };
 
   // 입력된 추천인 코드가 유효한지 검증하고 정규화된 코드 반환
@@ -169,9 +201,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
 
   const handleSocialLogin = async (provider: any) => {
     setError('');
-    if (!ensureRequiredConsent()) return;
-    // 가입 모드면 닉네임 사전 검증
-    if (mode === 'signup' && !(await ensureNicknameUsable())) return;
+    if (!(await ensureSocialSignupReady())) return;
     setLoading(true);
     try {
       // 신규 가입 시에만 사용될 추천인 코드를 미리 검증
@@ -199,9 +229,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
 
   const handleKakaoLogin = async () => {
     setError('');
-    if (!ensureRequiredConsent()) return;
-    // 가입 모드면 닉네임 사전 검증 (redirect 후 App.tsx 에서 사용)
-    if (mode === 'signup' && !(await ensureNicknameUsable())) return;
+    if (!(await ensureSocialSignupReady())) return;
     try {
       const Kakao = (window as any).Kakao;
       const KAKAO_KEY = (import.meta as any).env.VITE_KAKAO_JS_KEY;
@@ -448,79 +476,54 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
               </div>
 
               <div className="p-6 space-y-6 max-h-[80vh] overflow-y-auto">
-                {mode === 'signup' && (
-                  <ConsentPanel
-                    agreeTerms={agreeTerms}
-                    agreePrivacy={agreePrivacy}
-                    agreeMarketing={agreeMarketing}
-                    agreeAll={agreeAll}
-                    onToggleTerms={() => setAgreeTerms(v => !v)}
-                    onTogglePrivacy={() => setAgreePrivacy(v => !v)}
-                    onToggleMarketing={() => setAgreeMarketing(v => !v)}
-                    onToggleAll={() => toggleAll(!agreeAll)}
-                  />
+                {error && (
+                  <div className="p-3 rounded-xl bg-red-50 text-red-600 text-sm font-medium">{error}</div>
                 )}
-
-                {/* Social Login Buttons */}
-                <div className="space-y-3">
-                  <button
-                    type="button"
-                    onClick={() => handleSocialLogin(googleProvider)}
-                    disabled={signupBlocked}
-                    className="w-full aspect-[600/90] flex items-center justify-center gap-3 px-4 rounded-xl border border-slate-200 bg-white text-slate-700 font-bold hover:bg-slate-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5" />
-                    구글 계정으로 {mode === 'signin' ? '로그인' : '시작하기'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleKakaoLogin}
-                    disabled={signupBlocked}
-                    aria-label={`카카오 계정으로 ${mode === 'signin' ? '로그인' : '시작하기'}`}
-                    className="w-full hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <img
-                      src="/kakao/kakao_login_large_wide.png"
-                      alt="카카오 로그인"
-                      width={600}
-                      height={90}
-                      className="w-full h-auto block"
-                    />
-                  </button>
-                  {signupBlocked && (
-                    <p className="text-[11px] text-slate-500 text-center">
-                      소셜 가입을 진행하려면 위 닉네임 입력과 필수 약관 동의가 필요합니다.
-                    </p>
-                  )}
-                </div>
 
                 {mode === 'signup' && (
                   <>
-                    {/* 소셜 가입에도 사용할 닉네임 (필수, 중복 불가) */}
-                    <div className="p-4 rounded-2xl bg-slate-50 border border-slate-100">
-                      <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                        닉네임 (필수 · 중복 불가)
-                      </label>
-                      <input
-                        type="text"
-                        value={nickname}
-                        onChange={(e) => setNickname(e.target.value)}
-                        placeholder="예: 영어초보"
-                        maxLength={20}
-                        className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-blue-500"
-                      />
-                      {nicknameStatusMessage && (
-                        <p className={`mt-1 text-[11px] font-bold ${
-                          nicknameStatus === 'available' ? 'text-green-600'
-                          : nicknameStatus === 'checking' ? 'text-slate-500'
-                          : 'text-red-600'
-                        }`}>
+                    <div>
+                      <p className="text-sm font-bold text-slate-900 mb-3">가입 정보</p>
+                      {/* 이메일·소셜 가입에서 공통으로 사용할 닉네임 */}
+                      <div
+                        ref={nicknameSectionRef}
+                        className={cn(
+                          'p-4 rounded-2xl bg-slate-50 border transition-colors',
+                          signupValidationAttempted && nicknameStatus !== 'available'
+                            ? 'border-red-400 ring-1 ring-red-100'
+                            : 'border-slate-100'
+                        )}
+                      >
+                        <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                          닉네임 (필수 · 중복 불가)
+                        </label>
+                        <input
+                          ref={nicknameInputRef}
+                          type="text"
+                          value={nickname}
+                          onChange={(e) => setNickname(e.target.value)}
+                          placeholder="예: 영어초보"
+                          maxLength={20}
+                          className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm outline-none focus:border-blue-500"
+                        />
+                        {nicknameStatusMessage && (
+                          <p className={`mt-1 text-[11px] font-bold ${
+                            nicknameStatus === 'available' ? 'text-green-600'
+                            : nicknameStatus === 'checking' ? 'text-slate-500'
+                            : 'text-red-600'
+                          }`}>
                           {nicknameStatusMessage}
+                          </p>
+                        )}
+                        {signupValidationAttempted && nicknameStatus === 'idle' && !nicknameStatusMessage && (
+                          <p className="mt-1 text-[11px] font-bold text-red-600">
+                            닉네임을 입력하고 사용 가능 여부를 확인해주세요.
+                          </p>
+                        )}
+                        <p className="text-[10px] text-slate-500 mt-1.5 leading-relaxed">
+                          서비스 전반에서 표시되는 이름입니다. <strong>가입 후 마이페이지에서 변경할 수 있어요.</strong>
                         </p>
-                      )}
-                      <p className="text-[10px] text-slate-500 mt-1.5 leading-relaxed">
-                        서비스 전반에서 표시되는 이름입니다. <strong>가입 후 마이페이지에서 변경할 수 있어요.</strong>
-                      </p>
+                      </div>
                     </div>
 
                     {/* 추천인 코드 입력 (이메일·소셜 공통) */}
@@ -544,6 +547,58 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
                   </>
                 )}
 
+                {mode === 'signup' && (
+                  <div ref={consentSectionRef}>
+                    <ConsentPanel
+                      agreeTerms={agreeTerms}
+                      agreePrivacy={agreePrivacy}
+                      agreeMarketing={agreeMarketing}
+                      agreeAll={agreeAll}
+                      showRequiredError={signupValidationAttempted && !requiredConsentOk}
+                      onToggleTerms={() => setAgreeTerms(v => !v)}
+                      onTogglePrivacy={() => setAgreePrivacy(v => !v)}
+                      onToggleMarketing={() => setAgreeMarketing(v => !v)}
+                      onToggleAll={() => toggleAll(!agreeAll)}
+                    />
+                  </div>
+                )}
+
+                {/* Social Login Buttons */}
+                <div className="space-y-3">
+                  {mode === 'signup' && (
+                    <p className="text-sm font-bold text-slate-900">간편 가입</p>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleSocialLogin(googleProvider)}
+                    disabled={loading}
+                    className="w-full aspect-[600/90] flex items-center justify-center gap-3 px-4 rounded-xl border border-slate-200 bg-white text-slate-700 font-bold hover:bg-slate-50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="w-5 h-5" />
+                    구글 계정으로 {mode === 'signin' ? '로그인' : '시작하기'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleKakaoLogin}
+                    disabled={loading}
+                    aria-label={`카카오 계정으로 ${mode === 'signin' ? '로그인' : '시작하기'}`}
+                    className="w-full hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <img
+                      src="/kakao/kakao_login_large_wide.png"
+                      alt="카카오 로그인"
+                      width={600}
+                      height={90}
+                      className="w-full h-auto block"
+                    />
+                  </button>
+                  {mode === 'signup' && (
+                    <p className="text-[11px] text-slate-500 text-center">
+                      버튼을 누르면 필요한 가입 정보를 확인한 후 간편 가입이 진행됩니다.
+                    </p>
+                  )}
+                </div>
+
                 <div className="relative flex items-center py-2">
                   <div className="flex-grow border-t border-slate-100"></div>
                   <span className="flex-shrink mx-4 text-xs text-slate-400 font-medium">
@@ -553,10 +608,6 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
-                  {error && (
-                    <div className="p-3 rounded-xl bg-red-50 text-red-600 text-sm font-medium">{error}</div>
-                  )}
-
                   {mode === 'signup' && (
                     <>
                       <div className="grid grid-cols-2 gap-3 mb-4">
@@ -733,6 +784,7 @@ interface ConsentPanelProps {
   agreePrivacy: boolean;
   agreeMarketing: boolean;
   agreeAll: boolean;
+  showRequiredError: boolean;
   onToggleTerms: () => void;
   onTogglePrivacy: () => void;
   onToggleMarketing: () => void;
@@ -744,13 +796,17 @@ function ConsentPanel({
   agreePrivacy,
   agreeMarketing,
   agreeAll,
+  showRequiredError,
   onToggleTerms,
   onTogglePrivacy,
   onToggleMarketing,
   onToggleAll,
 }: ConsentPanelProps) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50/60 p-4">
+    <div className={cn(
+      'rounded-2xl border bg-slate-50/60 p-4 transition-colors',
+      showRequiredError ? 'border-red-400 ring-1 ring-red-100' : 'border-slate-200'
+    )}>
       <button
         type="button"
         onClick={onToggleAll}
@@ -777,6 +833,11 @@ function ConsentPanel({
           onToggle={onToggleMarketing}
           label="(선택) 마케팅 정보 수신 동의"
         />
+        {showRequiredError && (
+          <p className="pt-1 text-[11px] font-bold text-red-600">
+            이용약관과 개인정보 수집·이용 동의가 필요합니다.
+          </p>
+        )}
       </div>
     </div>
   );
