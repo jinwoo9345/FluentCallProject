@@ -35,7 +35,7 @@ const DEFAULT_BANK = {
 };
 
 export function PaymentModal({ isOpen, onClose, productId, productName, tutorId, tutorName }: PaymentModalProps) {
-  const { user } = useAuth();
+  const { user, requireVerifiedEmail } = useAuth();
   const [termsAgreed, setTermsAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -197,6 +197,7 @@ export function PaymentModal({ isOpen, onClose, productId, productName, tutorId,
   };
 
   const handleManualPayment = async () => {
+    if (!requireVerifiedEmail()) return;
     if (!termsAgreed) {
       setError('약관에 동의해주세요.');
       return;
@@ -291,6 +292,7 @@ export function PaymentModal({ isOpen, onClose, productId, productName, tutorId,
   // 결제 요청 전에 (1) 포인트 트랜잭션 차감 + (2) pending 결제 doc 생성 → (3) widgets.requestPayment Redirect.
   // 성공 시 /payment/success 로 paymentKey/orderId/amount 가 쿼리로 전달되며, 거기서 confirm API 호출.
   const handleTossPayment = async () => {
+    if (!requireVerifiedEmail()) return;
     if (!termsAgreed) {
       setError('약관에 동의해주세요.');
       return;

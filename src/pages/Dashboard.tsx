@@ -3,7 +3,7 @@ import {
   Calendar, Clock, ChevronRight, Award, BookOpen,
   User as UserIcon, Settings, School, Sparkles, Bell, DollarSign,
   Heart, CreditCard, Share2, Copy, Check, Gift, Loader2,
-  Star, MessageSquare,
+  Star, MessageSquare, ShieldCheck, AlertCircle,
 } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -21,6 +21,7 @@ import { AdminSessionRegisterModal } from '../components/Schedule/AdminSessionRe
 import type { PersonalEvent, UserRole } from '../types';
 import { PointTransferModal } from '../components/Payment/PointTransferModal';
 import { ProfileEditModal } from '../components/Dashboard/ProfileEditModal';
+import { TutorApplicationModal } from '../components/Dashboard/TutorApplicationModal';
 import { ConsultationForm } from '../components/Consultation/ConsultationForm';
 import { Pagination, usePaginated } from '../components/ui/Pagination';
 import { db } from '../firebase';
@@ -33,7 +34,17 @@ const USER_PAGE_SIZE = 10;
 type TabType = 'sessions' | 'payments' | 'consultations';
 
 export default function Dashboard() {
-  const { user, firebaseUser, loading: authLoading, isAuthReady } = useAuth();
+  const {
+    user,
+    firebaseUser,
+    loading: authLoading,
+    isAuthReady,
+    emailVerificationRequired,
+    emailVerified,
+    sendVerificationEmail,
+    refreshEmailVerification,
+    requireVerifiedEmail,
+  } = useAuth();
   const { sessions, loading: sessionsLoading } = useSessions(firebaseUser?.uid, user?.role);
   const { events: personalEvents } = usePersonalEvents(firebaseUser?.uid);
   const { tutors, loading: tutorsLoading } = useTutors();
@@ -45,7 +56,35 @@ export default function Dashboard() {
   const [copied, setCopied] = useState(false);
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false);
   const [isProfileEditOpen, setIsProfileEditOpen] = useState(false);
+  const [isTutorApplicationOpen, setIsTutorApplicationOpen] = useState(false);
   const [tutorApp, setTutorApp] = useState<any | null>(null);
+  const [verificationSending, setVerificationSending] = useState(false);
+  const [verificationMessage, setVerificationMessage] = useState('');
+
+  const handleSendVerification = async () => {
+    setVerificationSending(true);
+    setVerificationMessage('');
+    try {
+      await sendVerificationEmail();
+      setVerificationMessage('인증 메일을 보냈습니다. 받은편지함과 스팸함을 확인해주세요.');
+    } catch (err: any) {
+      setVerificationMessage(
+        err?.code?.includes('too-many-requests')
+          ? '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.'
+          : '인증 메일 발송에 실패했습니다. 잠시 후 다시 시도해주세요.'
+      );
+    } finally {
+      setVerificationSending(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!emailVerificationRequired || emailVerified || window.location.hash !== '#email-verification') return;
+    const timer = window.setTimeout(() => {
+      document.getElementById('email-verification')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [emailVerificationRequired, emailVerified, user?.hasCompletedConsultation]);
 
   // 매칭/결제 완료 실시간 알림 (학생·튜터 공통)
   const [matchAlert, setMatchAlert] = useState<null | {
@@ -294,6 +333,21 @@ export default function Dashboard() {
   if (user?.role === 'student' && !user?.hasCompletedConsultation) {
     return (
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+        {emailVerificationRequired && !emailVerified && (
+          <div id="email-verification" className="mb-6 flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="flex items-center gap-2 text-sm font-bold text-amber-800">
+                <AlertCircle size={18} /> 안전한 계정 이용을 위해 이메일 인증을 완료해주세요.
+              </p>
+              {verificationMessage && (
+                <p className="mt-1 text-xs font-semibold text-amber-700">{verificationMessage}</p>
+              )}
+            </div>
+            <Button size="sm" onClick={handleSendVerification} disabled={verificationSending}>
+              {verificationSending ? '전송 중...' : '인증하기'}
+            </Button>
+          </div>
+        )}
         <div className="text-center mb-12">
           <h1 className="text-3xl font-bold text-slate-900 mb-4">환영합니다, {user?.name || '수강생'}님!</h1>
           <p className="text-slate-600 font-medium bg-blue-50 inline-block px-4 py-2 rounded-full border border-blue-100 text-sm">
@@ -316,6 +370,20 @@ export default function Dashboard() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+      {emailVerificationRequired && !emailVerified && (
+        <div className="mb-6 flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+          <p className="flex items-center gap-2 text-sm font-bold text-amber-800">
+            <AlertCircle size={18} /> 안전한 계정 이용을 위해 이메일 인증을 완료해주세요.
+          </p>
+          <button
+            type="button"
+            onClick={() => document.getElementById('email-verification')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+            className="text-sm font-black text-amber-800 underline underline-offset-4"
+          >
+            인증하기
+          </button>
+        </div>
+      )}
       {/* 매칭 완료 실시간 알림 (결제 확정 직후) */}
       {matchAlert && (
         <div className="mb-6">
@@ -714,6 +782,48 @@ export default function Dashboard() {
               </div>
             </div>
             <div className="space-y-2 text-sm">
+              {emailVerificationRequired && (
+                <div
+                  id="email-verification"
+                  className={cn(
+                    'rounded-xl border p-3',
+                    emailVerified ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'
+                  )}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <span className={cn(
+                      'flex items-center gap-1.5 text-xs font-black',
+                      emailVerified ? 'text-green-700' : 'text-red-700'
+                    )}>
+                      {emailVerified ? <ShieldCheck size={16} /> : <AlertCircle size={16} />}
+                      {emailVerified ? '이메일 인증 완료' : '이메일 미인증'}
+                    </span>
+                    {!emailVerified && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-[11px]"
+                        onClick={handleSendVerification}
+                        disabled={verificationSending}
+                      >
+                        {verificationSending ? '전송 중...' : '계정 인증하기'}
+                      </Button>
+                    )}
+                  </div>
+                  {!emailVerified && (
+                    <button
+                      type="button"
+                      onClick={() => void refreshEmailVerification()}
+                      className="mt-2 text-[10px] font-bold text-slate-500 underline underline-offset-2"
+                    >
+                      인증을 완료했다면 상태 새로고침
+                    </button>
+                  )}
+                  {verificationMessage && (
+                    <p className="mt-2 text-[10px] font-bold text-slate-600">{verificationMessage}</p>
+                  )}
+                </div>
+              )}
               <div className="flex justify-between items-center p-3 rounded-lg bg-slate-50">
                 <span className="font-bold text-slate-500">실명</span>
                 <span className="font-bold text-slate-900">{user?.realName || user?.name || '-'}</span>
@@ -805,6 +915,26 @@ export default function Dashboard() {
             </Card>
           )}
 
+          {user?.role === 'student' && !tutorApp && (
+            <Card className="p-5">
+              <h3 className="font-bold text-slate-900 mb-2 flex items-center gap-2">
+                <School size={18} className="text-indigo-600" /> 강사로 활동하고 싶으신가요?
+              </h3>
+              <p className="mb-4 text-xs leading-relaxed text-slate-500">
+                경력과 수업 스타일을 제출하면 관리자가 검토 후 안내드립니다.
+              </p>
+              <Button
+                variant="outline"
+                className="w-full text-xs"
+                onClick={() => {
+                  if (requireVerifiedEmail()) setIsTutorApplicationOpen(true);
+                }}
+              >
+                강사 신청
+              </Button>
+            </Card>
+          )}
+
           {/* Credits Card */}
           <Card className="bg-slate-900 text-white border-none shadow-xl">
             <h3 className="font-bold text-lg mb-2">보유 포인트</h3>
@@ -816,7 +946,9 @@ export default function Dashboard() {
               <Button
                 variant="outline"
                 className="w-full border-slate-700 text-slate-300 hover:bg-slate-800 text-xs py-5 px-0 gap-1 font-bold"
-                onClick={() => setIsTransferModalOpen(true)}
+                onClick={() => {
+                  if (requireVerifiedEmail()) setIsTransferModalOpen(true);
+                }}
               >
                 <Gift size={14} /> 선물하기
               </Button>
@@ -867,6 +999,11 @@ export default function Dashboard() {
           user={user}
         />
       )}
+
+      <TutorApplicationModal
+        isOpen={isTutorApplicationOpen}
+        onClose={() => setIsTutorApplicationOpen(false)}
+      />
     </div>
   );
 }

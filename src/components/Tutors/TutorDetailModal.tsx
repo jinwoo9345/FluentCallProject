@@ -55,7 +55,7 @@ function StarRow({ rating, size = 14, interactive = false, onChange }: {
 }
 
 export function TutorDetailModal({ isOpen, onClose, tutor, onRegister }: TutorDetailModalProps) {
-  const { user, firebaseUser, toggleWishlist } = useAuth();
+  const { user, firebaseUser, toggleWishlist, requireVerifiedEmail } = useAuth();
   const isWishlisted = user?.wishlist?.includes(tutor.id);
   const packageTotal = DEFAULT_PACKAGE.price;
 
@@ -225,7 +225,13 @@ export function TutorDetailModal({ isOpen, onClose, tutor, onRegister }: TutorDe
                   <div className="flex items-center justify-between">
                     <h3 className="text-lg font-bold text-slate-900">수업 리뷰</h3>
                     {firebaseUser && canReview && !myReview && !isWriting && (
-                      <Button size="sm" className="gap-1" onClick={() => setIsWriting(true)}>
+                      <Button
+                        size="sm"
+                        className="gap-1"
+                        onClick={() => {
+                          if (requireVerifiedEmail()) setIsWriting(true);
+                        }}
+                      >
                         <PenSquare size={14} /> 리뷰 작성
                       </Button>
                     )}
@@ -250,7 +256,9 @@ export function TutorDetailModal({ isOpen, onClose, tutor, onRegister }: TutorDe
                   {myReview && !isWriting && (
                     <MyReviewCard
                       review={myReview}
-                      onEdit={() => setIsWriting(true)}
+                      onEdit={() => {
+                        if (requireVerifiedEmail()) setIsWriting(true);
+                      }}
                       onDelete={handleDeleteMyReview}
                     />
                   )}

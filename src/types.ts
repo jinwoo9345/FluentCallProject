@@ -83,6 +83,8 @@ export interface User {
   // 강사 신청 상태 (student 상태에서 강사 신청을 넣은 경우)
   tutorApplicationStatus?: 'pending' | 'approved' | 'rejected';
   tutorApplicationId?: string;
+  // 신규 이메일/비밀번호 가입자만 true. 필드가 없는 기존 사용자는 인증 적용 대상에서 제외한다.
+  emailVerificationRequired?: boolean;
 }
 
 export interface TutorApplication {

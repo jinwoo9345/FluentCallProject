@@ -18,6 +18,17 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'tutor';
     }
 
+    // 신규 이메일 가입자만 이메일 인증을 요구한다.
+    // 기존 사용자(필드 없음)와 Google/Kakao 가입자(false)는 기존처럼 이용 가능하다.
+    function hasVerifiedEmailIfRequired() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && (
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('emailVerificationRequired', false) == false
+          || request.auth.token.get('email_verified', false) == true
+        );
+    }
+
     // 타인의 credits 필드만 증가시키는 경우 (포인트 선물 수신자 업데이트)
     function validCreditIncrement(userId) {
       return request.auth.uid != userId
@@ -45,14 +56,15 @@ service cloud.firestore {
           'uid', 'name', 'realName', 'email', 'role', 'credits',
           'referralCode', 'referredBy', 'discountBalance', 'createdAt',
           'avatar', 'agreedToTermsAt', 'agreedToPrivacyAt',
-          'marketingOptIn', 'marketingOptInAt'
+          'marketingOptIn', 'marketingOptInAt', 'emailVerificationRequired'
         ])
         && request.resource.data.keys().hasOnly([
           'uid', 'name', 'realName', 'email', 'role', 'credits',
           'referralCode', 'referredBy', 'discountBalance', 'createdAt',
           'avatar', 'hasCompletedConsultation',
           'agreedToTermsAt', 'agreedToPrivacyAt',
-          'marketingOptIn', 'marketingOptInAt', 'tutorApplicationStatus'
+          'marketingOptIn', 'marketingOptInAt', 'tutorApplicationStatus',
+          'emailVerificationRequired'
         ])
         && request.resource.data.uid == userId
         && request.resource.data.role == 'student'
@@ -64,7 +76,10 @@ service cloud.firestore {
         && request.resource.data.referralCode is string
         && request.resource.data.referredBy is string
         && request.resource.data.avatar is string
-        && request.resource.data.marketingOptIn is bool;
+        && request.resource.data.marketingOptIn is bool
+        && request.resource.data.emailVerificationRequired is bool
+        && request.resource.data.emailVerificationRequired
+          == (request.auth.token.firebase.sign_in_provider == 'password');
     }
 
     // 본인이 바꿀 수 있는 값은 화면에서 제공하는 비권한성 프로필/상태 필드뿐이다.
@@ -90,8 +105,8 @@ service cloud.firestore {
       allow update: if isSignedIn() && (
         isAdmin()
         || ownProfileUpdateOnly(userId)
-        || (request.auth.uid == userId && ownCreditsDecrementOnly())
-        || validCreditIncrement(userId)
+        || (hasVerifiedEmailIfRequired() && request.auth.uid == userId && ownCreditsDecrementOnly())
+        || (hasVerifiedEmailIfRequired() && validCreditIncrement(userId))
       );
       allow delete: if isAdmin();
     }
@@ -124,7 +139,7 @@ service cloud.firestore {
     // 포인트 이체 내역
     // fromName은 실제 송신자 이름과 일치해야 (피싱 방지), amount는 양의 정수
     match /point_transfers/{transferId} {
-      allow create: if isSignedIn()
+      allow create: if hasVerifiedEmailIfRequired()
         && request.resource.data.fromId == request.auth.uid
         && request.resource.data.amount is int
         && request.resource.data.amount > 0;
@@ -204,7 +219,7 @@ service cloud.firestore {
 
     // 강사 신청
     match /tutor_applications/{appId} {
-      allow create: if isSignedIn()
+      allow create: if hasVerifiedEmailIfRequired()
         && request.resource.data.userId == request.auth.uid;
       allow read: if isSignedIn() && (
         resource.data.userId == request.auth.uid
@@ -223,12 +238,12 @@ service cloud.firestore {
     // 플랫폼 후기 - rating은 1~5 정수만 허용
     match /platform_reviews/{reviewId} {
       allow read: if true;
-      allow create: if isSignedIn()
+      allow create: if hasVerifiedEmailIfRequired()
         && request.resource.data.userId == request.auth.uid
         && request.resource.data.rating is int
         && request.resource.data.rating >= 1
         && request.resource.data.rating <= 5;
-      allow update: if isSignedIn()
+      allow update: if hasVerifiedEmailIfRequired()
         && resource.data.userId == request.auth.uid
         && request.resource.data.rating is int
         && request.resource.data.rating >= 1
@@ -282,12 +297,12 @@ service cloud.firestore {
     // 튜터별 리뷰 - rating 1~5 정수만 허용
     match /tutor_reviews/{reviewId} {
       allow read: if true;
-      allow create: if isSignedIn()
+      allow create: if hasVerifiedEmailIfRequired()
         && request.resource.data.userId == request.auth.uid
         && request.resource.data.rating is int
         && request.resource.data.rating >= 1
         && request.resource.data.rating <= 5;
-      allow update: if isSignedIn()
+      allow update: if hasVerifiedEmailIfRequired()
         && resource.data.userId == request.auth.uid
         && request.resource.data.rating is int
         && request.resource.data.rating >= 1
@@ -314,7 +329,7 @@ service cloud.firestore {
       );
       allow list: if isAdmin()
         || (isSignedIn() && resource.data.tutorId == request.auth.uid);
-      allow create: if isSignedIn()
+      allow create: if hasVerifiedEmailIfRequired()
         && request.resource.data.userId == request.auth.uid
         && request.resource.data.status == 'pending'
         && request.resource.data.amount is int

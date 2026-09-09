@@ -10,7 +10,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTutors } from '../hooks/useTutors';
 
 export default function Tutors() {
-  const { user, setIsAuthModalOpen, setAuthMode, toggleWishlist } = useAuth();
+  const { user, setIsAuthModalOpen, setAuthMode, toggleWishlist, requireVerifiedEmail } = useAuth();
   const { tutors, loading, error } = useTutors();
   const [searchQuery, setSearchQuery] = useState('');
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
@@ -29,6 +29,7 @@ export default function Tutors() {
       setIsAuthModalOpen(true);
       return;
     }
+    if (!requireVerifiedEmail()) return;
     setSelectedTutor(tutor);
     setIsPaymentModalOpen(true);
   };
@@ -152,7 +153,7 @@ export default function Tutors() {
                 setAuthMode('signin');
                 setIsAuthModalOpen(true);
               } else {
-                setIsPaymentModalOpen(true);
+                if (requireVerifiedEmail()) setIsPaymentModalOpen(true);
               }
             }}
           />

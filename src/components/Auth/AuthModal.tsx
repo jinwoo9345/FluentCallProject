@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, Mail, Lock, User as UserIcon, GraduationCap, School, AtSign, Check, ExternalLink } from 'lucide-react';
+import { X, Mail, Lock, User as UserIcon, Check, ExternalLink, ArrowLeft } from 'lucide-react';
 import { auth, db, googleProvider } from '../../firebase';
 import {
   createUserWithEmailAndPassword,
@@ -9,8 +9,9 @@ import {
   setPersistence,
   browserSessionPersistence,
   signInWithPopup,
+  sendEmailVerification,
 } from 'firebase/auth';
-import { doc, setDoc, serverTimestamp, getDoc, addDoc, collection, updateDoc } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { Button } from '../ui/Button';
 import { cn, generateReferralCode } from '@/src/lib/utils';
 import {
@@ -27,7 +28,7 @@ interface AuthModalProps {
 
 export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModalProps) {
   const [mode, setMode] = useState<'signin' | 'signup'>(initialMode);
-  const [role, setRole] = useState<'student' | 'tutor'>('student');
+  const [signupStep, setSignupStep] = useState<'methods' | 'email'>('methods');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [passwordConfirm, setPasswordConfirm] = useState('');
@@ -36,12 +37,6 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
   const [referralInput, setReferralInput] = useState(
     typeof window !== 'undefined' ? (localStorage.getItem('pendingReferralCode') || '') : ''
   );
-  // 강사 신청 전용 필드
-  const [tutorContact, setTutorContact] = useState('');
-  const [tutorExperience, setTutorExperience] = useState('');
-  const [tutorQualifications, setTutorQualifications] = useState('');
-  const [tutorIntroduction, setTutorIntroduction] = useState('');
-
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   // 닉네임 실시간 검증 상태
@@ -59,6 +54,14 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
   const agreeAll = agreeTerms && agreePrivacy && agreeMarketing;
   const requiredConsentOk = agreeTerms && agreePrivacy;
 
+  // Navbar 등 외부에서 요청한 로그인/회원가입 모드를 모달을 열 때마다 반영한다.
+  useEffect(() => {
+    if (!isOpen) return;
+    setMode(initialMode);
+    setSignupStep('methods');
+    setError('');
+  }, [initialMode, isOpen]);
+
   const toggleAll = (next: boolean) => {
     setAgreeTerms(next);
     setAgreePrivacy(next);
@@ -72,6 +75,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
       setAgreePrivacy(false);
       setAgreeMarketing(false);
       setSignupValidationAttempted(false);
+      setSignupStep('methods');
     }
   }, [mode]);
 
@@ -112,17 +116,19 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
   }, [nickname, mode]);
 
   const resetFields = () => {
+    setEmail('');
     setPassword('');
     setPasswordConfirm('');
-    setTutorContact('');
-    setTutorExperience('');
-    setTutorQualifications('');
-    setTutorIntroduction('');
+    setName('');
+    setNickname('');
+    setNicknameStatus('idle');
+    setNicknameStatusMessage('');
     setReferralInput('');
     setAgreeTerms(false);
     setAgreePrivacy(false);
     setAgreeMarketing(false);
     setSignupValidationAttempted(false);
+    setSignupStep('methods');
     setError('');
   };
 
@@ -172,7 +178,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
   };
 
   // 간편 가입 버튼 클릭 시 비활성화 대신 누락된 필드를 직접 안내한다.
-  const ensureSocialSignupReady = async (): Promise<boolean> => {
+  const ensureSignupBasicsReady = async (): Promise<boolean> => {
     if (mode !== 'signup') return true;
     setSignupValidationAttempted(true);
 
@@ -201,7 +207,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
 
   const handleSocialLogin = async (provider: any) => {
     setError('');
-    if (!(await ensureSocialSignupReady())) return;
+    if (!(await ensureSignupBasicsReady())) return;
     setLoading(true);
     try {
       // 신규 가입 시에만 사용될 추천인 코드를 미리 검증
@@ -229,7 +235,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
 
   const handleKakaoLogin = async () => {
     setError('');
-    if (!(await ensureSocialSignupReady())) return;
+    if (!(await ensureSignupBasicsReady())) return;
     try {
       const Kakao = (window as any).Kakao;
       const KAKAO_KEY = (import.meta as any).env.VITE_KAKAO_JS_KEY;
@@ -271,6 +277,20 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
     }
   };
 
+  const handleOpenEmailSignup = async () => {
+    setError('');
+    if (!(await ensureSignupBasicsReady())) return;
+    setSignupStep('email');
+  };
+
+  const sendVerificationMail = async (user: any) => {
+    auth.languageCode = 'ko';
+    await sendEmailVerification(user, {
+      url: `${window.location.origin}/dashboard`,
+      handleCodeInApp: false,
+    });
+  };
+
   const ensureUserDocument = async (
     user: any,
     validatedReferral: string = '',
@@ -303,6 +323,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
         agreedToPrivacyAt: serverTimestamp(),
         marketingOptIn: agreeMarketing,
         marketingOptInAt: agreeMarketing ? serverTimestamp() : null,
+        emailVerificationRequired: false,
       });
 
       // 추천 코드 인덱스 문서 생성 (공개 조회용)
@@ -345,12 +366,6 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
       if (!(await ensureNicknameUsable())) {
         return;
       }
-      if (role === 'tutor') {
-        if (!tutorContact.trim() || !tutorExperience.trim() || !tutorIntroduction.trim()) {
-          setError('강사 신청에는 연락처, 경력, 자기소개가 모두 필요합니다.');
-          return;
-        }
-      }
     }
 
     setLoading(true);
@@ -384,8 +399,6 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
 
         const referralCode = generateReferralCode();
 
-        // 강사 가입 지원자도 일단 'student'로 등록하고 별도 신청 문서 생성.
-        // 관리자가 승인하면 tutors 컬렉션 등록 + role 변경.
         const userDoc: any = {
           uid: user.uid,
           name: displayName,
@@ -402,11 +415,8 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
           agreedToPrivacyAt: serverTimestamp(),
           marketingOptIn: agreeMarketing,
           marketingOptInAt: agreeMarketing ? serverTimestamp() : null,
+          emailVerificationRequired: true,
         };
-
-        if (role === 'tutor') {
-          userDoc.tutorApplicationStatus = 'pending';
-        }
 
         await setDoc(doc(db, 'users', user.uid), userDoc);
 
@@ -421,22 +431,15 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
           console.warn('referral_codes 인덱스 생성 실패:', err);
         }
 
-        if (role === 'tutor') {
-          const appRef = await addDoc(collection(db, 'tutor_applications'), {
-            userId: user.uid,
-            name: name.trim(),
-            email,
-            contactValue: tutorContact.trim(),
-            experience: tutorExperience.trim(),
-            qualifications: tutorQualifications.trim(),
-            introduction: tutorIntroduction.trim(),
-            status: 'pending',
-            createdAt: serverTimestamp(),
-          });
-          await updateDoc(doc(db, 'users', user.uid), { tutorApplicationId: appRef.id });
-        }
-
         if (validatedReferral) localStorage.removeItem('pendingReferralCode');
+        try {
+          await sendVerificationMail(user);
+          alert('회원가입이 완료되었습니다. 받은 메일에서 이메일 인증을 진행해주세요.');
+        } catch (verificationError) {
+          // 계정과 프로필 생성은 이미 완료됐으므로 메일 발송 실패를 가입 실패로 오인시키지 않는다.
+          console.warn('최초 이메일 인증 메일 발송 실패:', verificationError);
+          alert('회원가입은 완료되었지만 인증 메일을 보내지 못했습니다. 마이페이지에서 다시 발송해주세요.');
+        }
       } else {
         await signInWithEmailAndPassword(auth, email, password);
       }
@@ -467,9 +470,24 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
               className="w-full max-w-md bg-white rounded-3xl shadow-2xl overflow-hidden"
             >
               <div className="p-6 border-b border-slate-100 flex items-center justify-between">
-                <h2 className="text-xl font-bold text-slate-900">
-                  {mode === 'signin' ? '로그인' : '회원가입'}
-                </h2>
+                <div className="flex items-center gap-3">
+                  {mode === 'signup' && signupStep === 'email' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setError('');
+                        setSignupStep('methods');
+                      }}
+                      aria-label="가입 방식 선택으로 돌아가기"
+                      className="text-slate-400 hover:text-slate-700 transition-colors"
+                    >
+                      <ArrowLeft size={22} />
+                    </button>
+                  )}
+                  <h2 className="text-xl font-bold text-slate-900">
+                    {mode === 'signin' ? '로그인' : signupStep === 'email' ? '이메일로 회원가입' : '회원가입'}
+                  </h2>
+                </div>
                 <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
                   <X size={24} />
                 </button>
@@ -480,7 +498,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
                   <div className="p-3 rounded-xl bg-red-50 text-red-600 text-sm font-medium">{error}</div>
                 )}
 
-                {mode === 'signup' && (
+                {mode === 'signup' && signupStep === 'methods' && (
                   <>
                     <div>
                       <p className="text-sm font-bold text-slate-900 mb-3">가입 정보</p>
@@ -547,7 +565,7 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
                   </>
                 )}
 
-                {mode === 'signup' && (
+                {mode === 'signup' && signupStep === 'methods' && (
                   <div ref={consentSectionRef}>
                     <ConsentPanel
                       agreeTerms={agreeTerms}
@@ -563,7 +581,8 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
                   </div>
                 )}
 
-                {/* Social Login Buttons */}
+                {/* 가입 방식 선택 / 로그인용 소셜 버튼 */}
+                {(mode === 'signin' || signupStep === 'methods') && (
                 <div className="space-y-3">
                   {mode === 'signup' && (
                     <p className="text-sm font-bold text-slate-900">간편 가입</p>
@@ -593,51 +612,46 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
                     />
                   </button>
                   {mode === 'signup' && (
+                    <button
+                      type="button"
+                      onClick={handleOpenEmailSignup}
+                      disabled={loading}
+                      className="w-full aspect-[600/90] flex items-center justify-center gap-3 px-4 rounded-xl border border-slate-300 bg-slate-900 text-white font-bold hover:bg-slate-800 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Mail size={20} />
+                      이메일로 가입하기
+                    </button>
+                  )}
+                  {mode === 'signup' && (
                     <p className="text-[11px] text-slate-500 text-center">
-                      버튼을 누르면 필요한 가입 정보를 확인한 후 간편 가입이 진행됩니다.
+                      가입 방식을 선택하면 필요한 정보를 확인한 후 다음 단계가 진행됩니다.
                     </p>
                   )}
                 </div>
+                )}
 
-                <div className="relative flex items-center py-2">
-                  <div className="flex-grow border-t border-slate-100"></div>
-                  <span className="flex-shrink mx-4 text-xs text-slate-400 font-medium">
-                    또는 이메일로 {mode === 'signin' ? '로그인' : '가입'}
-                  </span>
-                  <div className="flex-grow border-t border-slate-100"></div>
-                </div>
+                {mode === 'signin' && (
+                  <div className="relative flex items-center py-2">
+                    <div className="flex-grow border-t border-slate-100"></div>
+                    <span className="flex-shrink mx-4 text-xs text-slate-400 font-medium">
+                      또는 이메일로 로그인
+                    </span>
+                    <div className="flex-grow border-t border-slate-100"></div>
+                  </div>
+                )}
 
+                {(mode === 'signin' || signupStep === 'email') && (
                 <form onSubmit={handleSubmit} className="space-y-4">
                   {mode === 'signup' && (
+                    <div className="rounded-xl border border-blue-100 bg-blue-50/60 px-4 py-3 text-xs text-blue-700">
+                      <strong>{nickname.trim()}</strong> 닉네임으로 이메일 계정을 만듭니다.
+                    </div>
+                  )}
+                  {mode === 'signup' && (
                     <>
-                      <div className="grid grid-cols-2 gap-3 mb-4">
-                        <button
-                          type="button"
-                          onClick={() => setRole('student')}
-                          className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all ${
-                            role === 'student' ? 'border-blue-600 bg-blue-50 text-blue-600' : 'border-slate-100 bg-white text-slate-500'
-                          }`}
-                        >
-                          <GraduationCap size={24} />
-                          <span className="text-sm font-bold">수강생</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setRole('tutor')}
-                          className={`flex flex-col items-center gap-2 p-4 rounded-2xl border-2 transition-all ${
-                            role === 'tutor' ? 'border-blue-600 bg-blue-50 text-blue-600' : 'border-slate-100 bg-white text-slate-500'
-                          }`}
-                        >
-                          <School size={24} />
-                          <span className="text-sm font-bold">강사 신청</span>
-                        </button>
+                      <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 text-[11px] text-slate-600 leading-relaxed">
+                        강사 신청은 회원가입 후 마이페이지에서 할 수 있습니다. 이메일 가입자는 계정 인증을 먼저 완료해주세요.
                       </div>
-
-                      {role === 'tutor' && (
-                        <div className="p-3 rounded-xl bg-amber-50 border border-amber-100 text-[11px] text-amber-800 leading-relaxed">
-                          강사 가입은 관리자의 승인이 필요합니다. 제출 후 마이페이지에서 진행 상태를 확인하실 수 있습니다.
-                        </div>
-                      )}
 
                       <div className="relative">
                         <UserIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
@@ -693,70 +707,26 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
                     </div>
                   )}
 
-                  {mode === 'signup' && role === 'tutor' && (
-                    <div className="space-y-3 pt-2">
-                      <div>
-                        <label className="block text-xs font-bold text-slate-600 mb-1">연락처 (카카오톡/전화) *</label>
-                        <input
-                          type="text"
-                          required
-                          className="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none"
-                          value={tutorContact}
-                          onChange={(e) => setTutorContact(e.target.value)}
-                          placeholder="예: 010-1234-5678"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold text-slate-600 mb-1">영어 교육/체류 경험 *</label>
-                        <textarea
-                          required
-                          rows={3}
-                          className="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none resize-none text-sm"
-                          value={tutorExperience}
-                          onChange={(e) => setTutorExperience(e.target.value)}
-                          placeholder="예: 5년간 1:1 회화 지도, 미국 시애틀 3년 거주 등"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold text-slate-600 mb-1">자격증 / 학력</label>
-                        <textarea
-                          rows={2}
-                          className="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none resize-none text-sm"
-                          value={tutorQualifications}
-                          onChange={(e) => setTutorQualifications(e.target.value)}
-                          placeholder="예: TESOL, TOEIC 990"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-bold text-slate-600 mb-1">자기 소개 *</label>
-                        <textarea
-                          required
-                          rows={3}
-                          className="w-full px-4 py-3 rounded-xl border border-slate-200 outline-none resize-none text-sm"
-                          value={tutorIntroduction}
-                          onChange={(e) => setTutorIntroduction(e.target.value)}
-                          placeholder="수업 스타일과 강점을 자유롭게 적어주세요"
-                        />
-                      </div>
-                      <p className="text-[10px] text-slate-400">
-                        * 추후 증빙 서류 업로드 기능이 추가될 예정입니다. 현재는 텍스트 정보로만 신청됩니다.
-                      </p>
-                    </div>
-                  )}
-
                   <Button
                     type="submit"
                     className="w-full py-4 rounded-xl"
                     disabled={loading || signupBlocked}
                   >
-                    {loading ? '처리 중...' : mode === 'signin' ? '로그인' : role === 'tutor' ? '강사 신청 제출' : '회원가입 완료'}
+                    {loading ? '처리 중...' : mode === 'signin' ? '로그인' : '회원가입 완료'}
                   </Button>
 
                   <div className="text-center text-sm text-slate-500 pt-2">
                     {mode === 'signin' ? (
                       <>
                         계정이 없으신가요?{' '}
-                        <button type="button" onClick={() => setMode('signup')} className="text-blue-600 font-bold hover:underline">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setMode('signup');
+                            setSignupStep('methods');
+                          }}
+                          className="text-blue-600 font-bold hover:underline"
+                        >
                           회원가입
                         </button>
                       </>
@@ -770,6 +740,16 @@ export function AuthModal({ isOpen, onClose, initialMode = 'signin' }: AuthModal
                     )}
                   </div>
                 </form>
+                )}
+
+                {mode === 'signup' && signupStep === 'methods' && (
+                  <div className="text-center text-sm text-slate-500 pt-2">
+                    이미 계정이 있으신가요?{' '}
+                    <button type="button" onClick={() => setMode('signin')} className="text-blue-600 font-bold hover:underline">
+                      로그인
+                    </button>
+                  </div>
+                )}
               </div>
             </motion.div>
           </div>

@@ -145,6 +145,7 @@ function AppContent() {
               agreedToPrivacyAt: serverTimestamp(),
               marketingOptIn,
               marketingOptInAt: marketingOptIn ? serverTimestamp() : null,
+              emailVerificationRequired: false,
             });
             localStorage.removeItem('pendingConsent');
             localStorage.removeItem('pendingNickname');

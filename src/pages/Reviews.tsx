@@ -55,7 +55,7 @@ function StarRow({ rating, size = 14, className }: { rating: number; size?: numb
 }
 
 export default function Reviews() {
-  const { user, firebaseUser, setIsAuthModalOpen, setAuthMode } = useAuth();
+  const { user, firebaseUser, setIsAuthModalOpen, setAuthMode, requireVerifiedEmail } = useAuth();
   const [reviews, setReviews] = useState<PlatformReview[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -124,6 +124,7 @@ export default function Reviews() {
       setIsAuthModalOpen(true);
       return;
     }
+    if (!requireVerifiedEmail()) return;
     if (hasPaid !== true) {
       alert('후기는 1회 이상 수강권을 결제하신 회원만 작성하실 수 있어요.');
       return;
@@ -133,6 +134,7 @@ export default function Reviews() {
   };
 
   const handleEdit = (review: PlatformReview) => {
+    if (!requireVerifiedEmail()) return;
     setEditing(review);
     setIsWriteOpen(true);
   };

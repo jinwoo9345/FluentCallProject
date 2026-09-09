@@ -15,7 +15,7 @@ interface PointTransferModalProps {
 }
 
 export function PointTransferModal({ isOpen, onClose }: PointTransferModalProps) {
-  const { user } = useAuth();
+  const { user, requireVerifiedEmail } = useAuth();
   const [amount, setAmount] = useState<number>(0);
   const [recipient, setRecipient] = useState<any>(null);
   const [lookupLoading, setLookupLoading] = useState(false);
@@ -59,6 +59,7 @@ export function PointTransferModal({ isOpen, onClose }: PointTransferModalProps)
   }, [isOpen, user?.referredBy]);
 
   const handleTransfer = async () => {
+    if (!requireVerifiedEmail()) return;
     const currentUid = auth.currentUser?.uid;
     if (!recipient || amount <= 0 || !user || !currentUid) return;
     if (!Number.isInteger(amount)) {
