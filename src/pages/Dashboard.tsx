@@ -651,7 +651,7 @@ export default function Dashboard() {
                 </Card>
               ) : myPlatformReviews.length === 0 && myTutorReviews.length === 0 ? (
                 <Card className="p-8 text-center text-slate-500 border-dashed">
-                  아직 작성한 후기가 없습니다. 수강생 후기·튜터 리뷰를 남겨보세요.
+                  아직 작성한 후기가 없습니다. 서비스 이용 후기·튜터 수업 후기를 남겨보세요.
                 </Card>
               ) : (
                 <div className="space-y-3">
@@ -663,7 +663,7 @@ export default function Dashboard() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
                               <span className="text-[10px] font-black uppercase tracking-widest bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
-                                튜터 리뷰
+                                튜터 수업 후기
                               </span>
                               <span className="text-sm font-bold text-slate-800 truncate">
                                 {tutor?.name || '튜터'}
@@ -698,7 +698,7 @@ export default function Dashboard() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
                             <span className="text-[10px] font-black uppercase tracking-widest bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">
-                              플랫폼 후기
+                              서비스 이용 후기
                             </span>
                             {r.userTag && (
                               <span className="text-xs text-slate-500">#{r.userTag}</span>

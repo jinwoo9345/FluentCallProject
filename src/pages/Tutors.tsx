@@ -66,7 +66,7 @@ export default function Tutors() {
       <div className="flex flex-col gap-8 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-3xl font-bold text-slate-900">나에게 맞는 튜터 찾기</h1>
-          <p className="mt-2 text-slate-600">나와 잘 맞는 원어민 강사를 찾아보세요.</p>
+          <p className="mt-2 text-slate-600">프로필과 수업 후기를 비교하고, 마음에 드는 튜터에게 수업을 신청하세요.</p>
         </div>
         
         <div className="flex w-full max-w-md items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 shadow-sm focus-within:border-blue-300 focus-within:ring-2 focus-within:ring-blue-100">

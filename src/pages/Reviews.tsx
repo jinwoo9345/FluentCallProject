@@ -166,8 +166,9 @@ export default function Reviews() {
               Real Voices
             </span>
             <h1 className="text-4xl sm:text-5xl font-black tracking-tight">
-              수강생들의 리얼 후기
+              서비스 이용 후기
             </h1>
+            <p className="mt-4 text-sm text-slate-300">회원들이 남긴 EnglishBites 서비스 이용 경험입니다. 튜터별 수업 후기는 튜터 프로필에서 확인하세요.</p>
             <div className="mt-5 flex flex-col items-center gap-2">
               <StarRow rating={Math.round(avgRating)} size={28} />
               <p className="text-sm font-bold text-amber-100/90">

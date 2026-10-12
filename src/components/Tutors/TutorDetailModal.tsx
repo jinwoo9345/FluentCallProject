@@ -223,7 +223,7 @@ export function TutorDetailModal({ isOpen, onClose, tutor, onRegister }: TutorDe
                 {/* 수업 리뷰 */}
                 <section>
                   <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-bold text-slate-900">수업 리뷰</h3>
+                    <h3 className="text-lg font-bold text-slate-900">이 튜터의 수업 후기</h3>
                     {firebaseUser && canReview && !myReview && !isWriting && (
                       <Button
                         size="sm"
@@ -329,7 +329,7 @@ export function TutorDetailModal({ isOpen, onClose, tutor, onRegister }: TutorDe
                   </div>
                 ) : (
                   <Button size="lg" className="px-10 py-6 text-lg font-bold rounded-2xl shadow-lg shadow-blue-200" onClick={onRegister}>
-                    등록하기
+                    수업 신청
                   </Button>
                 )}
               </div>

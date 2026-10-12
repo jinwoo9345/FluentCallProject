@@ -120,7 +120,7 @@ export function TutorCard({
 
         <p className="mt-4 flex-1 text-sm text-slate-600 line-clamp-2">{tutor.bio}</p>
 
-        <div className="mt-6 flex items-center justify-between gap-3 border-t border-slate-50 pt-4">
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-slate-50 pt-4">
           <div className="min-w-0">
             <span className="text-[10px] text-slate-400 block uppercase tracking-widest font-bold">
               8회 수강권
@@ -129,6 +129,17 @@ export function TutorCard({
               {packageTotal.toLocaleString()}원
             </span>
           </div>
+          <div className="flex flex-wrap items-center gap-2">
+          {onClick && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="px-3 text-sm whitespace-nowrap"
+              onClick={(e) => { e.stopPropagation(); onClick(tutor); }}
+            >
+              프로필 보기
+            </Button>
+          )}
           {tutor.enrollDisabled ? (
             <span
               onClick={(e) => e.stopPropagation()}
@@ -143,9 +154,10 @@ export function TutorCard({
               onClick={(e) => { e.stopPropagation(); onRegister?.(tutor); }}
             >
               <CreditCard size={14} />
-              등록하기
+              수업 신청
             </Button>
           )}
+          </div>
         </div>
       </Card>
     </motion.div>

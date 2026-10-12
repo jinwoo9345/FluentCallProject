@@ -34,7 +34,6 @@ export const Navbar = () => {
       icon: BookOpen,
       items: [
         { name: '프로그램 소개', path: '/about', icon: Sparkles, description: '서비스 목적과 차별점', accent: 'text-blue-600 bg-blue-50' },
-        { name: '튜터 소개', path: '/tutors', icon: Users, description: '검증된 원어민 튜터 프로필', accent: 'text-indigo-600 bg-indigo-50' },
         { name: '이벤트', path: '/events', icon: Megaphone, description: '현재 진행 중인 이벤트 모아보기', accent: 'text-pink-600 bg-pink-50' },
       ],
     },
@@ -42,7 +41,7 @@ export const Navbar = () => {
       name: '수업',
       icon: GraduationCap,
       items: [
-        { name: '수업 등록·신청', path: '/tutors', icon: CalendarPlus, description: '튜터 선택 후 수강권 결제', accent: 'text-emerald-600 bg-emerald-50' },
+        { name: '튜터 찾기·수업 신청', path: '/tutors', icon: CalendarPlus, description: '프로필과 수업 후기를 보고 신청', accent: 'text-emerald-600 bg-emerald-50' },
         { name: '상담 신청', path: '/consultation', icon: MessageCircle, description: '전문 매니저 1:1 학습 상담', accent: 'text-sky-600 bg-sky-50' },
       ],
     },
@@ -50,7 +49,7 @@ export const Navbar = () => {
       name: '커뮤니티',
       icon: Users,
       items: [
-        { name: '수강생 후기', path: '/reviews', icon: Star, description: '실제 학습자들의 솔직 리뷰', accent: 'text-amber-600 bg-amber-50' },
+        { name: '서비스 이용 후기', path: '/reviews', icon: Star, description: '회원들의 서비스 이용 경험', accent: 'text-amber-600 bg-amber-50' },
         { name: 'Q&A 게시판', path: '/qna', icon: HelpCircle, description: '궁금한 점을 자유롭게 질문', accent: 'text-violet-600 bg-violet-50' },
         { name: '정보 게시판', path: '/info-board', icon: Newspaper, description: '학습 팁·영어 자료 모음', accent: 'text-slate-700 bg-slate-100' },
       ],
@@ -69,114 +68,101 @@ export const Navbar = () => {
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-brand-cream-dark/50 bg-brand-cream/80 backdrop-blur-md">
-      <div className="relative mx-auto flex h-20 w-full items-center justify-between gap-4 pl-4 pr-4 sm:pl-6 sm:pr-6 lg:pl-10 lg:pr-10">
+      <div className="relative mx-auto flex h-20 max-w-screen-2xl items-center justify-between gap-6 px-4 sm:px-6 lg:px-8">
         {/* 좌측: 로고 */}
-        <div>
+        <div className="shrink-0">
           <Link to="/" className="flex items-center gap-2 text-2xl font-black text-slate-900 font-display tracking-tight">
             <span>English<span className="text-blue-600">Bites</span></span>
           </Link>
         </div>
 
-        {/* 중앙: 데스크톱 메뉴 — 페이지 정중앙 고정 배치 (absolute)
-            트리거 gap-4(16px) + min-w-[8rem](128px) 유지 → 트리거는 타이트
-            드롭다운은 각자 offset을 두어 왼쪽/오른쪽으로 치우치게 해 겹침 없이 w-56 확보 */}
+        {/* 메뉴와 계정 영역은 같은 행에 배치하고 하위 메뉴는 하나의 패널로 정렬한다. */}
         <div
-          className="hidden md:flex md:items-center md:gap-4 absolute left-1/2 -translate-x-1/2 inset-y-0 justify-center"
+          className="relative hidden h-full min-w-0 flex-1 items-center justify-center xl:flex"
           onMouseEnter={() => setIsGroupHovered(true)}
           onMouseLeave={() => setIsGroupHovered(false)}
+          onFocus={() => setIsGroupHovered(true)}
+          onBlur={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setIsGroupHovered(false);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') setIsGroupHovered(false);
+          }}
         >
-          {menus.map((menu, idx) => {
-            const active = isActiveDropdown(menu);
-            // 드롭다운 가로 오프셋 (px)
-            // 트리거 센터 거리 144 · 드롭다운 w-56(224) 유지
-            // 드롭다운끼리 겹치지 않게 양쪽을 ±80px 밀어냄
-            const dropdownOffsetX = idx === 0 ? -80 : idx === menus.length - 1 ? 80 : 0;
-            return (
-              <div key={menu.name} className="relative">
-                <button
-                  type="button"
-                  className={cn(
-                    'flex items-center justify-center gap-2 px-5 py-3 text-[15px] font-bold rounded-full transition-all min-w-[8rem]',
-                    active
-                      ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
-                      : isGroupHovered
-                        ? 'bg-white text-blue-700 shadow-sm'
-                        : 'text-slate-700 hover:bg-white/80 hover:text-blue-700'
-                  )}
-                >
-                  <menu.icon size={17} />
-                  <span>{menu.name}</span>
-                  <ChevronDown
-                    size={15}
-                    className={cn('transition-transform', isGroupHovered && 'rotate-180')}
-                  />
-                </button>
-
-                {/* 각 메뉴 드롭다운 — 그룹 호버 시 동시 표시, 양쪽 메뉴는 오프셋으로 치우쳐 배치 */}
-                {isGroupHovered && (
-                  <div
-                    className="absolute top-full pt-3 z-50 w-56"
-                    style={{
-                      left: '50%',
-                      transform: `translateX(calc(-50% + ${dropdownOffsetX}px))`,
-                    }}
-                  >
-                    <div className="bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/40 p-3">
-                      <div className="flex items-center gap-2 px-2 pt-1 pb-2 mb-1.5 border-b border-slate-100">
-                        <menu.icon size={14} className="text-blue-600" />
-                        <p className="text-[11px] font-black uppercase tracking-widest text-slate-500">
-                          {menu.name}
-                        </p>
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        {menu.items.map((sub) => {
-                          const subActive = isActive(sub.path);
-                          return (
-                            <Link
-                              key={`${menu.name}-${sub.path}-${sub.name}`}
-                              to={sub.path}
-                              onClick={() => setIsGroupHovered(false)}
-                              className={cn(
-                                'flex items-start gap-2.5 px-2.5 py-2 rounded-xl transition-colors',
-                                subActive ? 'bg-blue-50' : 'hover:bg-slate-50'
-                              )}
-                            >
-                              <div className={cn(
-                                'flex-shrink-0 h-9 w-9 rounded-lg flex items-center justify-center',
-                                sub.accent
-                              )}>
-                                <sub.icon size={16} />
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <p className={cn(
-                                  'text-sm font-bold leading-tight',
-                                  subActive ? 'text-blue-700' : 'text-slate-900'
-                                )}>
-                                  {sub.name}
-                                </p>
-                                <p className="text-[11px] text-slate-500 mt-0.5 leading-snug line-clamp-2">
-                                  {sub.description}
-                                </p>
-                              </div>
-                            </Link>
-                          );
-                        })}
-                      </div>
+          <div className="relative grid h-full w-[720px] max-w-full grid-cols-3 items-center px-3">
+          {menus.map((menu, index) => (
+            <div key={menu.name} className="relative flex h-full items-center justify-center">
+            <button
+              type="button"
+              aria-expanded={isGroupHovered}
+              aria-controls="desktop-navigation-panel"
+              onClick={() => setIsGroupHovered(true)}
+              className={cn(
+                'flex h-11 min-w-28 items-center justify-self-center justify-center gap-2 rounded-xl px-4 text-base font-semibold tracking-tight transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500',
+                isActiveDropdown(menu)
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-slate-700 hover:bg-white hover:text-blue-700'
+              )}
+            >
+              <span>{menu.name}</span>
+              <ChevronDown size={14} className={cn('opacity-60 transition-transform', isGroupHovered && 'rotate-180')} />
+            </button>
+            {index < menus.length - 1 && (
+              <span aria-hidden="true" className="pointer-events-none absolute right-0 top-1/2 h-4 w-px -translate-y-1/2 bg-slate-300/70" />
+            )}
+            </div>
+          ))}
+          {isGroupHovered && (
+            <div id="desktop-navigation-panel" className="absolute inset-x-0 top-full z-50 w-full pt-2">
+              <div className="grid grid-cols-3 items-start p-3">
+                {menus.map((menu) => (
+                  <div key={menu.name} className="rounded-2xl border border-slate-200/80 bg-white px-3 py-2 shadow-lg shadow-slate-900/10">
+                    <div className="mb-3 flex h-8 items-center gap-2 border-b border-slate-100 px-2 pb-3">
+                      <menu.icon size={14} className="text-blue-600" />
+                      <p className="text-xs font-bold text-slate-500">{menu.name}</p>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      {menu.items.map((sub) => {
+                        const active = isActive(sub.path);
+                        return (
+                          <Link
+                            key={sub.path}
+                            to={sub.path}
+                            aria-current={active ? 'page' : undefined}
+                            onClick={() => setIsGroupHovered(false)}
+                            className={cn(
+                              'flex min-h-[72px] items-start gap-2.5 rounded-xl px-2 py-3 transition-colors',
+                              active ? 'bg-blue-50' : 'hover:bg-slate-50'
+                            )}
+                          >
+                            <div className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-lg', sub.accent)}>
+                              <sub.icon size={16} />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className={cn('text-sm font-bold leading-5', active ? 'text-blue-700' : 'text-slate-900')}>
+                                {sub.name}
+                              </p>
+                              <p className="mt-1 break-keep text-xs leading-4 text-slate-500">{sub.description}</p>
+                            </div>
+                          </Link>
+                        );
+                      })}
                     </div>
                   </div>
-                )}
+                ))}
               </div>
-            );
-          })}
+            </div>
+          )}
+          </div>
         </div>
 
         {/* 우측: 관리자(admin만) + 내 강의실 + 인증 영역 (데스크톱) */}
-        <div className="hidden md:flex md:items-center md:gap-3 justify-self-end">
+        <div className="hidden shrink-0 items-center gap-2 xl:flex">
           {user?.role === 'admin' && (
             <Link
               to="/admin"
               className={cn(
-                'flex items-center gap-2 px-5 py-3 text-[15px] font-bold rounded-full transition-all',
+                'flex h-11 items-center gap-2 rounded-xl px-3 text-sm font-bold transition-colors',
                 isActive('/admin')
                   ? 'bg-purple-600 text-white shadow-md shadow-purple-600/20'
                   : 'text-slate-700 hover:bg-white/80 hover:text-purple-700'
@@ -189,7 +175,7 @@ export const Navbar = () => {
             <Link
               to="/dashboard"
               className={cn(
-                'flex items-center gap-2 px-5 py-3 text-[15px] font-bold rounded-full transition-all',
+                'flex h-11 items-center gap-2 rounded-xl px-3 text-sm font-bold transition-colors',
                 isActive('/dashboard')
                   ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20'
                   : 'text-slate-700 hover:bg-white/80 hover:text-blue-700'
@@ -208,7 +194,7 @@ export const Navbar = () => {
                   className="h-8 w-8 rounded-full border border-slate-200"
                 />
                 <div className="flex flex-col">
-                  <span className="text-xs font-bold text-slate-900">{user?.name || firebaseUser.displayName}</span>
+                  <span className="max-w-24 truncate text-xs font-bold text-slate-900">{user?.name || firebaseUser.displayName}</span>
                   <span className="text-[10px] text-slate-500 uppercase">
                     {user?.role === 'tutor' ? '강사' : user?.role === 'admin' ? '관리자' : '수강생'}
                   </span>
@@ -234,8 +220,12 @@ export const Navbar = () => {
         </div>
 
         {/* 모바일 메뉴 버튼 */}
-        <div className="flex md:hidden justify-self-end">
+        <div className="flex xl:hidden">
           <button
+            type="button"
+            aria-label={isMobileOpen ? '메뉴 닫기' : '메뉴 열기'}
+            aria-expanded={isMobileOpen}
+            aria-controls="mobile-navigation-panel"
             onClick={() => setIsMobileOpen(!isMobileOpen)}
             className="text-slate-600 hover:text-blue-600 focus:outline-none"
           >
@@ -246,13 +236,14 @@ export const Navbar = () => {
 
       {/* 모바일 Nav */}
       {isMobileOpen && (
-        <div className="border-t border-slate-100 bg-white p-4 md:hidden">
+        <div id="mobile-navigation-panel" className="max-h-[calc(100dvh-5rem)] overflow-y-auto border-t border-slate-100 bg-white p-4 xl:hidden">
           <div className="flex flex-col gap-1">
             {menus.map((menu) => (
               <div key={menu.name}>
                 <button
                   onClick={() => setMobileSub(mobileSub === menu.name ? null : menu.name)}
-                  className="w-full flex items-center justify-between px-3 py-3 text-base font-bold text-slate-700 rounded-lg"
+                  aria-expanded={mobileSub === menu.name}
+                  className={cn('w-full flex items-center justify-between px-3 py-3 text-base font-bold rounded-lg', isActiveDropdown(menu) ? 'bg-blue-50 text-blue-700' : 'text-slate-700')}
                 >
                   <span className="flex items-center gap-2">
                     <menu.icon size={18} />
