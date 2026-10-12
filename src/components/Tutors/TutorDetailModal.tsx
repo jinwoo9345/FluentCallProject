@@ -12,7 +12,7 @@ import {
   collection, query, where, onSnapshot, addDoc, updateDoc, deleteDoc,
   doc, serverTimestamp, getDocs, limit, orderBy,
 } from 'firebase/firestore';
-import { cn } from '@/src/lib/utils';
+import { cn, maskReviewAuthorName } from '@/src/lib/utils';
 
 interface TutorDetailModalProps {
   isOpen: boolean;
@@ -274,7 +274,7 @@ export function TutorDetailModal({ isOpen, onClose, tutor, onRegister }: TutorDe
                         .map((review) => (
                           <div key={review.id} className="rounded-2xl bg-slate-50 p-4 border border-slate-100">
                             <div className="flex items-center justify-between">
-                              <span className="font-bold text-slate-900">{review.userName}</span>
+                              <span className="font-bold text-slate-900">{maskReviewAuthorName(review.userName)}</span>
                               <StarRow rating={review.rating} />
                             </div>
                             <p className="mt-2 text-sm text-slate-600 whitespace-pre-wrap">{review.content}</p>
@@ -289,7 +289,7 @@ export function TutorDetailModal({ isOpen, onClose, tutor, onRegister }: TutorDe
                       tutor.reviews.map((review) => (
                         <div key={review.id} className="rounded-2xl bg-slate-50 p-4 border border-slate-100">
                           <div className="flex items-center justify-between">
-                            <span className="font-bold text-slate-900">{review.userName}</span>
+                            <span className="font-bold text-slate-900">{maskReviewAuthorName(review.userName)}</span>
                             <StarRow rating={review.rating} />
                           </div>
                           <p className="mt-2 text-sm text-slate-600">{review.comment}</p>
@@ -352,7 +352,7 @@ function MyReviewCard({
     <div className="mt-4 rounded-2xl bg-blue-50 p-4 border border-blue-200">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="font-bold text-slate-900">{review.userName}</span>
+          <span className="font-bold text-slate-900">{maskReviewAuthorName(review.userName)}</span>
           <span className="text-[10px] font-black uppercase tracking-widest bg-blue-600 text-white px-2 py-0.5 rounded-full">
             내 리뷰
           </span>

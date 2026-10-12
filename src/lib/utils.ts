@@ -5,6 +5,15 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/** 후기 작성자 이름: 첫 글자와 마지막 글자 사이를 가린다. */
+export function maskReviewAuthorName(name?: string | null): string {
+  const characters = Array.from(name?.trim() || '');
+  if (characters.length === 0) return '익명';
+  if (characters.length === 1) return '*';
+  if (characters.length === 2) return `${characters[0]}*`;
+  return `${characters[0]}${'*'.repeat(characters.length - 2)}${characters.at(-1)}`;
+}
+
 // 추천 코드 생성기 (32^8 ≈ 10^12 조합) — crypto 기반, 혼동 글자(I/O/0/1) 제외
 // firestore.rules의 '^[A-Z0-9]{4,16}$' 패턴 준수
 const REFERRAL_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';

@@ -13,7 +13,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { Pagination, usePaginated } from '../components/ui/Pagination';
-import { cn } from '@/src/lib/utils';
+import { cn, maskReviewAuthorName } from '@/src/lib/utils';
 
 const PAGE_SIZE = 9;
 
@@ -104,7 +104,7 @@ export default function Reviews() {
     if (!q) return reviews;
     return reviews.filter(
       (r) =>
-        (r.userName || '').toLowerCase().includes(q) ||
+        maskReviewAuthorName(r.userName).toLowerCase().includes(q) ||
         (r.content || '').toLowerCase().includes(q) ||
         (r.userTag || '').toLowerCase().includes(q)
     );
@@ -223,8 +223,8 @@ export default function Reviews() {
                           <Icon size={18} />
                         </div>
                         <div className="min-w-0">
-                          <p className="font-bold text-slate-900 text-sm">{r.userTag || r.userName}</p>
-                          <p className="text-[11px] text-slate-500 truncate">{r.userName}</p>
+                          <p className="font-bold text-slate-900 text-sm">{r.userTag || maskReviewAuthorName(r.userName)}</p>
+                          <p className="text-[11px] text-slate-500 truncate">{maskReviewAuthorName(r.userName)}</p>
                         </div>
                       </div>
                       <StarRow rating={r.rating || 5} />
