@@ -1,9 +1,9 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { XCircle } from 'lucide-react';
 import { Button } from '../components/ui/Button';
-import { db } from '../firebase';
-import { doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { auth } from '../firebase';
+import { paymentApi, forgetPayment } from '../services/paymentService';
 
 export default function PaymentFail() {
   const [searchParams] = useSearchParams();
@@ -13,22 +13,33 @@ export default function PaymentFail() {
   const code = searchParams.get('code');
   const orderId = searchParams.get('orderId');
 
+  const [refundStatus, setRefundStatus] = useState('결제 상태와 포인트 반환을 확인하고 있습니다.');
   useEffect(() => {
-    // pending 상태로 남아있던 결제 문서를 cancelled로 업데이트
-    if (!orderId) return;
-    (async () => {
+    if (!orderId) { setRefundStatus('주문번호가 없어 관리자 확인이 필요합니다.'); return; }
+    let busy = false;
+    let disposed = false;
+    let settled = false;
+    const recover = async () => {
+      if (busy || settled || !auth.currentUser) return;
+      busy = true;
       try {
-        await updateDoc(doc(db, 'payments', orderId), {
-          status: 'cancelled',
-          failReason: message,
-          failCode: code || null,
-          cancelledAt: serverTimestamp(),
-        });
-      } catch (err) {
-        console.warn('Failed to mark payment as cancelled:', err);
-      }
-    })();
-  }, [orderId, message, code]);
+        const result = await paymentApi('/api/payments/cancel', { orderId, reason: message });
+        if (disposed) return;
+        settled = true;
+        forgetPayment(orderId);
+        if (result.status === 'completed') {
+          setRefundStatus('이미 결제가 완료된 주문입니다. 내 강의실에서 확인해주세요.');
+        } else {
+          forgetPayment(orderId);
+          setRefundStatus('결제 취소를 확인했습니다. 사용 포인트가 있다면 반환이 완료되었습니다.');
+        }
+      } catch (error: any) { if (!disposed) setRefundStatus(error.message || '확인이 지연되고 있습니다. 잠시 후 다시 확인해주세요.'); }
+      finally { busy = false; }
+    };
+    const unsub = auth.onAuthStateChanged(u => { if (u) void recover(); else setRefundStatus('로그인 후 포인트 반환을 다시 확인해주세요.'); });
+    const timer = window.setInterval(recover, 15000);
+    return () => { disposed = true; unsub(); window.clearInterval(timer); };
+  }, [orderId, message]);
 
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center p-4">
@@ -41,6 +52,7 @@ export default function PaymentFail() {
         {code && <span className="block text-xs text-slate-400 mt-2">에러 코드: {code}</span>}
       </p>
 
+      <p role="status" className="mb-6 max-w-md text-center text-sm text-slate-600">{refundStatus}</p>
       <div className="flex gap-4">
         <Button variant="outline" onClick={() => navigate('/tutors')}>
           다시 시도하기

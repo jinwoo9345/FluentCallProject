@@ -10,11 +10,14 @@ import { Link } from 'react-router-dom';
 // 심사 통과 전이라도 테스트 키로 위젯 전체 흐름을 검증할 수 있다.
 import { loadTossPayments } from '@tosspayments/tosspayments-sdk';
 import { db, auth } from '../../firebase';
-import { doc, setDoc, getDoc, serverTimestamp, runTransaction } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
+import { paymentApi, rememberPayment, forgetPayment } from '../../services/paymentService';
 import { useAuth } from '../../contexts/AuthContext';
 import { RefundPolicyContent, TermsContent } from '../policy/PolicyContents';
 import { cn } from '@/src/lib/utils';
 import { PACKAGES, PackageKey } from '../../constants';
+import { paymentOrderAction } from '../../lib/paymentOrderState';
+import { inspectPointBalance } from '../../lib/pointBalance';
 
 type PaymentMethodTab = 'bank' | 'toss';
 
@@ -39,7 +42,8 @@ export function PaymentModal({ isOpen, onClose, productId, productName, tutorId,
   const [termsAgreed, setTermsAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [useCredits, setUseCredits] = useState(false);
+  const [useCredits, setUseCredits] = useState(true);
+  const [serverPointWarning, setServerPointWarning] = useState('');
   const [packageKey, setPackageKey] = useState<PackageKey>('basic');
   const [depositorName, setDepositorName] = useState('');
   const [bankInfo, setBankInfo] = useState(DEFAULT_BANK);
@@ -55,6 +59,7 @@ export function PaymentModal({ isOpen, onClose, productId, productName, tutorId,
   const widgetsRef = useRef<any>(null);
   const paymentMethodWidgetRef = useRef<any>(null);
   const agreementWidgetRef = useRef<any>(null);
+  const widgetAmountSync = useRef<Promise<unknown>>(Promise.resolve());
 
   const selectedPackage = PACKAGES.find(p => p.key === packageKey)!;
   const totalSessions = selectedPackage.sessions + selectedPackage.bonus;
@@ -62,7 +67,9 @@ export function PaymentModal({ isOpen, onClose, productId, productName, tutorId,
 
   // Point discount logic: 1 point = 1 won
   const CREDIT_VALUE = 1;
-  const availableCredits = user?.credits || 0;
+  const pointState = inspectPointBalance(user?.credits);
+  const pointWarning = pointState.warning || serverPointWarning;
+  const availableCredits = pointWarning ? 0 : pointState.balance;
   const creditDiscount = useCredits ? Math.min(availableCredits * CREDIT_VALUE, packageAmount) : 0;
   const finalAmount = packageAmount - creditDiscount;
 
@@ -176,11 +183,11 @@ export function PaymentModal({ isOpen, onClose, productId, productName, tutorId,
   // 금액(패키지/포인트) 변경 시 위젯의 결제금액 동기화
   useEffect(() => {
     const widgets = widgetsRef.current;
-    if (!widgets || !tossReady) return;
-    widgets.setAmount({ currency: 'KRW', value: finalAmount }).catch((err: any) => {
+    if (!widgets || !tossReady || loading || paymentLock.current) return;
+    widgetAmountSync.current = widgets.setAmount({ currency: 'KRW', value: finalAmount }).catch((err: any) => {
       console.warn('[Toss] setAmount failed:', err);
     });
-  }, [finalAmount, tossReady]);
+  }, [finalAmount, tossReady, loading]);
 
   const copyToClipboard = async (text: string, field: string) => {
     try {
@@ -196,202 +203,123 @@ export function PaymentModal({ isOpen, onClose, productId, productName, tutorId,
     } catch {}
   };
 
-  const handleManualPayment = async () => {
-    if (!requireVerifiedEmail()) return;
-    if (!termsAgreed) {
-      setError('약관에 동의해주세요.');
-      return;
-    }
-    if (!depositorName.trim()) {
-      setError('입금자명을 입력해주세요.');
-      return;
-    }
-    if (!auth.currentUser) {
-      setError('로그인 후 이용해주세요.');
-      return;
-    }
+  const operationRef = useRef<string | null>(null);
+  const paymentLock = useRef(false);
+  const [submittedAmount, setSubmittedAmount] = useState(0);
+  const [submittedComplete, setSubmittedComplete] = useState(false);
+  const [recoveryError, setRecoveryError] = useState('');
 
+  useEffect(() => {
+    if (!isOpen || !auth.currentUser) return;
+    paymentApi('/api/payments/recover', {})
+      .then(result => setRecoveryError(result.results?.some((r: any) => r.pending) ? '이전 결제 상태를 확인 중입니다. 일부 포인트는 확인 완료 후 반환됩니다.' : ''))
+      .catch(() => setRecoveryError('이전 결제 상태 확인에 실패했습니다. 잠시 후 다시 확인해주세요.'));
+  }, [isOpen]);
+
+  const submitPayment = async (method: PaymentMethodTab) => {
+    if (paymentLock.current || !requireVerifiedEmail()) return;
+    if (!termsAgreed) { setError('약관에 동의해주세요.'); return; }
+    if (!auth.currentUser) { setError('로그인 후 이용해주세요.'); return; }
+    if (method === 'bank' && finalAmount > 0 && !depositorName.trim()) { setError('입금자명을 입력해주세요.'); return; }
+    if (method === 'toss' && finalAmount > 0 && (!widgetsRef.current || !tossReady)) { setError('결제 위젯이 아직 준비되지 않았습니다.'); return; }
+    paymentLock.current = true;
     setLoading(true);
     setError('');
-
+    const orderId = operationRef.current || `order_${crypto.randomUUID().replace(/-/g, '')}`;
+    operationRef.current = orderId;
+    let created = false;
     try {
-      // 예측 불가능한 orderId (crypto.randomUUID) - Math.random 대체
-      const orderId = `order_${crypto.randomUUID().replace(/-/g, '')}`;
-      const fullProductName = `${productName} — ${selectedPackage.label} ${selectedPackage.sessions}회${
-        selectedPackage.bonus > 0 ? ` +${selectedPackage.bonus}회` : ''
-      }`;
-
-      // 가입 시 고정된 추천인 코드를 자동 사용
-      const validatedReferrer = (user?.referredBy || '').trim().toUpperCase();
-
-      const userRef = doc(db, 'users', auth.currentUser.uid);
-      const paymentRef = doc(db, 'payments', orderId);
-
-      // 트랜잭션으로 (1) 보유 포인트 검증 → (2) 차감 → (3) 결제 doc 생성을 원자적으로 수행.
-      // 동시 다중 주문에서 같은 포인트로 중복 할인되는 문제를 방지한다.
-      await runTransaction(db, async (tx) => {
-        const userSnap = await tx.get(userRef);
-        if (!userSnap.exists()) {
-          throw new Error('사용자 정보를 찾을 수 없습니다. 다시 로그인해주세요.');
-        }
-        const currentCredits = (userSnap.data() as any).credits || 0;
-
-        // 클라이언트 표시값과 서버 실제값이 다를 수 있으므로 서버값 기준으로 재계산
-        const wantCreditsToUse = useCredits
-          ? Math.min(currentCredits, packageAmount) // CREDIT_VALUE = 1
-          : 0;
-
-        if (useCredits && wantCreditsToUse <= 0) {
-          throw new Error('사용 가능한 포인트가 없습니다.');
-        }
-
-        const txFinalAmount = packageAmount - wantCreditsToUse;
-
-        // 포인트 차감 (Firestore rules: ownCreditsDecrementOnly 허용)
-        if (wantCreditsToUse > 0) {
-          tx.update(userRef, { credits: currentCredits - wantCreditsToUse });
-        }
-
-        tx.set(paymentRef, {
-          orderId,
-          userId: auth.currentUser!.uid,
-          userName: user?.name || '',              // 강사 측 식별 (수업 등록 시 학생 이름 표시)
-          userEmail: user?.email || auth.currentUser!.email || '',
-          tutorId: tutorId || null,                // 매칭된 튜터 uid (알림 수신용)
-          tutorName: tutorName || null,
-          amount: txFinalAmount,
-          originalAmount: packageAmount,
-          creditsUsed: wantCreditsToUse,
-          creditsRefunded: false,                  // 취소 시 환불되면 true 로 전환
-          productId,
-          productName: fullProductName,
-          packageKey: selectedPackage.key,
-          packageSessions: selectedPackage.sessions,
-          packageBonus: selectedPackage.bonus,
-          totalSessions,
-          status: 'pending',                       // 입금 대기
-          paymentMethod: 'manual_bank_transfer',   // 무통장입금
-          depositorName: depositorName.trim(),     // 입금자명
-          referredBy: validatedReferrer || '',
-          referralRewarded: false,                 // 관리자 승인 시 true 전환
-          bankSnapshot: bankInfo,                  // 안내했던 계좌 정보 스냅샷
-          createdAt: serverTimestamp(),
-        });
+      const order = await paymentApi('/api/payments/orders', {
+        orderId, packageKey, tutorId, useCredits, termsAgreed,
+        paymentMethod: method === 'bank' ? 'manual_bank_transfer' : 'toss_widget',
+        depositorName: depositorName.trim(),
       });
-
-      setSubmittedOrderId(orderId);
-    } catch (err: any) {
-      console.error('주문 생성 오류:', err);
-      setError(err.message || '주문 생성 중 오류가 발생했습니다.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // === 토스 결제위젯 결제 요청 ===
-  // 결제 요청 전에 (1) 포인트 트랜잭션 차감 + (2) pending 결제 doc 생성 → (3) widgets.requestPayment Redirect.
-  // 성공 시 /payment/success 로 paymentKey/orderId/amount 가 쿼리로 전달되며, 거기서 confirm API 호출.
-  const handleTossPayment = async () => {
-    if (!requireVerifiedEmail()) return;
-    if (!termsAgreed) {
-      setError('약관에 동의해주세요.');
-      return;
-    }
-    if (!auth.currentUser) {
-      setError('로그인 후 이용해주세요.');
-      return;
-    }
-    if (!tossClientKey) {
-      setError('결제 설정을 불러올 수 없습니다. 잠시 후 다시 시도해주세요.');
-      return;
-    }
-    const widgets = widgetsRef.current;
-    if (!widgets || !tossReady) {
-      setError('결제 위젯이 아직 준비되지 않았습니다.');
-      return;
-    }
-
-    setLoading(true);
-    setError('');
-
-    try {
-      const orderId = `order_${crypto.randomUUID().replace(/-/g, '')}`;
-      const fullProductName = `${productName} — ${selectedPackage.label} ${selectedPackage.sessions}회${
-        selectedPackage.bonus > 0 ? ` +${selectedPackage.bonus}회` : ''
-      }`;
-      const validatedReferrer = (user?.referredBy || '').trim().toUpperCase();
-
-      const userRef = doc(db, 'users', auth.currentUser.uid);
-      const paymentRef = doc(db, 'payments', orderId);
-
-      // 트랜잭션: 포인트 검증·차감 + pending 결제 doc 생성
-      let txFinalAmount = finalAmount;
-      await runTransaction(db, async (tx) => {
-        const userSnap = await tx.get(userRef);
-        if (!userSnap.exists()) {
-          throw new Error('사용자 정보를 찾을 수 없습니다. 다시 로그인해주세요.');
-        }
-        const currentCredits = (userSnap.data() as any).credits || 0;
-        const wantCreditsToUse = useCredits ? Math.min(currentCredits, packageAmount) : 0;
-        if (useCredits && wantCreditsToUse <= 0) {
-          throw new Error('사용 가능한 포인트가 없습니다.');
-        }
-        txFinalAmount = packageAmount - wantCreditsToUse;
-
-        if (wantCreditsToUse > 0) {
-          tx.update(userRef, { credits: currentCredits - wantCreditsToUse });
-        }
-
-        tx.set(paymentRef, {
-          orderId,
-          userId: auth.currentUser!.uid,
-          userName: user?.name || '',
-          userEmail: user?.email || auth.currentUser!.email || '',
-          tutorId: tutorId || null,
-          tutorName: tutorName || null,
-          amount: txFinalAmount,
-          originalAmount: packageAmount,
-          creditsUsed: wantCreditsToUse,
-          creditsRefunded: false,
-          productId,
-          productName: fullProductName,
-          packageKey: selectedPackage.key,
-          packageSessions: selectedPackage.sessions,
-          packageBonus: selectedPackage.bonus,
-          totalSessions,
-          status: 'pending',
-          paymentMethod: 'toss_widget',
-          referredBy: validatedReferrer || '',
-          referralRewarded: false,
-          createdAt: serverTimestamp(),
-        });
-      });
-
-      // 위젯의 결제금액과 실제 차감 후 금액이 다를 수 있어 한 번 더 동기화
-      await widgets.setAmount({ currency: 'KRW', value: txFinalAmount });
-
-      await widgets.requestPayment({
-        orderId,
-        orderName: fullProductName,
+      setServerPointWarning(order.pointWarning || '');
+      const action = paymentOrderAction(order);
+      if (action === 'cancelled') {
+        // 취소된 요청 번호를 버린다. 다음 클릭은 새 주문을 명시적으로 생성한다.
+        forgetPayment(orderId);
+        operationRef.current = null;
+        setSubmittedOrderId(null);
+        setSubmittedComplete(false);
+        setSubmittedAmount(0);
+        setError('취소되었거나 실패한 주문입니다. 입금하지 마시고, 신청 버튼을 다시 눌러 새 주문을 만들어주세요.');
+        return;
+      }
+      if (action === 'waiting') {
+        // 확인 중인 주문은 자동 취소하거나 새 주문으로 바꾸지 않는다.
+        setError('주문 상태를 확인 중입니다. 입금하지 마시고 잠시 후 같은 주문을 다시 확인해주세요.');
+        return;
+      }
+      created = true;
+      setSubmittedAmount(order.amount);
+      setSubmittedComplete(order.status === 'completed');
+      if (order.bankSnapshot) setBankInfo(order.bankSnapshot);
+      if (action === 'completed' || action === 'bank_pending') {
+        setSubmittedOrderId(orderId);
+        operationRef.current = null;
+        return;
+      }
+      // Store the recovery ID before handing off to a redirect; never lose it on tab close.
+      rememberPayment(orderId);
+      if (order.pointWarning && order.amount !== finalAmount && !window.confirm(`${order.pointWarning}\n결제 금액은 ${Number(order.amount).toLocaleString()}원입니다. 포인트 없이 결제할까요?`)) {
+        await paymentApi('/api/payments/cancel', { orderId, reason: '포인트 미사용 금액 확인 후 신청 중단' });
+        forgetPayment(orderId);
+        operationRef.current = null;
+        return;
+      }
+      // 잔액 실시간 갱신으로 위젯 금액이 원래 가격으로 되돌아가는 경합을 방지한다.
+      await widgetAmountSync.current;
+      await widgetsRef.current.setAmount({ currency: 'KRW', value: order.amount });
+      await widgetsRef.current.requestPayment({
+        orderId, orderName: order.productName,
         successUrl: `${window.location.origin}/payment/success`,
         failUrl: `${window.location.origin}/payment/fail?orderId=${orderId}`,
         customerEmail: user?.email || undefined,
         customerName: user?.realName || user?.name || '회원',
       });
-      // Redirect 방식이라 여기 이후 코드는 일반적으로 실행되지 않음
     } catch (err: any) {
-      console.error('[Toss] payment request failed:', err);
-      setError(err?.message || '결제 요청 중 오류가 발생했습니다.');
+      if (!created && [400, 401, 403, 404].includes(err.status)) operationRef.current = null;
+      let returned = false;
+      if (method === 'toss' && created) {
+        try {
+          const result = await paymentApi('/api/payments/cancel', { orderId, reason: '결제창 중단 또는 요청 오류' });
+          if (result.status === 'cancelled') { returned = true; forgetPayment(orderId); operationRef.current = null; }
+          if (result.status === 'completed') { forgetPayment(orderId); operationRef.current = null; setSubmittedComplete(true); setSubmittedOrderId(orderId); }
+        } catch { rememberPayment(orderId); }
+      }
+      setError((err.message || '결제 요청 중 오류가 발생했습니다.') + (returned ? ' 사용 포인트는 반환되었습니다.' : created && method === 'toss' ? ' 결제 상태 확인 후 포인트가 반환됩니다.' : ' 같은 주문으로 다시 시도해주세요.'));
+    } finally {
       setLoading(false);
+      paymentLock.current = false;
     }
   };
+  const handleManualPayment = () => submitPayment('bank');
+  const handleTossPayment = () => submitPayment('toss');
 
-  const resetAndClose = () => {
+  const resetAndClose = async () => {
+    if (paymentLock.current) return;
+    if (operationRef.current) {
+      try {
+        await paymentApi('/api/payments/cancel', { orderId: operationRef.current, reason: '주문 화면 닫기' });
+        operationRef.current = null;
+      } catch (error: any) {
+        if (error.status === 404) operationRef.current = null;
+        else {
+          setError('주문 상태 확인이 필요합니다. 같은 주문으로 재시도하거나 잠시 후 다시 닫아주세요.');
+          if (!window.confirm('주문 상태를 확인하지 못했습니다. 닫아도 주문 기록은 유지되며, 미완료 카드 결제는 재방문 시 다시 확인합니다. 무통장 주문은 관리자 확인이 필요할 수 있습니다. 그래도 닫을까요?')) return;
+          rememberPayment(operationRef.current!);
+          operationRef.current = null;
+        }
+      }
+    }
     setSubmittedOrderId(null);
     setError('');
     setDepositorName('');
     setTermsAgreed(false);
-    setUseCredits(false);
+    setUseCredits(true);
+    setServerPointWarning('');
+    setSubmittedComplete(false);
     setPackageKey('basic');
     onClose();
   };
@@ -419,19 +347,22 @@ export function PaymentModal({ isOpen, onClose, productId, productName, tutorId,
               {/* 주문 제출 완료 화면 */}
               {submittedOrderId ? (
                 <div className="p-10 text-center space-y-6">
+                  {pointWarning && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm font-semibold text-red-600">{pointWarning}</p>}
                   <div className="mx-auto w-20 h-20 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center">
                     <CheckCircle2 size={42} />
                   </div>
                   <div>
-                    <h3 className="text-2xl font-bold text-slate-900">입금 확인을 기다리고 있습니다</h3>
+                    <h3 className="text-2xl font-bold text-slate-900">{submittedComplete ? '결제가 완료되었습니다' : '입금 확인을 기다리고 있습니다'}</h3>
                     <p className="mt-3 text-slate-600 leading-relaxed">
                       주문이 정상적으로 접수되었습니다.<br />
-                      아래 계좌로 <strong className="text-slate-900">{finalAmount.toLocaleString()}원</strong>을
-                      <strong className="text-slate-900"> {depositorName}</strong> 명의로 입금해주세요.
+                      {submittedComplete ? (submittedAmount === 0 ? '포인트로 전액 결제되어 별도 입금이 필요하지 않습니다.' : '결제 승인 확인이 완료되었습니다. 내 강의실에서 확인해주세요.') : <>
+                        아래 계좌로 <strong className="text-slate-900">{submittedAmount.toLocaleString()}원</strong>을
+                        <strong className="text-slate-900"> {depositorName}</strong> 명의로 입금해주세요.
+                      </>}
                     </p>
                   </div>
 
-                  <div className="p-5 rounded-2xl bg-slate-50 border border-slate-100 text-left space-y-2">
+                  {!submittedComplete && <div className="p-5 rounded-2xl bg-slate-50 border border-slate-100 text-left space-y-2">
                     <p className="text-xs font-black uppercase tracking-widest text-slate-500">입금 계좌</p>
                     <p className="text-base font-bold text-slate-900">
                       {bankInfo.bankName} {bankInfo.accountNumber}
@@ -441,7 +372,7 @@ export function PaymentModal({ isOpen, onClose, productId, productName, tutorId,
                       관리자가 입금을 확인하는 즉시 <strong>내 강의실에서 수강권이 자동으로 활성화</strong>됩니다.
                       보통 영업시간 내 1~2시간 이내 처리됩니다.
                     </p>
-                  </div>
+                  </div>}
 
                   <div className="text-[11px] text-slate-400">
                     주문번호 · <code className="font-mono">{submittedOrderId}</code>
@@ -456,6 +387,7 @@ export function PaymentModal({ isOpen, onClose, productId, productName, tutorId,
                 </div>
               ) : (
                 <div className="p-8 space-y-6">
+                  {recoveryError && <p role="alert" className="rounded-xl bg-amber-50 p-3 text-sm text-amber-800">{recoveryError}</p>}
                   {/* Product Info */}
                   <div className="bg-blue-50 rounded-2xl p-6 border border-blue-100">
                     <p className="text-sm text-blue-600 font-bold mb-1">선택한 튜터</p>
@@ -489,6 +421,7 @@ export function PaymentModal({ isOpen, onClose, productId, productName, tutorId,
                           <button
                             key={pkg.key}
                             type="button"
+                            disabled={loading || !!operationRef.current}
                             onClick={() => setPackageKey(pkg.key)}
                             className={cn(
                               'relative p-4 rounded-2xl border-2 text-left transition-all',
@@ -549,28 +482,30 @@ export function PaymentModal({ isOpen, onClose, productId, productName, tutorId,
                   </div>
 
                   {/* Points Discount */}
-                  {availableCredits > 0 && (
+                  <div>
                     <div className="bg-amber-50 rounded-2xl p-6 border border-amber-100">
                       <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-2">
                           <Ticket className="text-amber-600" size={20} />
-                          <span className="font-bold text-slate-900">보유 포인트 사용</span>
+                          <span className="font-bold text-slate-900">보유 포인트 자동 적용</span>
                         </div>
-                        <span className="text-sm font-bold text-amber-700">{availableCredits.toLocaleString()} 포인트 보유</span>
+                        <span className="text-sm font-bold text-amber-700">{pointWarning ? '사용 불가' : `${availableCredits.toLocaleString()} 포인트 보유`}</span>
                       </div>
                       <label className="flex items-center justify-between p-3 rounded-xl bg-white border border-amber-200 cursor-pointer">
                         <span className="text-sm text-slate-600">
-                          전액 사용 (최대 -{(availableCredits * CREDIT_VALUE).toLocaleString()}원, 1P = 1원)
+                          자동 적용 (최대 -{Math.min(availableCredits, packageAmount).toLocaleString()}원, 1P = 1원)
                         </span>
                         <input
                           type="checkbox"
                           className="h-5 w-5 rounded border-amber-300 text-amber-600 focus:ring-amber-500"
-                          checked={useCredits}
+                          checked={useCredits && !pointWarning}
+                          disabled={loading || !!operationRef.current || !!pointWarning || availableCredits <= 0}
                           onChange={(e) => setUseCredits(e.target.checked)}
                         />
                       </label>
+                      {pointWarning && <p role="alert" className="mt-3 text-sm font-semibold text-red-600">{pointWarning}</p>}
                     </div>
-                  )}
+                  </div>
 
                   {/* 추천인 안내 */}
                   <div className="bg-blue-50 rounded-2xl p-5 border border-blue-100">
@@ -598,6 +533,7 @@ export function PaymentModal({ isOpen, onClose, productId, productName, tutorId,
                   <div className="grid grid-cols-2 gap-2 p-1.5 rounded-2xl bg-slate-100">
                     <button
                       type="button"
+                      disabled={loading || !!operationRef.current}
                       onClick={() => setPaymentTab('bank')}
                       className={cn(
                         'py-3 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2',
@@ -610,6 +546,7 @@ export function PaymentModal({ isOpen, onClose, productId, productName, tutorId,
                     </button>
                     <button
                       type="button"
+                      disabled={loading || !!operationRef.current}
                       onClick={() => setPaymentTab('toss')}
                       className={cn(
                         'py-3 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2',
@@ -690,6 +627,7 @@ export function PaymentModal({ isOpen, onClose, productId, productName, tutorId,
                       <input
                         type="text"
                         value={depositorName}
+                        disabled={loading || !!operationRef.current}
                         onChange={(e) => setDepositorName(e.target.value)}
                         placeholder="실제 입금하는 분의 이름"
                         className="w-full rounded-xl border border-slate-200 px-4 py-2.5 text-sm outline-none focus:border-blue-500"
@@ -808,6 +746,7 @@ export function PaymentModal({ isOpen, onClose, productId, productName, tutorId,
                         type="checkbox"
                         className="hidden"
                         checked={termsAgreed}
+                        disabled={loading}
                         onChange={(e) => setTermsAgreed(e.target.checked)}
                       />
                       <span className="text-sm font-bold text-slate-700">
@@ -837,12 +776,12 @@ export function PaymentModal({ isOpen, onClose, productId, productName, tutorId,
                         <Button
                           className="w-full py-6 rounded-2xl gap-2 text-lg shadow-lg"
                           onClick={handleManualPayment}
-                          disabled={loading || !termsAgreed || !depositorName.trim()}
+                          disabled={loading || !termsAgreed || (finalAmount > 0 && !depositorName.trim())}
                         >
-                          {loading ? '주문 접수 중...' : <><Banknote size={20} /> 주문 접수 (입금 완료 예정)</>}
+                          {loading ? '주문 접수 중...' : finalAmount === 0 ? '포인트로 전액 결제' : <><Banknote size={20} /> 주문 접수 (입금 완료 예정)</>}
                         </Button>
                         <p className="text-[11px] text-slate-400 text-center mt-2">
-                          버튼을 누르면 주문이 접수됩니다. 안내된 계좌로 입금 후 관리자 확인을 기다려주세요.
+                          {finalAmount === 0 ? '별도 입금 없이 포인트로 결제가 완료됩니다.' : '버튼을 누르면 주문이 접수됩니다. 안내된 계좌로 입금 후 관리자 확인을 기다려주세요.'}
                         </p>
                       </>
                     ) : (
@@ -850,11 +789,11 @@ export function PaymentModal({ isOpen, onClose, productId, productName, tutorId,
                         <Button
                           className="w-full py-6 rounded-2xl gap-2 text-lg shadow-lg"
                           onClick={handleTossPayment}
-                          disabled={loading || !termsAgreed || !tossReady || !tossClientKey}
+                          disabled={loading || !termsAgreed || (finalAmount > 0 && (!tossReady || !tossClientKey))}
                         >
                           {loading
                             ? '결제 진행 중...'
-                            : !tossClientKey
+                            : finalAmount === 0 ? '포인트로 전액 결제' : !tossClientKey
                               ? '결제 위젯 설정 대기'
                               : !tossReady
                                 ? '결제 위젯 준비 중...'

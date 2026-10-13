@@ -13,9 +13,8 @@ import { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { CheckCircle, Loader2, AlertCircle } from 'lucide-react';
 import { Button } from '../components/ui/Button';
-import { auth, db } from '../firebase';
-import { paymentService } from '../services/paymentService';
-import { doc, getDoc } from 'firebase/firestore';
+import { auth } from '../firebase';
+import { paymentApi, forgetPayment } from '../services/paymentService';
 
 export default function PaymentSuccess() {
   const [searchParams] = useSearchParams();
@@ -39,7 +38,6 @@ export default function PaymentSuccess() {
     // 인증 상태를 비동기로 복원하는 중이라 auth.currentUser 가 잠시 null 일 수 있다.
     // onAuthStateChanged 의 첫 발화를 기다린 뒤 confirm 호출.
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
-      unsubscribe();
 
       if (!user) {
         setError('사용자 인증 정보가 없습니다. 다시 로그인 후 시도해주세요.');
@@ -48,42 +46,9 @@ export default function PaymentSuccess() {
       }
 
       try {
-        const idToken = await user.getIdToken();
-        const userId = user.uid;
-
-        const response = await fetch('/api/payments/confirm', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${idToken}`,
-          },
-          body: JSON.stringify({ paymentKey, orderId, amount }),
-        });
-        const data: any = await response.json();
-
-        if (!response.ok) {
-          setError(data?.message || '결제 승인에 실패했습니다.');
-          setLoading(false);
-          return;
-        }
-
+        const data = await paymentApi('/api/payments/confirm', { paymentKey, orderId, amount });
         setPaymentData(data);
-
-        // pending → completed 로 결제 doc 갱신 + 추천인 보상 (중복 처리 방지)
-        const pendingPaymentDoc = await getDoc(doc(db, 'payments', orderId));
-        if (pendingPaymentDoc.exists()) {
-          const pData = pendingPaymentDoc.data() as any;
-          if (pData.status !== 'completed') {
-            await paymentService.recordPayment(orderId, {
-              paymentKey,
-              method: data.method,
-              receiptUrl: data.receipt?.url || null,
-            });
-            if (pData.referredBy && !pData.referralRewarded) {
-              await paymentService.handleReferralReward(userId, pData.referredBy);
-            }
-          }
-        }
+        forgetPayment(orderId);
       } catch (err: any) {
         console.error('[PaymentSuccess] confirm error:', err);
         setError(err?.message || '결제 승인 중 오류가 발생했습니다.');
@@ -116,8 +81,8 @@ export default function PaymentSuccess() {
         <h1 className="text-2xl font-bold text-slate-900 mb-3">결제 승인에 실패했습니다</h1>
         <p className="text-slate-500 mb-8 leading-relaxed">{error}</p>
         <div className="flex gap-3 justify-center">
-          <Button variant="outline" onClick={() => navigate('/tutors')}>
-            다시 시도하기
+          <Button variant="outline" onClick={() => window.location.reload()}>
+            같은 주문 다시 확인
           </Button>
           <Button variant="ghost" onClick={() => navigate('/')}>홈으로</Button>
         </div>
@@ -144,7 +109,7 @@ export default function PaymentSuccess() {
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-slate-500 font-bold">결제금액</span>
-              <span className="font-bold text-slate-900">{Number(amount).toLocaleString()}원</span>
+              <span className="font-bold text-slate-900">{Number(paymentData.totalAmount ?? paymentData.amount).toLocaleString()}원</span>
             </div>
             {paymentData.method && (
               <div className="flex justify-between text-sm">

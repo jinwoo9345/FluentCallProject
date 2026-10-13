@@ -2,7 +2,13 @@ import express from "express";
 import path from "path";
 import { fileURLToPath } from "url";
 import dotenv from "dotenv";
-import axios from "axios";
+import { onRequestPost as createOrderHandler } from './functions/api/payments/orders';
+import { onRequestPost as confirmHandler } from './functions/api/payments/confirm';
+import { onRequestPost as cancelHandler } from './functions/api/payments/cancel';
+import { onRequestPost as recoverHandler } from './functions/api/payments/recover';
+import { onRequestPost as webhookHandler } from './functions/api/payments/webhook';
+import { onRequestPost as transferHandler } from './functions/api/points/transfer';
+import { onRequestPost as adminPaymentHandler } from './functions/api/admin/payment';
 import fs from "fs";
 
 /**
@@ -43,39 +49,25 @@ async function startServer() {
 
   app.use(express.json());
 
-  // Toss Payments Confirm
-  app.post("/api/payments/confirm", async (req, res) => {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.status(401).json({ message: "Authentication required" });
-    }
-
-    const { paymentKey, orderId, amount } = req.body;
-    const secretKey = (process.env.TOSS_SECRET_KEY || "").trim();
-
-    if (!secretKey) {
-      console.error("[Server] TOSS_SECRET_KEY is missing in environment variables");
-      return res.status(500).json({ message: "TOSS_SECRET_KEY is missing" });
-    }
-
-    const encryptedSecretKey = Buffer.from(secretKey + ":").toString("base64");
-
-    try {
-      const response = await axios.post(
-        "https://api.tosspayments.com/v1/payments/confirm",
-        { paymentKey, orderId, amount },
-        {
-          headers: {
-            Authorization: `Basic ${encryptedSecretKey}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-      res.json(response.data);
-    } catch (error: any) {
-      res.status(500).json(error.response?.data || { message: "Internal Error" });
-    }
-  });
+  // The local server uses exactly the same authenticated handlers as Pages.
+  const apiHandlers = [
+    ['/api/payments/orders', createOrderHandler], ['/api/payments/confirm', confirmHandler],
+    ['/api/payments/cancel', cancelHandler], ['/api/payments/recover', recoverHandler],
+    ['/api/payments/webhook', webhookHandler], ['/api/points/transfer', transferHandler],
+    ['/api/admin/payment', adminPaymentHandler],
+  ] as const;
+  for (const [route, handler] of apiHandlers) {
+    app.post(route, async (req, res) => {
+      const request = new Request(`http://localhost:${PORT}${req.originalUrl}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: req.headers.authorization || '' },
+        body: JSON.stringify(req.body),
+      });
+      const response = await handler({ request, env: process.env } as any);
+      res.status(response.status);
+      response.headers.forEach((value, name) => res.setHeader(name, value));
+      res.send(await response.text());
+    });
+  }
 
   // 정적 파일 서빙 (dist 폴더)
   const distPath = path.join(__dirname, "dist");

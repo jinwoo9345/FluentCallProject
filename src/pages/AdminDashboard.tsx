@@ -4,7 +4,7 @@ import {
   Users, UserPlus, CreditCard, MessageSquare, TrendingUp,
   Clock, Shield, Star, School, Settings, Loader2,
   Eye, CalendarPlus, Building2, Instagram, Twitter, Facebook,
-  CalendarDays, X,
+  CalendarDays, X, Coins,
 } from 'lucide-react';
 import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
@@ -17,6 +17,13 @@ import { SessionRegisterSection } from '../components/Dashboard/SessionRegisterS
 import { ScheduleCalendar, type CalendarEvent } from '../components/Schedule/ScheduleCalendar';
 import { EventDetailModal } from '../components/Schedule/EventDetailModal';
 import { AdminSessionRegisterModal } from '../components/Schedule/AdminSessionRegisterModal';
+import { PointHistoryPanel } from '../components/Admin/PointHistoryPanel';
+import { calculatePointAdjustment } from '../lib/pointHistory';
+import { paymentApi } from '../services/paymentService';
+import { useSearchParams } from 'react-router-dom';
+
+const ADMIN_TABS = ['overview', 'schedule', 'consultations', 'tutors', 'tutor_apps', 'payments', 'points', 'users', 'settings'] as const;
+type AdminTab = typeof ADMIN_TABS[number];
 
 const PAGE_SIZES = {
   consultations: 15,
@@ -53,9 +60,16 @@ function formatTS(ts: any, variant: 'date' | 'datetime' = 'date'): string {
 
 export default function AdminDashboard() {
   const { user, firebaseUser, isAuthReady } = useAuth();
-  const [activeTab, setActiveTab] = useState<'overview' | 'schedule' | 'consultations' | 'tutors' | 'tutor_apps' | 'payments' | 'users' | 'settings'>('overview');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedTab = searchParams.get('tab');
+  const activeTab: AdminTab = ADMIN_TABS.includes(requestedTab as AdminTab) ? requestedTab as AdminTab : 'overview';
+  const setActiveTab = (tab: AdminTab) => setSearchParams(prev => { const next = new URLSearchParams(prev); next.set('tab', tab); return next; });
   const [userSearch, setUserSearch] = useState('');
   const [creditDelta, setCreditDelta] = useState<Record<string, string>>({});
+  const [creditBusy, setCreditBusy] = useState<Record<string, boolean>>({});
+  const creditLocks = useRef(new Set<string>());
+  const [pointUserFilter, setPointUserFilter] = useState('');
+  const [dataError, setDataError] = useState('');
   
   const [stats, setStats] = useState({ users: 0, revenue: 0, upcomingSessions: 0, pendingConsults: 0 });
   const [consultations, setConsultations] = useState<any[]>([]);
@@ -102,6 +116,8 @@ export default function AdminDashboard() {
 
   const fetchAdminData = async () => {
     setLoading(true);
+    setDataError('');
+    const failedCollections: string[] = [];
     try {
       // 1. Fetch Users
       const userSnap = await getDocs(collection(db, 'users'));
@@ -114,6 +130,7 @@ export default function AdminDashboard() {
         combinedConsults = consultSnap.docs.map(d => ({ id: d.id, ...d.data() }));
       } catch (err) {
         console.warn('consultations fetch failed:', err);
+        failedCollections.push('상담');
       }
       setConsultations(combinedConsults);
       const pendingCount = combinedConsults.filter(c => c.status === 'pending' || !c.status).length;
@@ -125,6 +142,7 @@ export default function AdminDashboard() {
         allPayments = paymentSnap.docs.map(d => ({ id: d.id, ...d.data() }));
       } catch (err) {
         console.warn('payments fetch failed:', err);
+        failedCollections.push('결제');
       }
       setPayments(allPayments);
 
@@ -140,6 +158,7 @@ export default function AdminDashboard() {
         tutorList = tutorSnap.docs.map(d => ({ id: d.id, ...d.data() }));
       } catch (err) {
         console.warn('tutors fetch failed:', err);
+        failedCollections.push('강사');
       }
       setTutors(tutorList);
 
@@ -154,6 +173,7 @@ export default function AdminDashboard() {
         appsList = appsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
       } catch (err) {
         console.warn('tutor_applications fetch failed:', err);
+        failedCollections.push('강사 신청');
       }
       setTutorApps(appsList);
 
@@ -182,6 +202,7 @@ export default function AdminDashboard() {
         }
       } catch (err) {
         console.warn('app_settings fetch failed:', err);
+        failedCollections.push('설정');
       }
 
       // upcomingSessions 는 별도 sessions 구독에서 채우므로 prev 유지
@@ -193,7 +214,9 @@ export default function AdminDashboard() {
       }));
     } catch (err) {
       console.error('Error fetching admin data:', err);
+      failedCollections.push('사용자');
     } finally {
+      if (failedCollections.length) setDataError(`${failedCollections.join('·')} 정보를 불러오지 못했습니다. 표시된 목록·통계가 불완전할 수 있습니다. 새로고침하거나 권한과 연결을 확인해주세요.`);
       setLoading(false);
     }
   };
@@ -266,20 +289,47 @@ export default function AdminDashboard() {
   };
 
   const handleAdjustUserCredits = async (u: any, delta: number) => {
-    if (!delta || !Number.isFinite(delta)) return;
+    if (!firebaseUser || user?.role !== 'admin' || creditLocks.current.has(u.id)) return;
+    if (!Number.isSafeInteger(delta) || delta === 0) {
+      alert('포인트는 0보다 큰 정수로 입력해주세요.');
+      return;
+    }
+    const action = delta > 0 ? '지급' : '회수';
+    const reason = window.prompt(`${u.name || u.email || u.id}님에게 ${Math.abs(delta).toLocaleString()}P ${action} 사유를 입력해주세요.`);
+    if (reason === null) return;
+    if (!reason.trim() || reason.trim().length > 300) {
+      alert('사유를 1~300자 이내로 입력해주세요.');
+      return;
+    }
+    if (!window.confirm(`${u.name || u.email || u.id}님 ${Math.abs(delta).toLocaleString()}P ${action}\n사유: ${reason.trim()}\n진행하시겠습니까?`)) return;
+    creditLocks.current.add(u.id);
+    setCreditBusy(prev => ({ ...prev, [u.id]: true }));
     try {
-      // 서버 문서를 먼저 조회해 현재 값을 기준으로 가감 (legacy 문자열/누락 대비)
       const userRef = doc(db, 'users', u.id);
-      const snap = await getDoc(userRef);
-      const currentCredits = Number(snap.data()?.credits) || 0;
-      const nextCredits = Math.max(0, currentCredits + delta);
-      await updateDoc(userRef, { credits: nextCredits });
+      const historyRef = doc(collection(db, 'point_adjustments'));
+      // 잔액 변경과 로그 저장을 원자적으로 처리한다. 실패 시 둘 다 반영되지 않는다.
+      const nextCredits = await runTransaction(db, async tx => {
+        const snap = await tx.get(userRef);
+        if (!snap.exists()) throw new Error('사용자 정보를 찾을 수 없습니다.');
+        const { before, after } = calculatePointAdjustment(snap.data().credits, delta);
+        tx.update(userRef, { credits: after });
+        tx.set(historyRef, {
+          userId: u.id, userName: snap.data().name || u.name || '',
+          adminId: firebaseUser.uid, adminName: user.name || firebaseUser.displayName || '',
+          delta, before, after, reason: reason.trim(), createdAt: serverTimestamp(),
+        });
+        return after;
+      });
       setUsersList(prev =>
         prev.map(x => (x.id === u.id ? { ...x, credits: nextCredits } : x))
       );
+      setDetailUser(prev => prev?.id === u.id ? { ...prev, credits: nextCredits } : prev);
       setCreditDelta(prev => ({ ...prev, [u.id]: '' }));
     } catch (err: any) {
       alert('포인트 조정 실패: ' + (err.message || '알 수 없는 오류'));
+    } finally {
+      creditLocks.current.delete(u.id);
+      setCreditBusy(prev => ({ ...prev, [u.id]: false }));
     }
   };
 
@@ -313,11 +363,24 @@ export default function AdminDashboard() {
     // 신청서의 실명(app.name) 대신 유저가 설정한 닉네임(users.name) 을 우선 사용
     const tutorUser = usersList.find(u => u.id === app.userId || u.uid === app.userId);
     const tutorDisplayName = (tutorUser?.name || app.name || '강사').trim();
+    if (tutorUser?.role === 'admin') {
+      alert('관리자 계정은 이 기능으로 강사 역할로 변경할 수 없습니다. 관리자 권한을 유지해주세요.');
+      return;
+    }
 
     if (!window.confirm(`${tutorDisplayName} 님의 강사 신청을 승인합니다.\n승인 시 해당 유저의 역할이 '강사'로 변경되고 튜터 목록에 등록됩니다.`)) return;
     try {
-      // 1. 튜터 문서 생성 (user uid를 문서 ID로 사용)
-      await setDoc(doc(db, 'tutors', app.userId), {
+      // 사용자·튜터·신청서가 함께 성공하거나 함께 롤백된다.
+      await runTransaction(db, async tx => {
+      const userRef = doc(db, 'users', app.userId);
+      const appRef = doc(db, 'tutor_applications', app.id);
+      const tutorRef = doc(db, 'tutors', app.userId);
+      const [userSnap, appSnap, tutorSnap] = await Promise.all([tx.get(userRef), tx.get(appRef), tx.get(tutorRef)]);
+      if (!userSnap.exists() || !appSnap.exists()) throw new Error('사용자 또는 신청서를 찾을 수 없습니다.');
+      if (userSnap.data().role === 'admin') throw new Error('관리자 권한은 변경할 수 없습니다.');
+      if (appSnap.data().status !== 'pending') throw new Error('이미 처리된 신청입니다. 새로고침 후 확인해주세요.');
+      // 이미 등록된 강사 프로필은 덮어쓰지 않는다.
+      if (!tutorSnap.exists()) tx.set(tutorRef, {
         id: app.userId,
         name: tutorDisplayName,
         avatar: `https://picsum.photos/seed/tutor_${app.userId}/200/200`,
@@ -335,15 +398,16 @@ export default function AdminDashboard() {
       });
 
       // 2. 유저 역할 변경
-      await updateDoc(doc(db, 'users', app.userId), {
+      tx.update(userRef, {
         role: 'tutor',
         tutorApplicationStatus: 'approved',
       });
 
       // 3. 신청 문서 상태 업데이트
-      await updateDoc(doc(db, 'tutor_applications', app.id), {
+      tx.update(appRef, {
         status: 'approved',
         reviewedAt: serverTimestamp(),
+      });
       });
 
       // 4. Firebase Auth custom claim 동기화
@@ -363,6 +427,10 @@ export default function AdminDashboard() {
 
   // 관리자가 임의의 유저를 강사로 직접 등록 (role 무관 — 학생이어도 가능)
   const handleRegisterUserAsTutor = async (u: any) => {
+    if (u.role === 'admin') {
+      alert('관리자 계정은 강사로 변경할 수 없습니다. 별도의 강사 계정을 사용해주세요.');
+      return;
+    }
     const uid = u.uid || u.id;
     if (!uid) {
       alert('유저 식별자(uid)를 찾을 수 없습니다.');
@@ -380,7 +448,13 @@ export default function AdminDashboard() {
     )) return;
 
     try {
-      await setDoc(doc(db, 'tutors', uid), {
+      await runTransaction(db, async tx => {
+      const userRef = doc(db, 'users', uid);
+      const tutorRef = doc(db, 'tutors', uid);
+      const [userSnap, tutorSnap] = await Promise.all([tx.get(userRef), tx.get(tutorRef)]);
+      if (!userSnap.exists()) throw new Error('사용자 정보를 찾을 수 없습니다.');
+      if (userSnap.data().role === 'admin') throw new Error('관리자 권한은 변경할 수 없습니다.');
+      if (!tutorSnap.exists()) tx.set(tutorRef, {
         id: uid,
         name: displayName,
         avatar: u.avatar || `https://picsum.photos/seed/tutor_${uid}/200/200`,
@@ -396,9 +470,10 @@ export default function AdminDashboard() {
         hidden: false,
         createdAt: serverTimestamp(),
       });
-      await updateDoc(doc(db, 'users', uid), {
+      tx.update(userRef, {
         role: 'tutor',
         tutorApplicationStatus: 'approved',
+      });
       });
       const claimOk = await syncCustomClaimRole(uid, 'tutor');
       alert(claimOk
@@ -412,22 +487,26 @@ export default function AdminDashboard() {
   };
 
   const handleDeleteTutorApp = async (app: any) => {
+    if (app.status !== 'pending') {
+      alert('처리된 신청은 승인·거절 이력 보존을 위해 삭제하지 않습니다.');
+      return;
+    }
     const confirmed = window.confirm(
       `"${app.name || '(이름 없음)'}" 님의 강사 신청을 영구 삭제합니다.\n\n` +
       `신청 기록이 완전히 제거되며 되돌릴 수 없습니다. 진행하시겠습니까?`
     );
     if (!confirmed) return;
     try {
-      await deleteDoc(doc(db, 'tutor_applications', app.id));
-      // 신청자 유저 문서의 상태도 정리 (존재 시)
-      try {
-        await updateDoc(doc(db, 'users', app.userId), {
-          tutorApplicationStatus: null,
-          tutorApplicationId: null,
+      await runTransaction(db, async tx => {
+        const appRef = doc(db, 'tutor_applications', app.id);
+        const userRef = doc(db, 'users', app.userId);
+        const [appSnap, userSnap] = await Promise.all([tx.get(appRef), tx.get(userRef)]);
+        if (!appSnap.exists() || appSnap.data().status !== 'pending') throw new Error('이미 처리되었거나 삭제된 신청입니다.');
+        tx.delete(appRef);
+        if (userSnap.exists() && userSnap.data().tutorApplicationId === app.id) tx.update(userRef, {
+          tutorApplicationStatus: null, tutorApplicationId: null,
         });
-      } catch {
-        // 유저 문서 정리 실패는 치명적이지 않음
-      }
+      });
       setTutorApps(prev => prev.filter(a => a.id !== app.id));
       setDetailTutorApp(null);
       setRejectionReason('');
@@ -442,13 +521,20 @@ export default function AdminDashboard() {
       return;
     }
     try {
-      await updateDoc(doc(db, 'tutor_applications', app.id), {
+      await runTransaction(db, async tx => {
+      const appRef = doc(db, 'tutor_applications', app.id);
+      const userRef = doc(db, 'users', app.userId);
+      const [appSnap, userSnap] = await Promise.all([tx.get(appRef), tx.get(userRef)]);
+      if (!appSnap.exists() || !userSnap.exists()) throw new Error('사용자 또는 신청서를 찾을 수 없습니다.');
+      if (appSnap.data().status !== 'pending') throw new Error('이미 처리된 신청입니다.');
+      tx.update(appRef, {
         status: 'rejected',
         rejectionReason: reason.trim(),
         reviewedAt: serverTimestamp(),
       });
-      await updateDoc(doc(db, 'users', app.userId), {
+      tx.update(userRef, {
         tutorApplicationStatus: 'rejected',
+      });
       });
       setTutorApps(prev =>
         prev.map(a => (a.id === app.id ? { ...a, status: 'rejected', rejectionReason: reason.trim() } : a))
@@ -495,7 +581,7 @@ export default function AdminDashboard() {
     let nextMessage = t.disabledMessage || '';
     if (nextDisabled) {
       const input = window.prompt(
-        '비활성화 시 "등록하기" 버튼 자리에 표시할 안내 문구를 입력해주세요.\n(예: 현재 대기 중 · 수업 준비 중)',
+        '비활성화 시 "수업 신청" 버튼 자리에 표시할 안내 문구를 입력해주세요.\n(예: 현재 대기 중 · 수업 준비 중)',
         nextMessage || '현재 대기 중'
       );
       if (input === null) return; // 취소
@@ -515,6 +601,10 @@ export default function AdminDashboard() {
   };
 
   const handleSaveSettings = async () => {
+    if (dataError.includes('설정')) {
+      alert('설정 정보를 불러오지 못해 저장할 수 없습니다. 새로고침 후 다시 시도해주세요.');
+      return;
+    }
     setSettingsSaving(true);
     try {
       await setDoc(
@@ -552,11 +642,19 @@ export default function AdminDashboard() {
   // 관리자 결제 승인 — pending → completed + 추천인 보상 지급
   // 트랜잭션으로 래핑하여 중복 승인(레이스) · 중복 보상 지급 방지
   const handleApprovePayment = async (p: any) => {
-    if (p.status === 'completed') {
-      alert('이미 완료 처리된 결제입니다.');
+    if (p.status && p.status !== 'pending') {
+      alert('입금 대기 상태의 결제만 승인할 수 있습니다.');
       return;
     }
     if (!window.confirm(`주문 "${p.orderId || p.id}" 입금을 확인하고 완료 처리하시겠습니까?`)) return;
+    if (p.flowVersion === 2) {
+      try {
+        const result = await paymentApi('/api/admin/payment', { orderId: p.id, action: 'approve' });
+        await fetchAdminData();
+        alert(result.referralRewardStatus === 'needs_review' ? '결제는 완료되었습니다. 추천인 잔액에 문제가 있어 보상은 관리자 확인 대상으로 남았습니다.' : '결제 완료 처리되었습니다.');
+      } catch (error: any) { alert(error.message || '승인 처리 실패'); }
+      return;
+    }
 
     try {
       const paymentRef = doc(db, 'payments', p.id);
@@ -568,9 +666,10 @@ export default function AdminDashboard() {
         const payData = paySnap.data() as any;
 
         // 이미 완료된 결제는 중복 처리 금지 (서버 상태 기반 검증)
-        if (payData.status === 'completed') {
-          throw new Error('이미 완료 처리된 결제입니다.');
+        if (payData.status && payData.status !== 'pending') {
+          throw new Error('입금 대기 상태의 결제만 승인할 수 있습니다.');
         }
+        rewardGranted = false;
 
         // 추천인 보상 여부 사전 판단 (트랜잭션 내부에서 get)
         let shouldReward = false;
@@ -592,7 +691,10 @@ export default function AdminDashboard() {
           status: 'completed',
           confirmedAt: serverTimestamp(),
           confirmedBy: 'admin',
-          ...(shouldReward ? { referralRewarded: true } : {}),
+          ...(shouldReward ? {
+            referralRewarded: true, referralRewardUserId: referrerId,
+            referralRewardAmount: 20000, referralRewardedAt: serverTimestamp(),
+          } : {}),
         });
 
         if (shouldReward && referrerId) {
@@ -616,6 +718,14 @@ export default function AdminDashboard() {
   const handleFailPayment = async (p: any) => {
     const reason = window.prompt('실패/취소 사유를 입력해주세요.', '입금 미확인');
     if (reason === null) return;
+    if (p.flowVersion === 2) {
+      try {
+        const result = await paymentApi('/api/admin/payment', { orderId: p.id, action: 'cancel', reason });
+        await fetchAdminData();
+        alert(result.status === 'completed' ? '이미 승인된 결제입니다. 내역을 확인해주세요.' : '취소 및 포인트 반환이 완료되었습니다.');
+      } catch (error: any) { alert(error.message || '취소 처리 실패'); }
+      return;
+    }
     try {
       const paymentRef = doc(db, 'payments', p.id);
       let refundedAmount = 0;
@@ -625,9 +735,10 @@ export default function AdminDashboard() {
         if (!paySnap.exists()) throw new Error('결제 문서를 찾을 수 없습니다.');
         const payData = paySnap.data() as any;
 
-        if (payData.status === 'cancelled' || payData.status === 'failed') {
-          throw new Error('이미 취소된 결제입니다.');
+        if (payData.status && payData.status !== 'pending') {
+          throw new Error('입금 대기 상태의 결제만 취소할 수 있습니다. 완료 결제의 실제 환불은 별도 처리해야 합니다.');
         }
+        refundedAmount = 0;
 
         const usedCredits = Number(payData.creditsUsed || 0);
         const alreadyRefunded = payData.creditsRefunded === true;
@@ -644,7 +755,7 @@ export default function AdminDashboard() {
           status: 'cancelled',
           failReason: reason.trim() || '관리자에 의한 취소',
           cancelledAt: serverTimestamp(),
-          ...(shouldRefund ? { creditsRefunded: true } : {}),
+          ...(shouldRefund ? { creditsRefunded: true, creditsRefundedAt: serverTimestamp() } : {}),
         });
       });
 
@@ -721,36 +832,6 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleResetUserCredits = async (u: any) => {
-    if (!window.confirm(`${u.name || u.email}님의 포인트를 0으로 초기화합니다. 진행할까요?`)) return;
-    try {
-      await updateDoc(doc(db, 'users', u.id), { credits: 0 });
-      setUsersList(prev => prev.map(x => (x.id === u.id ? { ...x, credits: 0 } : x)));
-    } catch (err: any) {
-      alert('초기화 실패: ' + (err.message || '알 수 없는 오류'));
-    }
-  };
-
-  const handlePurgeAllCredits = async () => {
-    if (!window.confirm('모든 사용자의 포인트를 0으로 초기화합니다. 실행하시겠습니까?')) return;
-    try {
-      // Firestore batch는 500개 제한 → 여러 묶음으로 커밋
-      const snap = await getDocs(collection(db, 'users'));
-      const CHUNK = 400;
-      for (let i = 0; i < snap.docs.length; i += CHUNK) {
-        const batch = writeBatch(db);
-        snap.docs.slice(i, i + CHUNK).forEach(d => {
-          batch.update(d.ref, { credits: 0 });
-        });
-        await batch.commit();
-      }
-      alert(`완료: ${snap.size}명의 포인트를 0으로 회수했습니다.`);
-      fetchAdminData();
-    } catch (err: any) {
-      alert('회수 실패: ' + (err.message || '알 수 없는 오류'));
-    }
-  };
-
   // ────────────────────────────────────────────────
   // Hook 규칙 준수: 모든 useState/useEffect/커스텀 훅 호출은 early return 위에서!
   // ────────────────────────────────────────────────
@@ -779,11 +860,11 @@ export default function AdminDashboard() {
 
   const filteredPayments = payments.filter(p => {
     if (paymentFilter === 'all') return true;
-    if (paymentFilter === 'pending') return p.status === 'pending' || !p.status;
+    if (paymentFilter === 'pending') return ['pending', 'confirming', 'cancelling'].includes(p.status) || !p.status;
     if (paymentFilter === 'completed') return p.status === 'completed';
     return p.status === 'cancelled' || p.status === 'failed';
   });
-  const pendingPaymentCount = payments.filter(p => p.status === 'pending' || !p.status).length;
+  const pendingPaymentCount = payments.filter(p => ['pending', 'confirming', 'cancelling'].includes(p.status) || !p.status).length;
   const completedPaymentCount = payments.filter(p => p.status === 'completed').length;
   const cancelledPaymentCount = payments.filter(p => p.status === 'cancelled' || p.status === 'failed').length;
 
@@ -801,6 +882,7 @@ export default function AdminDashboard() {
     const tutorIds = new Set(tutors.map(t => t.id));
     return usersList
       .filter(u => {
+        if (u.role === 'admin') return false;
         const uid = u.uid || u.id;
         if (tutorIds.has(uid)) return false;
         const nickname = (u.name || '').toLowerCase();
@@ -817,6 +899,7 @@ export default function AdminDashboard() {
     { id: 'schedule', label: '일정 관리', icon: CalendarDays, count: stats.upcomingSessions },
     { id: 'consultations', label: '상담 내역', icon: MessageSquare, count: stats.pendingConsults },
     { id: 'payments', label: '결제 관리', icon: CreditCard },
+    { id: 'points', label: '포인트 내역', icon: Coins },
     { id: 'users', label: '유저 관리', icon: Users },
     { id: 'tutor_apps', label: '강사 신청', icon: School, count: pendingTutorAppsCount },
     { id: 'tutors', label: '강사 관리', icon: UserPlus },
@@ -862,27 +945,31 @@ export default function AdminDashboard() {
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" onClick={fetchAdminData} className="text-xs">새로고침</Button>
-          <Button
-            variant="outline"
-            onClick={handlePurgeAllCredits}
-            className="text-xs text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
-          >
-            전체 포인트 회수
-          </Button>
         </div>
       </header>
+      {dataError && <p role="alert" className="mb-4 rounded-xl bg-red-50 p-4 text-sm text-red-700">{dataError}</p>}
 
-      {/* Tabs Navigation */}
-      <div className="flex gap-4 border-b border-slate-200 mb-8 overflow-x-auto pb-px">
-        {navItems.map((item) => (
+      <div className="grid items-start gap-6 lg:grid-cols-[200px_minmax(0,1fr)]">
+      <nav aria-label="관리자 업무 메뉴" className="rounded-2xl border border-slate-200 bg-white p-3 lg:sticky lg:top-24">
+        {[
+          { title: '현황', ids: ['overview'] },
+          { title: '운영 관리', ids: ['consultations', 'schedule'] },
+          { title: '회원 · 강사', ids: ['users', 'tutor_apps', 'tutors'] },
+          { title: '결제 · 포인트', ids: ['payments', 'points'] },
+          { title: '사이트 설정', ids: ['settings'] },
+        ].map(group => <div key={group.title} className="mb-3 last:mb-0">
+          <p className="px-3 py-2 text-[11px] font-bold text-slate-400">{group.title}</p>
+          <div className="flex flex-wrap gap-1 lg:flex-col">
+          {navItems.filter(item => group.ids.includes(item.id)).map((item) => (
           <button
             key={item.id}
+            aria-current={activeTab === item.id ? 'page' : undefined}
             onClick={() => setActiveTab(item.id as any)}
             className={cn(
-              'flex items-center gap-2 px-4 py-4 text-sm font-bold border-b-2 transition-all whitespace-nowrap',
+              'flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-semibold transition-colors whitespace-nowrap',
               activeTab === item.id 
-                ? 'border-blue-600 text-blue-600' 
-                : 'border-transparent text-slate-500 hover:text-slate-700'
+                ? 'bg-blue-50 text-blue-700'
+                : 'text-slate-600 hover:bg-slate-50'
             )}
           >
             <item.icon size={18} />
@@ -893,8 +980,11 @@ export default function AdminDashboard() {
               </span>
             ) : null}
           </button>
-        ))}
-      </div>
+          ))}
+          </div>
+        </div>)}
+      </nav>
+      <main className="min-w-0">
 
       {loading ? (
         <div className="flex justify-center py-20">
@@ -1112,7 +1202,7 @@ export default function AdminDashboard() {
                 <div className="inline-flex flex-wrap items-center gap-1 p-1 bg-slate-100 rounded-xl">
                   {([
                     { id: 'all', label: `전체 (${payments.length})` },
-                    { id: 'pending', label: `입금 대기 (${pendingPaymentCount})` },
+                    { id: 'pending', label: `처리 대기 (${pendingPaymentCount})` },
                     { id: 'completed', label: `완료 (${completedPaymentCount})` },
                     { id: 'cancelled', label: `취소/실패 (${cancelledPaymentCount})` },
                   ] as const).map(opt => (
@@ -1168,7 +1258,7 @@ export default function AdminDashboard() {
                             <p className="font-bold">{payer?.name || '알 수 없음'}</p>
                             {payer?.email && <p className="text-[11px] text-slate-500">{payer.email}</p>}
                           </td>
-                          <td className="px-4 py-3 text-sm font-bold text-slate-900">{p.productName}</td>
+                          <td className="px-4 py-3 text-sm font-bold text-slate-900">{p.productName}<p className="mt-1 text-xs font-normal text-slate-500">{p.paymentMethod === 'toss_widget' ? '카드·간편결제' : p.paymentMethod === 'points' ? '포인트 전액 결제' : '무통장입금'}{p.creditsUsed > 0 ? ` · ${Number(p.creditsUsed).toLocaleString()}P 사용` : ''}</p>{p.pointsUnavailable && <p className="mt-1 text-xs font-normal text-red-600">포인트 잔액 확인 필요 · 포인트 미사용 결제</p>}</td>
                           <td className="px-4 py-3 font-black text-slate-900">{p.amount?.toLocaleString()}원</td>
                           <td className="px-4 py-3 text-sm text-slate-700">{p.depositorName || '-'}</td>
                           <td className="px-4 py-3 text-sm text-slate-500">{formatTS(p.createdAt, 'datetime')}</td>
@@ -1178,27 +1268,37 @@ export default function AdminDashboard() {
                               p.status === 'completed' && 'bg-green-100 text-green-700',
                               p.status === 'cancelled' && 'bg-red-100 text-red-700',
                               p.status === 'failed' && 'bg-red-100 text-red-700',
-                              (p.status === 'pending' || !p.status) && 'bg-amber-100 text-amber-700'
+                              (['pending', 'confirming', 'cancelling'].includes(p.status) || !p.status) && 'bg-amber-100 text-amber-700'
                             )}>
                               {p.status === 'completed'
                                 ? '완료'
                                 : p.status === 'cancelled' || p.status === 'failed'
                                 ? '취소됨'
-                                : '입금 대기'}
+                                : p.status === 'confirming' ? '승인 확인 중'
+                                : p.status === 'cancelling' ? '취소 확인 중'
+                                : p.paymentMethod === 'toss_widget' ? '결제 대기' : '입금 대기'}
                             </span>
+                            {p.referralRewardStatus === 'needs_review' && <p className="mt-2 max-w-48 text-xs text-amber-700" title={p.referralRewardIssue}>추천 보상 확인 필요<br />대상: {p.referralRewardUserId}</p>}
                           </td>
                           <td className="px-4 py-3 text-right">
                             <div className="flex gap-1 justify-end flex-wrap">
-                              {(p.status === 'pending' || !p.status) && (
+                              {p.status === 'completed' && p.referralRewardStatus === 'needs_review' && <Button variant="outline" size="sm" className="text-xs text-amber-700" onClick={async () => {
+                                try {
+                                  const result = await paymentApi('/api/admin/payment', { orderId: p.id, action: 'retry_reward' });
+                                  await fetchAdminData();
+                                  alert(result.referralRewardStatus === 'paid' ? '추천 보상이 지급되었습니다.' : '추천인 잔액 확인이 여전히 필요합니다. 결제 완료 상태는 유지됩니다.');
+                                } catch (error: any) { alert(error.message || '추천 보상 확인 실패'); }
+                              }}>추천 보상 재확인</Button>}
+                              {(['pending', 'confirming', 'cancelling'].includes(p.status) || !p.status) && (
                                 <>
-                                  <Button
+                                  {(p.status === 'pending' || !p.status) && (p.flowVersion !== 2 || p.paymentMethod === 'manual_bank_transfer') && <Button
                                     variant="outline"
                                     size="sm"
                                     className="text-xs text-green-700 border-green-200 hover:bg-green-50"
                                     onClick={() => handleApprovePayment(p)}
                                   >
                                     입금 확인
-                                  </Button>
+                                  </Button>}
                                   <Button
                                     variant="outline"
                                     size="sm"
@@ -1233,6 +1333,12 @@ export default function AdminDashboard() {
             </motion.div>
           )}
 
+          {activeTab === 'points' && (
+            <motion.div key="points" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+              <PointHistoryPanel payments={payments} users={usersList} initialUserId={pointUserFilter} />
+            </motion.div>
+          )}
+
           {activeTab === 'users' && (
             <motion.div key="users" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
@@ -1262,7 +1368,7 @@ export default function AdminDashboard() {
                       {usersPage.sliced.map((u: any) => {
                         const raw = creditDelta[u.id] ?? '';
                         const delta = Number(raw);
-                        const isValid = raw !== '' && Number.isFinite(delta);
+                        const isValid = raw !== '' && Number.isSafeInteger(delta) && delta > 0;
                         return (
                           <tr key={u.id} className="hover:bg-slate-50/50 transition-colors">
                             <td className="px-4 py-3">
@@ -1290,6 +1396,9 @@ export default function AdminDashboard() {
                               <div className="flex items-center gap-1">
                                 <input
                                   type="number"
+                                  min="1"
+                                  step="1"
+                                  aria-label={`${u.name || u.email || u.id} 포인트 조정 금액`}
                                   placeholder="숫자"
                                   className="w-24 rounded-lg border border-slate-200 px-2 py-1 text-sm outline-none focus:border-blue-500"
                                   value={raw}
@@ -1300,7 +1409,7 @@ export default function AdminDashboard() {
                                 <Button
                                   size="sm"
                                   className="text-xs font-bold bg-green-600 text-white hover:bg-green-700 disabled:bg-green-300"
-                                  disabled={!isValid || delta <= 0}
+                                  disabled={!isValid || creditBusy[u.id]}
                                   onClick={() => handleAdjustUserCredits(u, Math.abs(delta))}
                                 >
                                   + 지급
@@ -1308,7 +1417,7 @@ export default function AdminDashboard() {
                                 <Button
                                   size="sm"
                                   className="text-xs font-bold bg-red-600 text-white hover:bg-red-700 disabled:bg-red-300"
-                                  disabled={!isValid || delta <= 0}
+                                  disabled={!isValid || creditBusy[u.id]}
                                   onClick={() => handleAdjustUserCredits(u, -Math.abs(delta))}
                                 >
                                   − 회수
@@ -1335,9 +1444,9 @@ export default function AdminDashboard() {
                                   size="sm"
                                   variant="outline"
                                   className="text-xs text-slate-500 hover:text-slate-700"
-                                  onClick={() => handleResetUserCredits(u)}
+                                  onClick={() => { setPointUserFilter(u.id); setActiveTab('points'); }}
                                 >
-                                  0으로 초기화
+                                  포인트 내역
                                 </Button>
                               </div>
                             </td>
@@ -1413,6 +1522,7 @@ export default function AdminDashboard() {
                           size="sm"
                           className="text-xs text-red-600 border-red-200 hover:text-red-700 hover:bg-red-50"
                           onClick={() => handleDeleteTutorApp(app)}
+                          disabled={app.status !== 'pending'}
                         >
                           삭제
                         </Button>
@@ -1567,6 +1677,14 @@ export default function AdminDashboard() {
                           onClick={() => handleToggleEnrollDisabled(tutor)}
                         >
                           {tutor.enrollDisabled ? '등록 활성화' : '등록 비활성화'}
+                        </Button>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button variant="outline" className="w-full text-xs" onClick={async () => {
+                          const ok = await syncCustomClaimRole(tutor.id, 'tutor');
+                          alert(ok ? '강사 권한 동기화가 완료되었습니다.' : '권한 동기화에 실패했습니다. 서버 설정을 확인해주세요.');
+                        }}>
+                          권한 동기화 재시도
                         </Button>
                       </div>
                       <div className="flex gap-2">
@@ -1849,6 +1967,8 @@ export default function AdminDashboard() {
           )}
         </AnimatePresence>
       )}
+      </main>
+      </div>
 
       {/* 상담 상세보기 모달 */}
       <AnimatePresence>
@@ -2241,6 +2361,7 @@ export default function AdminDashboard() {
                     variant="outline"
                     className="text-red-600 border-red-200 hover:text-red-700 hover:bg-red-50"
                     onClick={() => handleDeleteTutorApp(detailTutorApp)}
+                    disabled={detailTutorApp.status !== 'pending'}
                   >
                     신청 삭제
                   </Button>

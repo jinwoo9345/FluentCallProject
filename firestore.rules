@@ -29,23 +29,7 @@ service cloud.firestore {
         );
     }
 
-    // 타인의 credits 필드만 증가시키는 경우 (포인트 선물 수신자 업데이트)
-    function validCreditIncrement(userId) {
-      return request.auth.uid != userId
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['credits'])
-        && request.resource.data.credits is int
-        && resource.data.credits is int
-        && request.resource.data.credits > resource.data.credits
-        && (request.resource.data.credits - resource.data.credits) <= 100000;
-    }
-
-    // 본인이 자신의 credits만 감소시키는 경우 (포인트 선물 송신자 자기 자신 업데이트)
-    function ownCreditsDecrementOnly() {
-      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['credits'])
-        && request.resource.data.credits is int
-        && request.resource.data.credits >= 0
-        && request.resource.data.credits < resource.data.credits;
-    }
+    // 금전성 잔액 변경은 서버 트랜잭션 또는 관리자 조정만 허용한다.
 
     // 신규 가입자는 반드시 최소 권한(student)과 0 포인트로 시작해야 한다.
     // 클라이언트가 임의 필드를 추가해 관리자 권한이나 금전성 값을 주입하지 못하도록
@@ -99,14 +83,10 @@ service cloud.firestore {
 
       allow create: if isSignedIn() && validUserCreate(userId);
 
-      // 본인: 프로필 필드만 변경 가능 (credits 직접 수정 금지, 단 decrement은 허용 = 포인트 선물용)
-      // 타인: credits 증가만 허용 (최대 10만P/회) - 포인트 선물 수신용
-      // 관리자: 전체 허용
+      // 일반 회원은 프로필만 변경. 포인트·선물·결제는 인증된 서버에서 처리.
       allow update: if isSignedIn() && (
         isAdmin()
         || ownProfileUpdateOnly(userId)
-        || (hasVerifiedEmailIfRequired() && request.auth.uid == userId && ownCreditsDecrementOnly())
-        || (hasVerifiedEmailIfRequired() && validCreditIncrement(userId))
       );
       allow delete: if isAdmin();
     }
@@ -139,15 +119,46 @@ service cloud.firestore {
     // 포인트 이체 내역
     // fromName은 실제 송신자 이름과 일치해야 (피싱 방지), amount는 양의 정수
     match /point_transfers/{transferId} {
-      allow create: if hasVerifiedEmailIfRequired()
-        && request.resource.data.fromId == request.auth.uid
-        && request.resource.data.amount is int
-        && request.resource.data.amount > 0;
+      allow create, update, delete: if false;
       allow read: if isSignedIn() && (
         resource.data.fromId == request.auth.uid
         || resource.data.toId == request.auth.uid
         || isAdmin()
       );
+    }
+
+    // 관리자 지급/회수 로그. 잔액 변경과 함께 생성하며 수정·삭제는 허용하지 않는다.
+    match /point_adjustments/{adjustmentId} {
+      allow read: if isAdmin();
+      allow update, delete: if false;
+      allow create: if isAdmin()
+        && request.resource.data.keys().hasOnly([
+          'userId', 'userName', 'adminId', 'adminName', 'delta',
+          'before', 'after', 'reason', 'createdAt'
+        ])
+        && request.resource.data.userId is string
+        && request.resource.data.userName is string
+        && request.resource.data.adminId == request.auth.uid
+        && request.resource.data.adminName is string
+        && request.resource.data.delta is int
+        && request.resource.data.delta != 0
+        && request.resource.data.before is int
+        && request.resource.data.before >= 0
+        && request.resource.data.after is int
+        && request.resource.data.after >= 0
+        && request.resource.data.after == request.resource.data.before + request.resource.data.delta
+        && request.resource.data.reason is string
+        && request.resource.data.reason.size() > 0
+        && request.resource.data.reason.size() <= 300
+        && request.resource.data.createdAt == request.time
+        && get(/databases/$(database)/documents/users/$(request.resource.data.userId)).data.get('credits', 0) == request.resource.data.before
+        && getAfter(/databases/$(database)/documents/users/$(request.resource.data.userId)).data.credits == request.resource.data.after;
+    }
+
+    // 서버가 생성하는 결제 사용·반환·보상 원장. 클라이언트 수정 금지.
+    match /point_ledger/{entryId} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
     }
 
     // 튜터 목록
@@ -329,13 +340,12 @@ service cloud.firestore {
       );
       allow list: if isAdmin()
         || (isSignedIn() && resource.data.tutorId == request.auth.uid);
-      allow create: if hasVerifiedEmailIfRequired()
-        && request.resource.data.userId == request.auth.uid
-        && request.resource.data.status == 'pending'
-        && request.resource.data.amount is int
-        && request.resource.data.amount > 0
-        && request.resource.data.referralRewarded == false;
-      allow update: if isAdmin();
+      allow create: if false;
+      // 기존 주문은 관리자의 기존 처리 유지. 새 서버 주문의 금전성 필드는 클라이언트 수정 금지.
+      allow update: if isAdmin() && (
+        (resource.data.get('flowVersion', 1) != 2 && request.resource.data.get('flowVersion', 1) == resource.data.get('flowVersion', 1))
+        || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['userName', 'userEmail'])
+      );
     }
   }
 }

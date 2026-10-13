@@ -1,13 +1,13 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Send, AlertCircle, CheckCircle2, User as UserIcon, Lock } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { db, auth } from '../../firebase';
 import {
-  collection, runTransaction, doc, getDoc,
-  serverTimestamp,
+  doc, getDoc,
 } from 'firebase/firestore';
 import { useAuth } from '../../contexts/AuthContext';
+import { paymentApi } from '../../services/paymentService';
 
 interface PointTransferModalProps {
   isOpen: boolean;
@@ -22,10 +22,13 @@ export function PointTransferModal({ isOpen, onClose }: PointTransferModalProps)
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const transferId = useRef('');
+  const transferLock = useRef(false);
 
   // 모달이 열리면 내 referredBy 코드의 유저 정보를 자동 조회
   useEffect(() => {
     if (!isOpen) return;
+    transferId.current = `gift_${crypto.randomUUID().replace(/-/g, '')}`;
     setRecipient(null);
     setError('');
     setSuccess(false);
@@ -59,6 +62,7 @@ export function PointTransferModal({ isOpen, onClose }: PointTransferModalProps)
   }, [isOpen, user?.referredBy]);
 
   const handleTransfer = async () => {
+    if (transferLock.current) return;
     if (!requireVerifiedEmail()) return;
     const currentUid = auth.currentUser?.uid;
     if (!recipient || amount <= 0 || !user || !currentUid) return;
@@ -66,57 +70,33 @@ export function PointTransferModal({ isOpen, onClose }: PointTransferModalProps)
       setError('정수 단위의 포인트만 전송할 수 있습니다.');
       return;
     }
-    if (user.credits < amount) {
-      setError('보유 포인트가 부족합니다.');
-      return;
-    }
+    // 실제 잔액과 동일 요청 재시도 여부는 서버에서 함께 확인한다.
+    // 응답만 유실된 성공 요청을 변경된 화면 잔액으로 차단하지 않는다.
     if (currentUid === recipient.id) {
       setError('본인에게는 포인트를 전송할 수 없습니다.');
       return;
     }
 
+    transferLock.current = true;
     setLoading(true);
     setError('');
 
     try {
-      await runTransaction(db, async (transaction) => {
-        const senderRef = doc(db, 'users', currentUid);
-        const recipientRef = doc(db, 'users', recipient.id);
-        const historyRef = doc(collection(db, 'point_transfers'));
-
-        const senderDoc = await transaction.get(senderRef);
-        const recipientDoc = await transaction.get(recipientRef);
-        if (!senderDoc.exists()) throw new Error('보내는 분의 정보를 찾을 수 없습니다.');
-        if (!recipientDoc.exists()) throw new Error('받는 분의 정보를 찾을 수 없습니다.');
-
-        const senderCredits = senderDoc.data().credits || 0;
-        const recipientCredits = recipientDoc.data().credits || 0;
-        if (senderCredits < amount) throw new Error('보유 포인트가 부족합니다.');
-
-        transaction.update(senderRef, { credits: senderCredits - amount });
-        transaction.update(recipientRef, { credits: recipientCredits + amount });
-
-        transaction.set(historyRef, {
-          fromId: currentUid,
-          fromName: user.name,
-          toId: recipient.id,
-          toName: recipient.name,
-          amount,
-          referralLocked: true,
-          createdAt: serverTimestamp(),
-        });
-      });
-
+      const result = await paymentApi('/api/points/transfer', { operationId: transferId.current, amount });
+      setRecipient(prev => ({ ...prev, name: result.recipientName }));
+      setAmount(result.amount);
       setSuccess(true);
     } catch (err: any) {
       console.error('Transfer Error:', err);
       setError(err.message || '전송 실패');
     } finally {
+      transferLock.current = false;
       setLoading(false);
     }
   };
 
   const resetAndClose = () => {
+    if (transferLock.current) return;
     setAmount(0);
     setRecipient(null);
     setError('');
@@ -221,6 +201,10 @@ export function PointTransferModal({ isOpen, onClose }: PointTransferModalProps)
                         <div className="relative">
                           <input
                             type="number"
+                            min={1}
+                            max={100000}
+                            step={1}
+                            disabled={loading}
                             placeholder="0"
                             className="w-full rounded-xl border border-slate-200 px-4 py-4 text-2xl font-black text-slate-900 focus:border-blue-500 outline-none pr-12"
                             value={amount || ''}
@@ -228,6 +212,7 @@ export function PointTransferModal({ isOpen, onClose }: PointTransferModalProps)
                           />
                           <span className="absolute right-4 top-1/2 -translate-y-1/2 font-bold text-slate-400">P</span>
                         </div>
+                        <p className="text-xs text-slate-500">1회 1~100,000P까지 선물할 수 있습니다. 실제 잔액은 서버에서 확인합니다.</p>
                       </motion.div>
                     )}
 
@@ -239,7 +224,7 @@ export function PointTransferModal({ isOpen, onClose }: PointTransferModalProps)
 
                     <Button
                       className="w-full py-6 rounded-2xl text-lg font-black gap-2 shadow-lg"
-                      disabled={loading || !recipient || amount <= 0 || amount > (user?.credits || 0)}
+                      disabled={loading || !recipient || !Number.isSafeInteger(amount) || amount <= 0 || amount > 100000}
                       onClick={handleTransfer}
                     >
                       {loading ? '전달 처리 중...' : '포인트 선물하기'}

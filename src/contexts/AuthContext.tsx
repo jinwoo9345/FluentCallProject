@@ -8,6 +8,7 @@ import {
 import { doc, onSnapshot, updateDoc, arrayUnion, arrayRemove, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '../firebase';
 import { User } from '../types';
+import { recoverPayments } from '../services/paymentService';
 
 interface AuthContextType {
   user: User | null;
@@ -36,6 +37,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
   const [firebaseEmailVerified, setFirebaseEmailVerified] = useState(false);
+  useEffect(() => {
+    if (!firebaseUser || !isAuthReady || !user) return;
+    let busy = false;
+    const recover = async () => {
+      if (busy || document.visibilityState === 'hidden') return;
+      busy = true;
+      try { await recoverPayments(); } catch (error) { console.warn('결제 복구 재확인 필요', error); }
+      finally { busy = false; }
+    };
+    void recover();
+    window.addEventListener('focus', recover);
+    const timer = window.setInterval(recover, 5 * 60 * 1000);
+    return () => { window.removeEventListener('focus', recover); window.clearInterval(timer); };
+  }, [firebaseUser?.uid, isAuthReady, !!user]);
 
   useEffect(() => {
     const unsubscribeAuth = onAuthStateChanged(auth, (fUser) => {

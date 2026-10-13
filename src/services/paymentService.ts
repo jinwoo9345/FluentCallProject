@@ -1,50 +1,33 @@
-import { serverTimestamp, doc, updateDoc, increment, setDoc } from 'firebase/firestore';
-import { db } from '../firebase';
+import { auth } from '../firebase';
 
-const PAYMENTS_COLLECTION = 'payments';
+export class PaymentApiError extends Error {
+  constructor(message: string, public status: number) { super(message); }
+}
 
-export const paymentService = {
-  async recordPayment(orderId: string, paymentData: any) {
-    const paymentRef = doc(db, PAYMENTS_COLLECTION, orderId);
-    await setDoc(
-      paymentRef,
-      {
-        ...paymentData,
-        status: 'completed',
-        confirmedAt: serverTimestamp(),
-      },
-      { merge: true }
-    );
-    return paymentRef;
-  },
-
-  async updateUserCredits(userId: string, amount: number) {
-    const userRef = doc(db, 'users', userId);
-    await updateDoc(userRef, {
-      credits: increment(amount)
-    });
-  },
-
-  async handleReferralReward(payerUserId: string, referrerCode: string) {
-    if (!referrerCode) return;
-    const code = referrerCode.trim().toUpperCase();
-
-    // referral_codes 인덱스에서 추천인 uid 조회 (공개 read)
-    const { getDoc } = await import('firebase/firestore');
-    const codeDoc = await getDoc(doc(db, 'referral_codes', code));
-    if (!codeDoc.exists()) return;
-
-    const referrerId = (codeDoc.data() as any).userId as string;
-
-    // 본인 코드로 본인 결제 시 지급 금지
-    if (!referrerId || referrerId === payerUserId) return;
-
-    // 결제자(친구)는 보상을 받지 않음. 초대한 사람(추천인)에게만 20,000 포인트 지급 (1 포인트 = 1원)
-    const REWARD_AMOUNT = 20000;
-    await updateDoc(doc(db, 'users', referrerId), {
-      credits: increment(REWARD_AMOUNT),
-    });
-
-    console.log(`Referral reward (${REWARD_AMOUNT}) sent to referrer ${referrerId} (paid by ${payerUserId})`);
-  }
-};
+export async function paymentApi(path: string, body: Record<string, unknown>): Promise<any> {
+  const user = auth.currentUser;
+  if (!user) throw new Error('로그인이 필요합니다.');
+  const token = await user.getIdToken();
+  const response = await fetch(path, { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const data: any = await response.json().catch(() => ({}));
+  if (!response.ok) throw new PaymentApiError(data.message || '처리를 완료하지 못했습니다. 잠시 후 다시 확인해주세요.', response.status);
+  return data;
+}
+const key = () => `eb.pendingPayments.${auth.currentUser?.uid || ''}`;
+function pending(): string[] {
+  try { const ids = JSON.parse(localStorage.getItem(key()) || '[]'); return Array.isArray(ids) ? ids.filter(id => typeof id === 'string').slice(-20) : []; }
+  catch { return []; }
+}
+export function rememberPayment(orderId: string) {
+  try { localStorage.setItem(key(), JSON.stringify([...new Set([...pending(), orderId])].slice(-20))); } catch {}
+}
+export function forgetPayment(orderId: string) {
+  try { localStorage.setItem(key(), JSON.stringify(pending().filter(id => id !== orderId))); } catch {}
+}
+export async function recoverPayments() {
+  if (window.location.pathname.startsWith('/payment/')) return { ok: true, results: [] };
+  // Never cancel a live redirect merely because the window gains focus.
+  const result = await paymentApi('/api/payments/recover', {});
+  for (const order of result.results || []) if (['cancelled', 'completed'].includes(order.status)) forgetPayment(order.orderId);
+  return result;
+}
