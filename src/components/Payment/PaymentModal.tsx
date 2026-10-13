@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   X, Check, ExternalLink, CreditCard, AlertCircle, Ticket, Gift, Award,
@@ -18,6 +19,7 @@ import { cn } from '@/src/lib/utils';
 import { PACKAGES, PackageKey } from '../../constants';
 import { paymentOrderAction } from '../../lib/paymentOrderState';
 import { inspectPointBalance } from '../../lib/pointBalance';
+import { openPaymentDialog } from '../../lib/paymentDialog';
 
 type PaymentMethodTab = 'bank' | 'toss';
 
@@ -39,6 +41,11 @@ const DEFAULT_BANK = {
 
 export function PaymentModal({ isOpen, onClose, productId, productName, tutorId, tutorName }: PaymentModalProps) {
   const { user, requireVerifiedEmail } = useAuth();
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  useLayoutEffect(() => {
+    if (!isOpen || !dialogRef.current) return;
+    return openPaymentDialog(dialogRef.current);
+  }, [isOpen]);
   const [termsAgreed, setTermsAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -324,10 +331,16 @@ export function PaymentModal({ isOpen, onClose, productId, productName, tutorId,
     onClose();
   };
 
-  return (
+  return createPortal(
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[200] overflow-y-auto bg-slate-900/60 backdrop-blur-sm">
+        <dialog
+          ref={dialogRef}
+          aria-labelledby="payment-dialog-title"
+          aria-modal="true"
+          onCancel={event => event.preventDefault()}
+          className="fixed inset-0 m-0 h-full max-h-none w-full max-w-none border-0 p-0 overflow-y-auto overscroll-contain bg-slate-900/60 backdrop:bg-transparent"
+        >
           <div className="flex min-h-full items-center justify-center p-4">
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -336,10 +349,10 @@ export function PaymentModal({ isOpen, onClose, productId, productName, tutorId,
               className="w-full max-w-lg bg-white rounded-3xl shadow-2xl overflow-hidden"
             >
               <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
-                <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                <h2 id="payment-dialog-title" className="text-xl font-bold text-slate-900 flex items-center gap-2">
                   <CreditCard className="text-blue-600" size={24} /> 수강 신청 및 결제
                 </h2>
-                <button onClick={resetAndClose} className="text-slate-400 hover:text-slate-600 transition-colors">
+                <button aria-label="결제창 닫기" onClick={resetAndClose} className="text-slate-400 hover:text-slate-600 transition-colors">
                   <X size={24} />
                 </button>
               </div>
@@ -809,9 +822,10 @@ export function PaymentModal({ isOpen, onClose, productId, productName, tutorId,
               )}
             </motion.div>
           </div>
-        </div>
+        </dialog>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 }
 
